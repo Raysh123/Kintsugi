@@ -6,6 +6,12 @@ public class InputHandler : MonoBehaviour
     public bool punch;
     public float move;
     public float speed;
+
+    public static InputHandler instance;
+    private void Awake()
+    {
+        instance = this;
+    }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -23,6 +29,13 @@ public class InputHandler : MonoBehaviour
     }
     public void onPunch(InputAction.CallbackContext ctx)
     {
-        punch = ctx.ReadValue<bool>();
+        if (ctx.performed)
+        {
+            punch = true;
+        }
+        else if (ctx.canceled)
+        {
+            punch = false;
+        }
     }
 }

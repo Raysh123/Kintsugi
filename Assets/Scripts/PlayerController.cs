@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
@@ -7,14 +8,12 @@ public class PlayerController : MonoBehaviour
 
     [Header("Movement")]
     [SerializeField] private float speed = 5f;
-    [SerializeField] private float jumpHeight = 2f;
-    [SerializeField] private float gravity = -9.8f;
     [SerializeField] private float facingRotationSpeed = 20f;
 
     private CharacterController controller;
     private float moveX;
-    private Vector3 velocity;
-
+    public Vector3 velocity;
+    public Vector3 move;
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -23,42 +22,23 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         HandleMovement();
-        HandleGravity();
         HandleFacing();
+        HandleAttack();
     }
 
-
-    public void OnMove(InputAction.CallbackContext context)
+    private void HandleAttack()
     {
-        moveX = context.ReadValue<float>();
-    }
-
-    public void OnJump(InputAction.CallbackContext context)
-    {
-        if (context.performed && controller.isGrounded)
+        if (InputHandler.instance.punch)
         {
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            Debug.Log("punch");
         }
     }
-
   
     private void HandleMovement()
     {
-        Vector3 move = new Vector3(moveX, 0f, 0f);
+        move = new Vector3(InputHandler.instance.move, 0f, 0f);
         controller.Move(move * speed * Time.deltaTime);
     }
-
-    private void HandleGravity()
-    {
-        if (controller.isGrounded && velocity.y < 0f)
-            velocity.y = -2f;
-
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
-    }
-
-    
-
     private void HandleFacing()
     {
         if (opponent == null) return;
