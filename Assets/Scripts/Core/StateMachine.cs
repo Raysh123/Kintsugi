@@ -59,12 +59,10 @@ public class StateMachine : MonoBehaviour
         }
         else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
         {
-            Debug.Log("do attacks");
             animator.Play("Kizami_Tsuki");
         }
         else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
         {
-            Debug.Log("do attacks");
             animator.Play("YokoGeri");
         }
 
@@ -109,7 +107,7 @@ public class StateMachine : MonoBehaviour
             }
                 
         }
-        if (InputHandler.instance.punch)
+        if (InputHandler.instance.punch || InputHandler.instance.kick)
         {
             ChangeState(PlayerStates.Attack);
         }
