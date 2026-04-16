@@ -67,6 +67,10 @@ public class StateMachine : MonoBehaviour
         {
             ChangeState(PlayerStates.Idle);
         }
+        if (InputHandler.instance.punch)
+        {
+            ChangeState(PlayerStates.Attack);
+        }
     }
 
     private void HandleIdle()
