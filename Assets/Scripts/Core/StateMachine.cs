@@ -13,6 +13,8 @@ public class StateMachine : MonoBehaviour
     public PlayerStates currentState;
     public static StateMachine instance;
     public PlayerController player;
+    [SerializeField]
+    private Animator animator;
     private void Awake()
     {
         if (instance != null)
@@ -51,14 +53,22 @@ public class StateMachine : MonoBehaviour
     private void HandleAttacks()
     {
         
-        if (InputHandler.instance.punch == false)
+        if (InputHandler.instance.punch == false & InputHandler.instance.kick == false)
         {
             ChangeState(PlayerStates.Idle);
         }
-        else
+        else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
         {
             Debug.Log("do attacks");
+            animator.Play("Kizami_Tsuki");
         }
+        else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
+        {
+            Debug.Log("do attacks");
+            animator.Play("YokoGeri");
+        }
+
+
     }
 
     private void HandleMove()
@@ -66,6 +76,7 @@ public class StateMachine : MonoBehaviour
         if(player.move.magnitude == 0)
         {
             ChangeState(PlayerStates.Idle);
+            animator.Play("Idle");
         }
     }
 
@@ -74,7 +85,29 @@ public class StateMachine : MonoBehaviour
         if (player.move.magnitude > 0)
         {
             ChangeState(PlayerStates.Move);
-            Debug.Log("Moving");
+            if (player.facingRight)
+            {
+                if (player.move.x > 0)
+                {
+                    animator.Play("Walk_Forward");
+                }
+                else if (player.move.x < 0)
+                {
+                    animator.Play("Walk_Backward");
+                }
+            }
+            else if (!player.facingRight)
+            {
+                if (player.move.x > 0)
+                {
+                    animator.Play("Walk_Backward");
+                }
+                else if (player.move.x < 0)
+                {
+                    animator.Play("Walk_Forward");
+                }
+            }
+                
         }
         if (InputHandler.instance.punch)
         {

@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 
 public class InputHandler : MonoBehaviour
 {
+    public bool kick;
     public bool punch;
     public float move;
     public float speed;
@@ -36,6 +37,17 @@ public class InputHandler : MonoBehaviour
         else if (ctx.canceled)
         {
             punch = false;
+        }
+    }
+    public void onKick(InputAction.CallbackContext ctx)
+    {
+        if (ctx.performed)
+        {
+            kick = true;
+        }
+        else if (ctx.canceled)
+        {
+            kick = false;
         }
     }
 }

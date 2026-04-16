@@ -1,6 +1,4 @@
-﻿using System;
-using UnityEngine;
-using UnityEngine.InputSystem;
+﻿using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [Header("References")]
@@ -14,6 +12,7 @@ public class PlayerController : MonoBehaviour
     private float moveX;
     public Vector3 velocity;
     public Vector3 move;
+    public bool facingRight = true;
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -32,12 +31,22 @@ public class PlayerController : MonoBehaviour
         {
             Debug.Log("punch");
         }
+        if (InputHandler.instance.kick) 
+        {
+            Debug.Log("kick");
+        }
     }
-  
+
     private void HandleMovement()
     {
+        if (gameObject.transform.rotation.y > 0.1f)
+        { facingRight = true; }
+        else if (gameObject.transform.rotation.y < -0.1f)
+        { facingRight = false; }
+
         move = new Vector3(InputHandler.instance.move, 0f, 0f);
         controller.Move(move * speed * Time.deltaTime);
+        Debug.Log(move.x);
     }
     private void HandleFacing()
     {
