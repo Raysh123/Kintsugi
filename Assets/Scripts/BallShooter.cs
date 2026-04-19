@@ -6,7 +6,7 @@ public class BallShooter : MonoBehaviour
     public float currentTime;
     public float cooldown = 3f;
     public GameObject ball;
-    public Transform spawnPoint;
+    public Transform[] spawnPoints;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -19,7 +19,9 @@ public class BallShooter : MonoBehaviour
         currentTime += Time.deltaTime;
         if(currentTime >= cooldown)
         {
-            Instantiate(ball, spawnPoint.position, Quaternion.identity);
+            int index = Random.Range(0, spawnPoints.Length);
+            Transform chosenSpawn = spawnPoints[index];
+            Instantiate(ball, chosenSpawn.position, Quaternion.identity);
             Debug.Log("ball");
             currentTime = 0;
         }
