@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("Movement")]
     [SerializeField] private float speed = 5f;
-    [SerializeField] private float facingRotationSpeed = 50f;
+    [SerializeField] private float facingRotationSpeed = 20f;
 
     private CharacterController controller;
     private float moveX;
