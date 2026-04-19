@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections;
+using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [Header("References")]
@@ -13,6 +15,8 @@ public class PlayerController : MonoBehaviour
     public Vector3 velocity;
     public Vector3 move;
     public bool facingRight = true;
+    public CapsuleCollider capCollider;
+    public float dodgeTime;
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -23,17 +27,31 @@ public class PlayerController : MonoBehaviour
         HandleMovement();
         HandleFacing();
         HandleAttack();
+        HandleDodge();
     }
 
+    private void HandleDodge()
+    {
+        if (InputHandler.instance.dodge)
+        {
+            controller.detectCollisions = false;
+            StartCoroutine(CollisionOnOff());
+        }
+    }
+    IEnumerator CollisionOnOff()
+    {
+        yield return new WaitForSeconds(dodgeTime);
+        controller.detectCollisions = true;
+    }
     private void HandleAttack()
     {
         if (InputHandler.instance.punch)
         {
-            Debug.Log("punch");
+            //Debug.Log("punch");
         }
         if (InputHandler.instance.kick) 
         {
-            Debug.Log("kick");
+            //Debug.Log("kick");
         }
     }
 
@@ -46,7 +64,6 @@ public class PlayerController : MonoBehaviour
 
         move = new Vector3(InputHandler.instance.move, 0f, 0f);
         controller.Move(move * speed * Time.deltaTime);
-        Debug.Log(move.x);
     }
     private void HandleFacing()
     {

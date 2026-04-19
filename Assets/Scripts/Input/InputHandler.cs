@@ -7,6 +7,7 @@ public class InputHandler : MonoBehaviour
     public bool punch;
     public float move;
     public float speed;
+    public bool dodge;
 
     public static InputHandler instance;
     private void Awake()
@@ -48,6 +49,17 @@ public class InputHandler : MonoBehaviour
         else if (ctx.canceled)
         {
             kick = false;
+        }
+    }
+    public void onDodge(InputAction.CallbackContext ctx)
+    {
+        if (ctx.performed)
+        {
+            dodge = true;
+        }
+        else if (ctx.canceled)
+        {
+            dodge = false;
         }
     }
 }
