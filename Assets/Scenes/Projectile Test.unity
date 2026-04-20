@@ -421,6 +421,18 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5536315921916905281, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      propertyPath: m_ActionEvents.Array.size
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 5536315921916905281, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      propertyPath: m_ActionEvents.Array.data[5].m_ActionId
+      value: 9c639de0-60f1-4ff0-b0c4-a9b107481066
+      objectReference: {fileID: 0}
+    - target: {fileID: 5536315921916905281, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      propertyPath: m_ActionEvents.Array.data[5].m_ActionName
+      value: 'GamePlay/Block[/Keyboard/n,/XInputControllerWindows/rightTrigger]'
+      objectReference: {fileID: 0}
+    - target: {fileID: 5536315921916905281, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.size
       value: 0
       objectReference: {fileID: 0}
@@ -484,15 +496,28 @@ PrefabInstance:
       propertyPath: m_ActionEvents.Array.data[4].m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
+    - target: {fileID: 6914623340309487523, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      propertyPath: m_Radius
+      value: 0.24
+      objectReference: {fileID: 0}
+    - target: {fileID: 6914623340309487523, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      propertyPath: m_SlopeLimit
+      value: 45
+      objectReference: {fileID: 0}
+    - target: {fileID: 6914623340309487523, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      propertyPath: m_StepOffset
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8241201661133558927, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       propertyPath: dodgeTime
-      value: 0.3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 8241201661133558927, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       propertyPath: capCollider
       value: 
-      objectReference: {fileID: 1786027904}
-    m_RemovedComponents: []
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 180218200223930491, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -733,11 +758,6 @@ PrefabInstance:
 --- !u!95 &1640214252 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 2514090776787546773, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
-  m_PrefabInstance: {fileID: 844999816}
-  m_PrefabAsset: {fileID: 0}
---- !u!136 &1786027904 stripped
-CapsuleCollider:
-  m_CorrespondingSourceObject: {fileID: 180218200223930491, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
   m_PrefabInstance: {fileID: 844999816}
   m_PrefabAsset: {fileID: 0}
 --- !u!114 &1786027906 stripped
