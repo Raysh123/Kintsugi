@@ -1,5 +1,4 @@
-using System;
-using Unity.VisualScripting;
+using System.Collections;
 using UnityEngine;
 
 public class StateMachine : MonoBehaviour
@@ -32,6 +31,8 @@ public class StateMachine : MonoBehaviour
     private void Update()
     {
         HandleStates();
+        if (player.isHurt)
+        { currentState = PlayerStates.Hurt; }
     }
     public void ChangeState(PlayerStates newState)
     {
@@ -64,97 +65,138 @@ public class StateMachine : MonoBehaviour
 
     private void HandleHurt()
     {
-        throw new NotImplementedException();
+        if (player.hurtFace)
+        {
+            StartCoroutine(FaceHurt());
+        }
+        else if (player.hurtBody)
+        {
+            StartCoroutine(BodyHurt());
+        }
+    }
+    IEnumerator FaceHurt()
+    {
+        animator.Play("Hurt_Face");
+        player.hurtFace = false;
+        yield return new WaitForSeconds(.5f);
+        player.isHurt = false;
+        ChangeState(PlayerStates.Idle);
+    }
+    IEnumerator BodyHurt()
+    {
+        animator.Play("Hurt_Balls");
+        player.hurtBody = false;
+        yield return new WaitForSeconds(.5f);
+        player.isHurt = false;
+        ChangeState(PlayerStates.Idle);
     }
 
     private void HandleBlock()
     {
-        if (InputHandler.instance.block == false)
+        if (!player.isHurt)
         {
-            ChangeState(PlayerStates.Idle);
+            if (InputHandler.instance.block == false)
+            {
+                ChangeState(PlayerStates.Idle);
+            }
         }
     }
 
     private void HandleDodge()
     {
-        if(InputHandler.instance.dodge == false)
+        if (!player.isHurt)
         {
-            ChangeState(PlayerStates.Idle);
+            if (InputHandler.instance.dodge == false)
+            {
+                ChangeState(PlayerStates.Idle);
+            }
         }
     }
 
     private void HandleAttacks()
     {
-        
-        if (InputHandler.instance.punch == false & InputHandler.instance.kick == false)
+        if (!player.isHurt)
         {
-            ChangeState(PlayerStates.Idle);
-        }
-        else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
-        {
-            animator.Play("Kizami_Tsuki");
-        }
-        else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
-        {
-            animator.Play("YokoGeri");
-        }
 
+
+            if (InputHandler.instance.punch == false & InputHandler.instance.kick == false)
+            {
+                ChangeState(PlayerStates.Idle);
+            }
+            else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
+            {
+                animator.Play("Kizami_Tsuki");
+            }
+            else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
+            {
+                animator.Play("YokoGeri");
+            }
+
+        }
 
     }
 
     private void HandleMove()
     {
-        if(player.move.magnitude == 0)
+        if (!player.isHurt)
         {
-            ChangeState(PlayerStates.Idle);
-            animator.Play("Idle");
+            if (player.move.magnitude == 0)
+            {
+                ChangeState(PlayerStates.Idle);
+                animator.Play("Idle");
+            }
         }
+
     }
 
     private void HandleIdle()
     {
-        if (player.move.magnitude > 0)
+        if (!player.isHurt)
         {
-            ChangeState(PlayerStates.Move);
-            if (player.facingRight)
-            {
-                if (player.move.x > 0)
-                {
-                    animator.Play("Walk_Forward");
-                }
-                else if (player.move.x < 0)
-                {
-                    animator.Play("Walk_Backward");
-                }
-            }
-            else if (!player.facingRight)
-            {
-                if (player.move.x > 0)
-                {
-                    animator.Play("Walk_Backward");
-                }
-                else if (player.move.x < 0)
-                {
-                    animator.Play("Walk_Forward");
-                }
-            }
-                
-        }
-        if (InputHandler.instance.punch || InputHandler.instance.kick)
-        {
-            ChangeState(PlayerStates.Attack);
-        }
-        if (InputHandler.instance.dodge)
-        {
-            ChangeState(PlayerStates.Dodge);
-            animator.Play("Dodge_2");
-        }
-        if (InputHandler.instance.block)
-        {
-            ChangeState(PlayerStates.Block);
-            animator.Play("Lower_Block");
-        }
 
+            if (player.move.magnitude > 0)
+            {
+                ChangeState(PlayerStates.Move);
+                if (player.facingRight)
+                {
+                    if (player.move.x > 0)
+                    {
+                        animator.Play("Walk_Forward");
+                    }
+                    else if (player.move.x < 0)
+                    {
+                        animator.Play("Walk_Backward");
+                    }
+                }
+                else if (!player.facingRight)
+                {
+                    if (player.move.x > 0)
+                    {
+                        animator.Play("Walk_Backward");
+                    }
+                    else if (player.move.x < 0)
+                    {
+                        animator.Play("Walk_Forward");
+                    }
+                }
+
+            }
+            if (InputHandler.instance.punch || InputHandler.instance.kick)
+            {
+                ChangeState(PlayerStates.Attack);
+            }
+            if (InputHandler.instance.dodge)
+            {
+                ChangeState(PlayerStates.Dodge);
+                animator.Play("Dodge_2");
+            }
+            if (InputHandler.instance.block)
+            {
+                ChangeState(PlayerStates.Block);
+                animator.Play("Lower_Block");
+            }
+
+        }
 
     }
 

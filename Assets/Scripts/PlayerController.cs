@@ -20,6 +20,25 @@ public class PlayerController : MonoBehaviour
     public float dodgeTime;
     public LayerMask excludeMask;
     public LayerMask nothingLayer;
+    public bool isHurt;
+    public bool hurtFace;
+    public bool hurtBody;
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if(collision.gameObject.CompareTag("Face") || collision.gameObject.CompareTag("Body"))
+        {
+            isHurt = true;
+            if(collision.gameObject.CompareTag("Face"))
+            {
+                hurtFace = true;
+            }
+            else if (collision.gameObject.CompareTag("Body"))
+            {
+                hurtBody = true;
+            }
+        }
+    }
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -60,13 +79,17 @@ public class PlayerController : MonoBehaviour
 
     private void HandleMovement()
     {
-        if (gameObject.transform.rotation.y > 0.1f)
-        { facingRight = true; }
-        else if (gameObject.transform.rotation.y < -0.1f)
-        { facingRight = false; }
+        if(!isHurt)
+        {
+            if (gameObject.transform.rotation.y > 0.1f)
+            { facingRight = true; }
+            else if (gameObject.transform.rotation.y < -0.1f)
+            { facingRight = false; }
 
-        move = new Vector3(InputHandler.instance.move, 0f, 0f);
-        controller.Move(move * speed * Time.deltaTime);
+            move = new Vector3(InputHandler.instance.move, 0f, 0f);
+            controller.Move(move * speed * Time.deltaTime);
+        }
+      
     }
     private void HandleFacing()
     {
@@ -83,5 +106,10 @@ public class PlayerController : MonoBehaviour
             targetRot,
             facingRotationSpeed * Time.deltaTime
         );
+    }
+
+    public void Hurt()
+    {
+
     }
 }
