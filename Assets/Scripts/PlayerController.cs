@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NUnit.Framework.Constraints;
+using System;
 using System.Collections;
 using UnityEngine;
 public class PlayerController : MonoBehaviour
@@ -17,6 +18,8 @@ public class PlayerController : MonoBehaviour
     public bool facingRight = true;
     public CapsuleCollider capCollider;
     public float dodgeTime;
+    public LayerMask excludeMask;
+    public LayerMask nothingLayer;
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -34,14 +37,14 @@ public class PlayerController : MonoBehaviour
     {
         if (InputHandler.instance.dodge)
         {
-            controller.detectCollisions = false;
+            controller.excludeLayers = excludeMask;
             StartCoroutine(CollisionOnOff());
         }
     }
     IEnumerator CollisionOnOff()
     {
         yield return new WaitForSeconds(dodgeTime);
-        controller.detectCollisions = true;
+        controller.excludeLayers = nothingLayer;
     }
     private void HandleAttack()
     {

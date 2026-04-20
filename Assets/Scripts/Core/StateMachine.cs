@@ -8,7 +8,10 @@ public class StateMachine : MonoBehaviour
     {
         Idle,
         Move,
-        Attack
+        Attack,
+        Dodge,
+        Block,
+        Hurt
     };
     public PlayerStates currentState;
     public static StateMachine instance;
@@ -47,6 +50,36 @@ public class StateMachine : MonoBehaviour
             case PlayerStates.Attack:
                 HandleAttacks();
                 break;
+            case PlayerStates.Dodge:
+                HandleDodge();
+                break;
+            case PlayerStates.Block:
+                HandleBlock();
+                break;
+            case PlayerStates.Hurt:
+                HandleHurt();
+                break;
+        }
+    }
+
+    private void HandleHurt()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void HandleBlock()
+    {
+        if (InputHandler.instance.block == false)
+        {
+            ChangeState(PlayerStates.Idle);
+        }
+    }
+
+    private void HandleDodge()
+    {
+        if(InputHandler.instance.dodge == false)
+        {
+            ChangeState(PlayerStates.Idle);
         }
     }
 
@@ -111,7 +144,18 @@ public class StateMachine : MonoBehaviour
         {
             ChangeState(PlayerStates.Attack);
         }
-        
+        if (InputHandler.instance.dodge)
+        {
+            ChangeState(PlayerStates.Dodge);
+            animator.Play("Dodge_2");
+        }
+        if (InputHandler.instance.block)
+        {
+            ChangeState(PlayerStates.Block);
+            animator.Play("Lower_Block");
+        }
+
+
     }
 
 }

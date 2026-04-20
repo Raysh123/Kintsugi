@@ -150,8 +150,8 @@ ModelImporter:
       name: Lower_Block
       takeName: Armature|ArmatureAction
       internalID: 5401091116426756364
-      firstFrame: 0
-      lastFrame: 472
+      firstFrame: 426
+      lastFrame: 436
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

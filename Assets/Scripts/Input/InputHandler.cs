@@ -8,6 +8,7 @@ public class InputHandler : MonoBehaviour
     public float move;
     public float speed;
     public bool dodge;
+    public bool block;
 
     public static InputHandler instance;
     private void Awake()
@@ -62,4 +63,16 @@ public class InputHandler : MonoBehaviour
             dodge = false;
         }
     }
+    public void onBlock(InputAction.CallbackContext ctx)
+    {
+        if (ctx.performed)
+        {
+            block = true;
+        }
+        else if (ctx.canceled)
+        {
+            block = false;
+        }
+    }
+
 }
