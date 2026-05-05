@@ -3,6 +3,7 @@ using UnityEngine;
 public class EnemyMover : MonoBehaviour
 {
     public Transform player;
+    private CharacterController controller;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -12,6 +13,9 @@ public class EnemyMover : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        transform.position = Vector3.MoveTowards(transform.position, player.position, 1*Time.deltaTime);
+        if( Vector3.Distance(transform.position, player.position) < 1.5f)
+        {
+            transform.position = new Vector3(3, 1, 0.6f);
+        }
     }
 }
