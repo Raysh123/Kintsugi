@@ -586,11 +586,19 @@ PrefabInstance:
       propertyPath: player
       value: 
       objectReference: {fileID: 1867584795}
+    - target: {fileID: -5726364010294432594, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2753457688648249125, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
       propertyPath: m_Name
       value: Enemy
       objectReference: {fileID: 0}
     - target: {fileID: 3164558001797802179, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7112518168534926241, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
@@ -641,7 +649,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2753457688648249125, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2047168652}
   m_SourcePrefab: {fileID: 100100000, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
 --- !u!1001 &1576218515
 PrefabInstance:
@@ -823,6 +834,26 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5194080013617558493, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
   m_PrefabInstance: {fileID: 1576218515}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2047168645 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2753457688648249125, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
+  m_PrefabInstance: {fileID: 637982701}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2047168652
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2047168645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 677afeffe0d90dd48837d113b0daa578, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentState: 0
+  Player: {fileID: 1867584795}
+  moveSpeed: 10
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-public class StateMachine : MonoBehaviour
+public class PlayerStateMachine : MonoBehaviour
 {
     public enum PlayerStates
     {
@@ -13,7 +13,7 @@ public class StateMachine : MonoBehaviour
         Hurt
     };
     public PlayerStates currentState;
-    public static StateMachine instance;
+    public static PlayerStateMachine instance;
     public PlayerController player;
     [SerializeField]
     private Animator animator;
