@@ -13,13 +13,15 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public EnemyState currentState;
     public Transform Player;
-    bool shouldApproach;
-    bool shouldRetreat;
+    public bool shouldApproach;
+    public bool shouldRetreat;
     [SerializeField]
     float moveSpeed = 10f;
     float decisionInterval = 2f;
     float decisionTimer;
-    int chance;
+    float minDist = 1.5f;
+    float maxDist = 2f;
+    public Animator animator;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -32,30 +34,77 @@ public class EnemyStateMachine : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Debug.Log(Vector3.Distance(Player.position,transform.position));
         decisionTimer -= Time.deltaTime;
         if (decisionTimer <= 0)
         {
-            DecisionMaker();
+            DistanceDecisionMaker();
             decisionTimer = decisionInterval;
         }
         HandleMovement();
     }
-    //public void HandleStates()
-    //{
-    //    switch (currentState)
-    //    {
-    //        case EnemyState.Idle:
-    //            if (Vector3.Distance(transform.position, Player.position) < 1.5)
-    //            {
+    public void HandleStates()
+    {
+        switch (currentState)
+        {
+            case EnemyState.Idle:
+                HandleIdle();
+                break;
+            case EnemyState.Approach:
+                HandleApproach();
+                break;
+            case EnemyState.Attack:
+                HandleAttack();
+                break;
+            case EnemyState.Retreat:
+                HandleRetreat();
+                break;
+            case EnemyState.Hurt:
+                HandleHurt();
+                break;
+            case EnemyState.Block:
+                HandleBlock();
+                break;
+        }
+    }
 
-    //            }
-    //    }
-    //}
-    public void DecisionMaker()
+    private void HandleBlock()
+    {
+        
+    }
+
+    private void HandleHurt()
+    {
+        
+    }
+
+    private void HandleRetreat()
+    {
+        
+    }
+
+    private void HandleAttack()
+    {
+        float chance = Random.Range(0, 100);
+        if(chance < 80)
+        {
+
+        }
+    }
+
+    private void HandleApproach()
+    {
+
+    }
+
+    private void HandleIdle()
+    {
+
+    }
+
+    public void DistanceDecisionMaker()
     {
         float distance = Vector3.Distance(transform.position,Player.position);
-        chance = Random.Range(0, 100);
+        float chance = Random.Range(0, 100);
         if (distance > 5)
         {
             if (chance < 80)
@@ -69,7 +118,7 @@ public class EnemyStateMachine : MonoBehaviour
                 shouldRetreat = true;
             }
         }
-        else if(distance < 5)
+        else if(distance < 5 && distance != 1)
         {
             if(chance < 70)
             {
@@ -85,15 +134,25 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void HandleMovement()
     {
-        Vector3 direction = (Player.position - transform.position).normalized;
-
+        float  direction = Mathf.Sign(Player.position.x - transform.position.x);
+        float distance = Vector3.Distance(transform.position, Player.position);
         if (shouldApproach)
         {
-            transform.position += direction * moveSpeed * Time.deltaTime;
+            if (distance > minDist)
+            {
+                Vector3 newPos = transform.position + new Vector3(direction * moveSpeed * Time.deltaTime, 0, 0);
+                animator.Play("Dash_Forward");
+                transform.position = newPos;
+            }
         }
         else if (shouldRetreat)
         {
-            transform.position -= direction * moveSpeed * Time.deltaTime;
+            if (distance < maxDist)
+            {
+                Vector3 newPos = transform.position - new Vector3(direction * moveSpeed * Time.deltaTime, 0, 0);
+                animator.Play("Dash_Backward");
+                transform.position = newPos;
+            }
         }
     }
 }

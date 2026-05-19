@@ -107,7 +107,6 @@ public class PlayerController : MonoBehaviour
             facingRotationSpeed * Time.deltaTime
         );
     }
-
     public void Hurt()
     {
 
