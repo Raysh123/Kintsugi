@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class EnemyStateMachine : MonoBehaviour
@@ -21,7 +22,9 @@ public class EnemyStateMachine : MonoBehaviour
     float decisionTimer;
     float minDist = 1.5f;
     float maxDist = 2f;
-    public Animator animator;
+    public Animator anim;
+    float decisionRoll;
+    bool isBlocking;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -34,6 +37,8 @@ public class EnemyStateMachine : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        decisionRoll = Random.Range(0, 100);            
+        HandleStates();
         decisionTimer -= Time.deltaTime;
         if (decisionTimer <= 0)
         {
@@ -69,7 +74,10 @@ public class EnemyStateMachine : MonoBehaviour
 
     private void HandleBlock()
     {
-        
+        if (!isBlocking)
+        {
+            StartCoroutine(BlockRoutine());
+        }
     }
 
     private void HandleHurt()
@@ -84,13 +92,24 @@ public class EnemyStateMachine : MonoBehaviour
 
     private void HandleAttack()
     {
-        float chance = Random.Range(0, 100);
-        if(chance < 80)
+        float distance = Vector3.Distance(transform.position, Player.position);
+        if (decisionRoll > 80)
         {
-
+            anim.Play("Kizami_Tsuki");
+        }
+        else if(decisionRoll < 80 && distance > 2)
+        {
+            ChangeState(EnemyState.Idle);
         }
     }
-
+    IEnumerator BlockRoutine()
+    {
+        isBlocking = true;
+        anim.Play("Dodge_2");
+        yield return new WaitForSeconds(0.5f);
+        isBlocking = false;
+        ChangeState(EnemyState.Idle);
+    }
     private void HandleApproach()
     {
 
@@ -98,7 +117,18 @@ public class EnemyStateMachine : MonoBehaviour
 
     private void HandleIdle()
     {
-
+        float distance = Vector3.Distance(transform.position, Player.position);
+        if (distance < 2)
+        {
+            if (decisionRoll > 80)
+            {
+                ChangeState(EnemyState.Attack);
+            }
+        }
+        if (InputHandler.instance.punch)
+        {
+            ChangeState(EnemyState.Block);
+        }
     }
 
     public void DistanceDecisionMaker()
@@ -141,7 +171,7 @@ public class EnemyStateMachine : MonoBehaviour
             if (distance > minDist)
             {
                 Vector3 newPos = transform.position + new Vector3(direction * moveSpeed * Time.deltaTime, 0, 0);
-                animator.Play("Dash_Forward");
+                anim.Play("Dash_Forward");
                 transform.position = newPos;
             }
         }
@@ -150,7 +180,7 @@ public class EnemyStateMachine : MonoBehaviour
             if (distance < maxDist)
             {
                 Vector3 newPos = transform.position - new Vector3(direction * moveSpeed * Time.deltaTime, 0, 0);
-                animator.Play("Dash_Backward");
+                anim.Play("Dash_Backward");
                 transform.position = newPos;
             }
         }

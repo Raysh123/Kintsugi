@@ -37,7 +37,7 @@ public class PlayerStateMachine : MonoBehaviour
     public void ChangeState(PlayerStates newState)
     {
         currentState = newState;
-    }
+    } 
     private void HandleStates()
     {
         switch (currentState)
