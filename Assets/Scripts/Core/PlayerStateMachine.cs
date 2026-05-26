@@ -129,7 +129,7 @@ public class PlayerStateMachine : MonoBehaviour
             }
             else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
             {
-                animator.Play("YokoGeri");
+                animator.Play("Back_Mawashi_Lower");
             }
 
         }
