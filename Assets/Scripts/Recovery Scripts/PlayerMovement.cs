@@ -125,7 +125,7 @@ public class PlayerMovement : MonoBehaviour
             Debug.Log("Begin interaction");
             animator.Play(recoveryAnim);
         }
-        if (typeB && !typeA && canInteract && (Input.GetKey(KeyCode.E) || Input.GetButtonDown("Submit")))
+        else if (typeB && !typeA && canInteract && (Input.GetKey(KeyCode.E) || Input.GetButtonDown("Submit")))
         {
             interacting = true;
             Debug.Log("Begin interaction");
