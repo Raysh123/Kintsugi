@@ -8,6 +8,11 @@ TagManager:
   - Punch
   - Face
   - Body
+  - Interact
+  - Injury
+  - Winstate
+  - LoseState
+  - Interact2
   layers:
   - Default
   - TransparentFX
