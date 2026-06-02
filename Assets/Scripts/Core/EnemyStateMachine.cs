@@ -1,4 +1,5 @@
 using System.Collections;
+using System.ComponentModel;
 using UnityEngine;
 
 public class EnemyStateMachine : MonoBehaviour
@@ -25,6 +26,8 @@ public class EnemyStateMachine : MonoBehaviour
     public Animator anim;
     float decisionRoll;
     bool isBlocking;
+    [SerializeField] private float facingRotationSpeed = 50f;
+    public Transform opponent;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -37,6 +40,7 @@ public class EnemyStateMachine : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        HandleFacing();
         decisionRoll = Random.Range(0, 100);            
         HandleStates();
         decisionTimer -= Time.deltaTime;
@@ -46,6 +50,22 @@ public class EnemyStateMachine : MonoBehaviour
             decisionTimer = decisionInterval;
         }
         HandleMovement();
+    }
+    private void HandleFacing()
+    {
+        if (opponent == null) return;
+
+        Vector3 dir = opponent.position - transform.position;
+        dir.y = 0f;
+
+        if (dir.sqrMagnitude < 0.001f) return;
+
+        Quaternion targetRot = Quaternion.LookRotation(dir);
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            targetRot,
+            facingRotationSpeed * Time.deltaTime
+        );
     }
     public void HandleStates()
     {
@@ -93,14 +113,21 @@ public class EnemyStateMachine : MonoBehaviour
     private void HandleAttack()
     {
         float distance = Vector3.Distance(transform.position, Player.position);
-        if (decisionRoll > 80)
+        Debug.Log(distance);
+        if (/*decisionRoll > 80 && */distance < 2)
         {
-            anim.Play("Kizami_Tsuki");
+            StartCoroutine(AttackRoutine());
         }
-        else if(decisionRoll < 80 && distance > 2)
+        else if (/*decisionRoll < 80 &&*/ distance > 2)
         {
             ChangeState(EnemyState.Idle);
         }
+    }
+    IEnumerator AttackRoutine()
+    {
+        anim.Play("Kizami_Tsuki");
+        yield return new WaitForSeconds(0.1f);
+        ChangeState(EnemyState.Idle);
     }
     IEnumerator BlockRoutine()
     {
