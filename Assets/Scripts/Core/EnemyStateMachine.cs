@@ -32,6 +32,7 @@ public class EnemyStateMachine : MonoBehaviour
     private float blockTimer;
     private float attackCooldown = 3f;
     private float blockCooldown = 2f;
+    public Vector3 enemyInitPos;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -39,6 +40,7 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void ChangeState(EnemyState state)
     {
+        enemyInitPos = transform.position;
         currentState = state;
     }
     // Update is called once per frame
