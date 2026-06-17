@@ -11,7 +11,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float speed = 5f;
     [SerializeField] private float facingRotationSpeed = 50f;
 
-    private CharacterController controller;
+    public CharacterController controller;
     private float moveX;
     public Vector3 velocity;
     public Vector3 move;
@@ -23,6 +23,7 @@ public class PlayerController : MonoBehaviour
     public bool isHurt;
     public bool hurtFace;
     public bool hurtBody;
+    public Vector3 PlayerInitPos;
 
     private void OnCollisionEnter(Collision collision)
     {
@@ -41,6 +42,7 @@ public class PlayerController : MonoBehaviour
     }
     void Start()
     {
+        PlayerInitPos = transform.position;
         controller = GetComponent<CharacterController>();
     }
 

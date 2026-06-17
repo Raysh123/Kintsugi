@@ -13,6 +13,7 @@ TagManager:
   - Winstate
   - LoseState
   - Interact2
+  - Enemy
   layers:
   - Default
   - TransparentFX

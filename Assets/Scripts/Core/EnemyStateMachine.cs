@@ -19,7 +19,7 @@ public class EnemyStateMachine : MonoBehaviour
     public bool shouldRetreat;
     [SerializeField]
     float moveSpeed = 10f;
-    float decisionInterval = 2f;
+    float decisionInterval = 0.5f;
     float decisionTimer;
     float minDist = 1.5f;
     float maxDist = 2f;
@@ -28,6 +28,11 @@ public class EnemyStateMachine : MonoBehaviour
     bool isBlocking;
     [SerializeField] private float facingRotationSpeed = 50f;
     public Transform opponent;
+    private float attackTimer;
+    private float blockTimer;
+    private float attackCooldown = 3f;
+    private float blockCooldown = 2f;
+    public Vector3 enemyInitPos;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -35,17 +40,20 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void ChangeState(EnemyState state)
     {
+        enemyInitPos = transform.position;
         currentState = state;
     }
     // Update is called once per frame
     void Update()
     {
-        HandleFacing();
-        decisionRoll = Random.Range(0, 100);            
+        HandleFacing();       
         HandleStates();
         decisionTimer -= Time.deltaTime;
+        attackTimer -= Time.deltaTime;
+        blockTimer -= Time.deltaTime;
         if (decisionTimer <= 0)
         {
+            decisionRoll = Random.Range(0, 100);
             DistanceDecisionMaker();
             decisionTimer = decisionInterval;
         }
@@ -126,7 +134,7 @@ public class EnemyStateMachine : MonoBehaviour
     IEnumerator AttackRoutine()
     {
         anim.Play("Kizami_Tsuki");
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.6f);
         ChangeState(EnemyState.Idle);
     }
     IEnumerator BlockRoutine()
@@ -147,13 +155,24 @@ public class EnemyStateMachine : MonoBehaviour
         float distance = Vector3.Distance(transform.position, Player.position);
         if (distance < 2)
         {
-            if (decisionRoll > 80)
+            if (decisionRoll > 50 && attackTimer <= 0)
             {
+                attackTimer = attackCooldown;
                 ChangeState(EnemyState.Attack);
             }
+            else if(decisionRoll > 20)
+            {
+                ChangeState(EnemyState.Block);
+            }
+            else
+            {
+                shouldRetreat = true;
+                shouldApproach = false;
+            }
         }
-        if (InputHandler.instance.punch)
+        if (InputHandler.instance.punch && blockTimer <= 0 && decisionRoll > 30)
         {
+            blockTimer = blockCooldown;
             ChangeState(EnemyState.Block);
         }
     }

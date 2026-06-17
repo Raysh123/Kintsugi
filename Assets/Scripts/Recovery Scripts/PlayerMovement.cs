@@ -17,7 +17,7 @@ public class PlayerMovement : MonoBehaviour
     private RecoveryInteraction interact;
     private Recovery_Interaction_Type_B interactTypeB;
     public bool typeA;
-    public bool typeB;
+    public bool typeB;   
 
     private void OnTriggerEnter(Collider other)
     {
