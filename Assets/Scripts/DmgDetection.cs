@@ -17,7 +17,6 @@ public class DmgDetection : MonoBehaviour
     {
         if (other.transform.tag == "Enemy")
         {
-            Debug.Log("sas");
             GameManager.instance.ResetPlayerPos();
         }
     }
