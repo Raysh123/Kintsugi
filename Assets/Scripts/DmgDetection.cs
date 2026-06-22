@@ -1,11 +1,16 @@
+using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class DmgDetection : MonoBehaviour
 {
+    public Dictionary<string, int> punchOrKick;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
+        punchOrKick = new Dictionary<string, int>();
+        punchOrKick.Add("Punch", 1);
+        punchOrKick.Add("Kick", 2);
     }
 
     // Update is called once per frame
@@ -15,7 +20,11 @@ public class DmgDetection : MonoBehaviour
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.transform.tag == "Enemy")
+        if (other.transform.tag == "Body" && gameObject.tag == "Punch")
+        {
+            GameManager.instance.ResetPlayerPos();
+        }
+        else if(other.transform.tag == "Body" && gameObject.tag == "Kick")
         {
             GameManager.instance.ResetPlayerPos();
         }
