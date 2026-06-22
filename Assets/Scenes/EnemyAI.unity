@@ -447,7 +447,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5969504820197874208, guid: 28f63d6c32bfd3343995f244ea8a3f17, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 0.01
       objectReference: {fileID: 0}
     - target: {fileID: 5969504820197874208, guid: 28f63d6c32bfd3343995f244ea8a3f17, type: 3}
       propertyPath: m_LocalPosition.z
@@ -2487,6 +2487,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   matchDuration: 120
   matchStopped: 1
+  debugLog: 1
   OnTimeUp:
     m_PersistentCalls:
       m_Calls: []
@@ -2731,7 +2732,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5194080013617558493, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.01
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5194080013617558493, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       propertyPath: m_LocalPosition.z
