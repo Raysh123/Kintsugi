@@ -2621,21 +2621,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08453b17a3c9a1f4c9a97cfd6b99bc45, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!54 &831041671
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1064270504}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.8099998, y: 0.9650645, z: 0.6008167}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1095227046 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1066937781470502576, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
@@ -3010,7 +2995,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5194080013617558493, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.81
+      value: -0.84
       objectReference: {fileID: 0}
     - target: {fileID: 5194080013617558493, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       propertyPath: m_LocalPosition.y
@@ -3165,9 +3150,6 @@ PrefabInstance:
       addedObject: {fileID: 1344137791}
     - targetCorrespondingSourceObject: {fileID: 7505729188954146131, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 831041671}
-    - targetCorrespondingSourceObject: {fileID: 7505729188954146131, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 831041670}
     - targetCorrespondingSourceObject: {fileID: 3303670745790594203, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       insertIndex: -1
@@ -3276,4 +3258,3 @@ SceneRoots:
   - {fileID: 1406236593}
   - {fileID: 494583503}
   - {fileID: 108883359}
-  - {fileID: 1064270506}
