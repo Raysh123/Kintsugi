@@ -121,7 +121,6 @@ public class EnemyStateMachine : MonoBehaviour
     private void HandleAttack()
     {
         float distance = Vector3.Distance(transform.position, Player.position);
-        Debug.Log(distance);
         if (/*decisionRoll > 80 && */distance < 2)
         {
             StartCoroutine(AttackRoutine());
