@@ -33,6 +33,9 @@ public class EnemyStateMachine : MonoBehaviour
     private float attackCooldown = 3f;
     private float blockCooldown = 2f;
     public Vector3 enemyInitPos;
+
+    [SerializeField] 
+    private MatchTimer matchTimer;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -46,6 +49,8 @@ public class EnemyStateMachine : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (matchTimer.matchStopped) return;
+
         HandleFacing();       
         HandleStates();
         decisionTimer -= Time.deltaTime;

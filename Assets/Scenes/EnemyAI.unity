@@ -415,6 +415,10 @@ PrefabInstance:
       propertyPath: animator
       value: 
       objectReference: {fileID: 546530557}
+    - target: {fileID: 1628554040508895477, guid: 8d18375353e262248b5f259a51162cb4, type: 3}
+      propertyPath: matchTimer
+      value: 
+      objectReference: {fileID: 1086321184}
     - target: {fileID: 4246306735477121426, guid: 8d18375353e262248b5f259a51162cb4, type: 3}
       propertyPath: m_Name
       value: StateMachine
@@ -2622,6 +2626,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   anim: {fileID: 146478609}
+  matchTimer: {fileID: 1086321184}
 --- !u!1 &1086321183
 GameObject:
   m_ObjectHideFlags: 0
@@ -2653,6 +2658,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   matchDuration: 120
   matchStopped: 1
+  hitPauseDuration: 5
   debugLog: 1
   OnTimeUp:
     m_PersistentCalls:
@@ -2690,6 +2696,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   anim: {fileID: 146478609}
+  matchTimer: {fileID: 1086321184}
 --- !u!54 &1095227050
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -2734,7 +2741,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08453b17a3c9a1f4c9a97cfd6b99bc45, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  anim: {fileID: 0}
+  anim: {fileID: 546530557}
+  matchTimer: {fileID: 1086321184}
 --- !u!54 &1344137792
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -2995,7 +3003,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08453b17a3c9a1f4c9a97cfd6b99bc45, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  anim: {fileID: 0}
+  anim: {fileID: 546530557}
+  matchTimer: {fileID: 1086321184}
 --- !u!54 &1529948530
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3297,6 +3306,7 @@ MonoBehaviour:
   facingRotationSpeed: 50
   opponent: {fileID: 1867584795}
   enemyInitPos: {x: 0, y: 0, z: 0}
+  matchTimer: {fileID: 1086321184}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

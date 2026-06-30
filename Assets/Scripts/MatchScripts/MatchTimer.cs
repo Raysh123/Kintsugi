@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -7,6 +9,9 @@ public class MatchTimer : MonoBehaviour
     [SerializeField] private float matchDuration = 120f; // total match length in seconds
     public bool matchStopped = true;                     // starts stopped until referee says "hajime"
 
+    [Header("Hit Pause")]
+    [SerializeField] private float hitPauseDuration = 5f;
+
     [Header("Debug")]
     [SerializeField] private bool debugLog = true; // logs the countdown to the Console in whole seconds
 
@@ -15,12 +20,18 @@ public class MatchTimer : MonoBehaviour
 
     private float matchTimer;
     private int lastLoggedSecond = -1;
+    private Coroutine hitPauseRoutine;
 
     public float TimeRemaining => matchTimer;
 
     private void Awake()
     {
         matchTimer = matchDuration;
+    }
+
+    private void Start()
+    {
+        StartTimer();
     }
 
     private void Update()
@@ -58,6 +69,23 @@ public class MatchTimer : MonoBehaviour
     public void StopTimer()
     {
         matchStopped = true;
+    }
+
+    public void RegisterHit()
+    {
+        StopTimer();
+
+        if (hitPauseRoutine != null)
+            StopCoroutine(hitPauseRoutine);
+
+        hitPauseRoutine = StartCoroutine(ResumeAfterHit());
+    }
+
+    private IEnumerator ResumeAfterHit()
+    {
+        yield return new WaitForSeconds(hitPauseDuration);
+        StartTimer();
+        hitPauseRoutine = null;
     }
 
     // Handy for a UI Text/TMP element

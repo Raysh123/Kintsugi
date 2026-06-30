@@ -17,6 +17,9 @@ public class PlayerStateMachine : MonoBehaviour
     public PlayerController player;
     [SerializeField]
     private Animator animator;
+
+    [SerializeField] 
+    private MatchTimer matchTimer;
     private void Awake()
     {
         if (instance != null)
@@ -30,6 +33,8 @@ public class PlayerStateMachine : MonoBehaviour
     }
     private void Update()
     {
+        if (matchTimer.matchStopped) return;
+
         HandleStates();
         if (player.isHurt)
         { currentState = PlayerStates.Hurt; }
