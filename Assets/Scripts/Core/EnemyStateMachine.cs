@@ -21,7 +21,7 @@ public class EnemyStateMachine : MonoBehaviour
     float moveSpeed = 10f;
     float decisionInterval = 0.5f;
     float decisionTimer;
-    float minDist = 1.5f;
+    float minDist = 0.5f;
     float maxDist = 2f;
     public Animator anim;
     float decisionRoll;
@@ -161,11 +161,15 @@ public class EnemyStateMachine : MonoBehaviour
         {
             if (decisionRoll > 50 && attackTimer <= 0)
             {
+                shouldApproach = false;
+                shouldRetreat = false;
                 attackTimer = attackCooldown;
                 ChangeState(EnemyState.Attack);
             }
             else if(decisionRoll > 20)
             {
+                shouldApproach = false;
+                shouldRetreat = false;
                 ChangeState(EnemyState.Block);
             }
             else

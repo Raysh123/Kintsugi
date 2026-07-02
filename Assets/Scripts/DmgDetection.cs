@@ -5,7 +5,7 @@ public class DmgDetection : MonoBehaviour
 {
     public Dictionary<string, int> punchOrKick;
     public Animator anim;
-
+    public Dictionary<string, string> detect;
     [SerializeField] private MatchTimer matchTimer;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -35,5 +35,15 @@ public class DmgDetection : MonoBehaviour
             matchTimer.RegisterHit();
             GameManager.instance.ResetPlayerPos();
         }
+        else if(other.transform.tag == "pBody" && gameObject.tag == "ePunch")
+        {
+            matchTimer.RegisterHit();
+            GameManager.instance.ResetPlayerPos();
+        }
+        else if( other.transform.tag == "pBody" && gameObject.tag == "ekick")
+        {
+            matchTimer.RegisterHit();
+            GameManager.instance.ResetPlayerPos();
+        } 
     }
 }
