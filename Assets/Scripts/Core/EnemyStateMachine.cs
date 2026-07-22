@@ -33,7 +33,7 @@ public class EnemyStateMachine : MonoBehaviour
     private float attackCooldown = 3f;
     private float blockCooldown = 2f;
     public Vector3 enemyInitPos;
-
+    private bool isAttacking;
     [SerializeField] 
     private MatchTimer matchTimer;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -104,7 +104,36 @@ public class EnemyStateMachine : MonoBehaviour
                 break;
         }
     }
-
+    private void HandleIdle()
+    {
+        float distance = Vector3.Distance(transform.position, Player.position);
+        if (distance < 2)
+        {
+            if (decisionRoll > 50 && attackTimer <= 0)
+            {
+                shouldApproach = false;
+                shouldRetreat = false;
+                attackTimer = attackCooldown;
+                ChangeState(EnemyState.Attack);
+            }
+            //else if (decisionRoll > 20)
+            //{
+            //    shouldApproach = false;
+            //    shouldRetreat = false;
+            //    ChangeState(EnemyState.Block);
+            //}
+            else
+            {
+                shouldRetreat = true;
+                shouldApproach = false;
+            }
+        }
+        if (InputHandler.instance.punch && blockTimer <= 0 && decisionRoll > 30)
+        {
+            blockTimer = blockCooldown;
+            ChangeState(EnemyState.Block);
+        }
+    }
     private void HandleBlock()
     {
         if (!isBlocking)
@@ -126,19 +155,28 @@ public class EnemyStateMachine : MonoBehaviour
     private void HandleAttack()
     {
         float distance = Vector3.Distance(transform.position, Player.position);
-        if (/*decisionRoll > 80 && */distance < 2)
+        if (distance < 2 && !isAttacking)
         {
             StartCoroutine(AttackRoutine());
         }
-        else if (/*decisionRoll < 80 &&*/ distance > 2)
+        else if (distance > 2)
         {
             ChangeState(EnemyState.Idle);
         }
     }
     IEnumerator AttackRoutine()
     {
+        isAttacking = true;
         anim.Play("Kizami_Tsuki");
-        yield return new WaitForSeconds(0.6f);
+        yield return null;
+        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
+        anim.Play("YokoGeri");
+        yield return null;
+        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
+        anim.Play("Kizami_Tsuki");
+        yield return null;
+        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
+        isAttacking = false;
         ChangeState(EnemyState.Idle);
     }
     IEnumerator BlockRoutine()
@@ -152,37 +190,6 @@ public class EnemyStateMachine : MonoBehaviour
     private void HandleApproach()
     {
 
-    }
-
-    private void HandleIdle()
-    {
-        float distance = Vector3.Distance(transform.position, Player.position);
-        if (distance < 2)
-        {
-            if (decisionRoll > 50 && attackTimer <= 0)
-            {
-                shouldApproach = false;
-                shouldRetreat = false;
-                attackTimer = attackCooldown;
-                ChangeState(EnemyState.Attack);
-            }
-            else if(decisionRoll > 20)
-            {
-                shouldApproach = false;
-                shouldRetreat = false;
-                ChangeState(EnemyState.Block);
-            }
-            else
-            {
-                shouldRetreat = true;
-                shouldApproach = false;
-            }
-        }
-        if (InputHandler.instance.punch && blockTimer <= 0 && decisionRoll > 30)
-        {
-            blockTimer = blockCooldown;
-            ChangeState(EnemyState.Block);
-        }
     }
 
     public void DistanceDecisionMaker()
