@@ -3,28 +3,46 @@ using UnityEngine;
 
 public class RecoveryInteraction : MonoBehaviour
 {
-    [SerializeField]
-    private PlayerMovement player;
+    [Header("Player")]
+    [SerializeField] private PlayerMovement player;
+    [Tooltip("The child GameObject that holds only the player's visible mesh/rig. " +
+             "This is toggled off during the activity and back on after — nothing " +
+             "else on the player is touched.")]
+    [SerializeField] private GameObject playerMeshChild;
 
-    [SerializeField]
-    private GameObject meter;
-    [SerializeField]
-    private Pointer pointer;
-    private bool canInteract;
-    [SerializeField]
-    private GameObject pointerObj;
+    private Renderer[] _playerRenderers;
+
+    [Header("Activity Model")]
+    [Tooltip("A dedicated model/rig for this specific interaction. Enabled only while " +
+             "the activity is running, then disabled again. Should be disabled by default in the scene.")]
+    [SerializeField] private GameObject activityModel;
+    [Tooltip("The Animator on the activity model.")]
+    [SerializeField] private Animator activityAnimator;
+    [Tooltip("Name of the animation state to play on the activity model.")]
+    [SerializeField] private string activityAnimation;
+
+    [Header("Minigame")]
+    [SerializeField] private GameObject meter;
+    [SerializeField] private Pointer pointer;
+    [SerializeField] private GameObject pointerObj;
     private Rigidbody pointerRB;
-
     private bool meterActive = false;
-    [SerializeField]
-    private HealthAndMotivation hnM;
 
-    [SerializeField]
-    private float winHealth;
-    [SerializeField]
-    private float winMotivation;
-    public string relaventAnimation;
+    [Header("Calendar")]
+    [SerializeField] private ActivityDefinition activity;
 
+    [Header("Camera")]
+    [SerializeField] private Camera activityCamera;
+
+    [Header("Rewards & Penalties")]
+    [SerializeField] private float winHealth;
+    [SerializeField] private float winMotivation;
+    [SerializeField] private float loseHealth;
+    [SerializeField] private float loseMotivation;
+    [SerializeField] private float injuryHealth;
+    [SerializeField] private float injuryMotivation;
+
+    private bool canInteract;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -43,27 +61,40 @@ public class RecoveryInteraction : MonoBehaviour
             player = null;
         }
     }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+
     void Start()
     {
         pointerRB = pointerObj.GetComponent<Rigidbody>();
         meter.gameObject.SetActive(false);
+        if (activityModel != null) activityModel.SetActive(false);
     }
 
-    // Update is called once per frame
     void Update()
     {
-        if (canInteract)
-        {
-            if (player.interacting && !meterActive)
-            {
-                BeginInteraction();
-            }
-        }
+        if (canInteract && player.interacting && !meterActive)
+            BeginInteraction();
     }
 
     private void BeginInteraction()
     {
+        if (!CalendarManager.instance.TryConsumeActivity(activity))
+        {
+            player.interacting = false;
+            Debug.Log($"{activity.displayName} already done today.");
+            return;
+        }
+
+        // Hide player mesh, show activity model
+        if (playerMeshChild != null) playerMeshChild.SetActive(false);
+        if (activityModel != null)
+        {
+            activityModel.SetActive(true);
+            if (activityAnimator != null && !string.IsNullOrEmpty(activityAnimation))
+                activityAnimator.Play(activityAnimation);
+        }
+
+        SceneCameraManager.instance.ActivateCamera(activityCamera);
+
         meterActive = true;
         meter.gameObject.SetActive(true);
         StartCoroutine(Interaction());
@@ -80,18 +111,30 @@ public class RecoveryInteraction : MonoBehaviour
         if (pointer.won)
         {
             Debug.Log("Won");
-            hnM.ModifyHealth(winHealth);
-            hnM.ModifyMotivation(winMotivation);
+            HealthAndMotivation.instance.ModifyHealth(winHealth);
+            HealthAndMotivation.instance.ModifyMotivation(winMotivation);
         }
-        if (pointer.lost)
+        else if (pointer.lost)
         {
             Debug.Log("Lost");
+            HealthAndMotivation.instance.ModifyHealth(loseHealth);
+            HealthAndMotivation.instance.ModifyMotivation(loseMotivation);
         }
-        if (pointer.injured)
+        else if (pointer.injured)
         {
             Debug.Log("Injured");
+            HealthAndMotivation.instance.ModifyHealth(injuryHealth);
+            HealthAndMotivation.instance.ModifyMotivation(injuryMotivation);
         }
-        yield return new WaitForSeconds(0.01f) ;
+
+        yield return new WaitForSeconds(0.01f);
+
+        // Restore player mesh, hide activity model
+        if (activityModel != null) activityModel.SetActive(false);
+        if (playerMeshChild != null) playerMeshChild.SetActive(true);
+
+        SceneCameraManager.instance.DeactivateCamera(activityCamera);
+        CalendarManager.instance.AdvanceTime(activity.timeCostMinutes);
         meter.gameObject.SetActive(false);
         player.interacting = false;
         meterActive = false;

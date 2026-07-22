@@ -1,23 +1,27 @@
 using UnityEngine;
+
 public class PlayerMovement : MonoBehaviour
 {
-    [SerializeField]
-    private float moveSpeed;
+    [Header("Movement")]
+    [SerializeField] private float moveSpeed;
+    [SerializeField] private float rotationSpeed = 720f;
+    [SerializeField] private float inputDeadzone = 0.1f;
+
+    [Header("State")]
     public bool interacting;
-    [SerializeField]
-    private bool canInteract;
-    [SerializeField]
-    private GameObject interactable;
+    [SerializeField] private bool canInteract;
+    [SerializeField] private GameObject interactable;
+
     private CharacterController controller;
-    [SerializeField]
-    private Animator animator;
-    [SerializeField]
-    private string recoveryAnim;
-    private string actionAnim;
+    [Tooltip("Animator on the player's mesh child — used only for movement blend. " +
+             "Separate from the mesh child toggle so disabling the model during " +
+             "activities doesn't cause null reference errors here.")]
+    [SerializeField] private Animator animator;
+
     private RecoveryInteraction interact;
     private Recovery_Interaction_Type_B interactTypeB;
     public bool typeA;
-    public bool typeB;   
+    public bool typeB;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -27,7 +31,6 @@ public class PlayerMovement : MonoBehaviour
             interactable = other.gameObject;
             canInteract = true;
             interact = other.GetComponent<RecoveryInteraction>();
-            recoveryAnim = interact.relaventAnimation.ToString();
         }
         else if (other.gameObject.CompareTag("Interact2"))
         {
@@ -35,8 +38,6 @@ public class PlayerMovement : MonoBehaviour
             interactable = other.gameObject;
             canInteract = true;
             interactTypeB = other.GetComponent<Recovery_Interaction_Type_B>();
-            recoveryAnim = interactTypeB.relaventAnimation.ToString();
-            actionAnim = interactTypeB.actionAnimation.ToString();
         }
     }
 
@@ -48,7 +49,6 @@ public class PlayerMovement : MonoBehaviour
             interactable = null;
             canInteract = false;
             interact = null;
-            recoveryAnim = null;
         }
         else if (other.gameObject.CompareTag("Interact2"))
         {
@@ -56,18 +56,14 @@ public class PlayerMovement : MonoBehaviour
             interactable = null;
             canInteract = false;
             interactTypeB = null;
-            recoveryAnim = null;
-            actionAnim = null;
         }
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         controller = GetComponent<CharacterController>();
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (!interacting)
@@ -75,61 +71,42 @@ public class PlayerMovement : MonoBehaviour
             Move();
             Interact();
         }
-        if (interacting && typeB)
-        {
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetButtonDown("Cancel"))
-            {
-                //Debug.Log("Push Up");
-                animator.Play(actionAnim);
-            }
-        }
     }
 
     private void Move()
     {
         float horizontalInput = Input.GetAxis("Horizontal");
-        if (Input.GetKey(KeyCode.A))
-        {
-            animator.Play("Walk_Left");
-            transform.position = transform.position += transform.right * -moveSpeed * Time.deltaTime;
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            animator.Play("Walk_Right");
-            transform.position = transform.position += transform.right * moveSpeed * Time.deltaTime;
-        }
-        else if (!interacting && horizontalInput == 0)
-        {
-            animator.Play("Idle");
-        }
-        if (horizontalInput != 0)
-        {
-            transform.position += transform.right * horizontalInput * moveSpeed * Time.deltaTime;
-            if (horizontalInput < 0)
-            {
-                animator.Play("Walk_Left");
-            }
-            else if (horizontalInput > 0)
-            {
-                animator.Play("Walk_Right");
-            }
-        }
+        float verticalInput = Input.GetAxis("Vertical");
 
+        Vector3 moveDir = new Vector3(horizontalInput, 0f, verticalInput);
+        float inputMagnitude = moveDir.magnitude;
+
+        // Guard: animator's GameObject is disabled during interactions, skip SetFloat then.
+        if (animator != null && animator.gameObject.activeInHierarchy)
+            animator.SetFloat("MoveSpeed", inputMagnitude);
+
+        if (inputMagnitude > inputDeadzone)
+        {
+            Vector3 motion = moveDir.normalized * moveSpeed * Time.deltaTime;
+            controller.Move(motion);
+
+            Quaternion targetRotation = Quaternion.LookRotation(moveDir.normalized, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                targetRotation,
+                rotationSpeed * Time.deltaTime
+            );
+        }
     }
 
     private void Interact()
     {
-        if (typeA && !typeB && canInteract && (Input.GetKey(KeyCode.E) || Input.GetButtonDown("Submit")))
+        bool pressedInteract = Input.GetKey(KeyCode.E) || Input.GetButtonDown("Submit");
+
+        if (canInteract && pressedInteract && (typeA || typeB))
         {
             interacting = true;
             Debug.Log("Begin interaction");
-            animator.Play(recoveryAnim);
-        }
-        else if (typeB && !typeA && canInteract && (Input.GetKey(KeyCode.E) || Input.GetButtonDown("Submit")))
-        {
-            interacting = true;
-            Debug.Log("Begin interaction");
-            animator.Play(recoveryAnim);
         }
     }
 }
