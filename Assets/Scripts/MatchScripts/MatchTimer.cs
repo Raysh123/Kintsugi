@@ -69,6 +69,7 @@ public class MatchTimer : MonoBehaviour
     public void StopTimer()
     {
         matchStopped = true;
+        //Time.timeScale = 0f;
     }
 
     public void RegisterHit()

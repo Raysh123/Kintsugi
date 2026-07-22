@@ -2579,6 +2579,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: -17.60847
       objectReference: {fileID: 0}
+    - target: {fileID: 8943939285089572341, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
+      propertyPath: m_Name
+      value: EnemyModel
+      objectReference: {fileID: 0}
     - target: {fileID: 9029034180748056153, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
       value: -9.068594
@@ -2710,7 +2714,7 @@ MonoBehaviour:
   matchDuration: 120
   matchStopped: 1
   hitPauseDuration: 5
-  debugLog: 1
+  debugLog: 0
   OnTimeUp:
     m_PersistentCalls:
       m_Calls: []
@@ -2837,7 +2841,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1116770588}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -3513,7 +3517,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1596514821}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
