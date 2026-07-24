@@ -25,21 +25,21 @@ public class PlayerController : MonoBehaviour
     public bool hurtBody;
     public Vector3 PlayerInitPos;
 
-    private void OnCollisionEnter(Collision collision)
-    {
-        if(collision.gameObject.CompareTag("Face") || collision.gameObject.CompareTag("Body"))
-        {
-            isHurt = true;
-            if(collision.gameObject.CompareTag("Face"))
-            {
-                hurtFace = true;
-            }
-            else if (collision.gameObject.CompareTag("Body"))
-            {
-                hurtBody = true;
-            }
-        }
-    }
+    //private void OnCollisionEnter(Collision collision)
+    //{
+    //    if(collision.gameObject.CompareTag("Face") || collision.gameObject.CompareTag("Body"))
+    //    {
+    //        isHurt = true;
+    //        if(collision.gameObject.CompareTag("Face"))
+    //        {
+    //            hurtFace = true;
+    //        }
+    //        else if (collision.gameObject.CompareTag("Body"))
+    //        {
+    //            hurtBody = true;
+    //        }
+    //    }
+    //}
     void Start()
     {
         PlayerInitPos = transform.position;

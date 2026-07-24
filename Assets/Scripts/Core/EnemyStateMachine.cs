@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
 
@@ -36,6 +37,7 @@ public class EnemyStateMachine : MonoBehaviour
     private bool isAttacking;
     [SerializeField] 
     private MatchTimer matchTimer;
+    [SerializeField] List<Collider> hitBoxes;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -56,7 +58,10 @@ public class EnemyStateMachine : MonoBehaviour
         decisionTimer -= Time.deltaTime;
         attackTimer -= Time.deltaTime;
         blockTimer -= Time.deltaTime;
-        if (decisionTimer <= 0)
+        if (currentState != EnemyState.Attack &&
+            currentState != EnemyState.Block &&
+            currentState != EnemyState.Hurt && 
+            decisionTimer <= 0)
         {
             decisionRoll = Random.Range(0, 100);
             DistanceDecisionMaker();
@@ -154,6 +159,10 @@ public class EnemyStateMachine : MonoBehaviour
 
     private void HandleAttack()
     {
+        if (isAttacking)
+        {
+            return;
+        }
         float distance = Vector3.Distance(transform.position, Player.position);
         if (distance < 2 && !isAttacking)
         {
@@ -166,16 +175,32 @@ public class EnemyStateMachine : MonoBehaviour
     }
     IEnumerator AttackRoutine()
     {
+        float hitstart = 0.20f;
+        float hitDuration = 0.12f;
         isAttacking = true;
+
+        //Debug.Log("attack");
+        //anim.Play("combo 1");
+        //yield return null;
+        //yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
         anim.Play("Kizami_Tsuki");
         yield return null;
-        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
-        anim.Play("YokoGeri");
-        yield return null;
-        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
-        anim.Play("Kizami_Tsuki");
-        yield return null;
-        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
+        //yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
+        float attackLength = anim.GetCurrentAnimatorStateInfo(0).length;
+        yield return new WaitForSeconds(hitstart);
+        foreach (var hitbox in hitBoxes)
+        {
+            hitbox.enabled = true;
+        }
+        yield return new WaitForSeconds(hitDuration);
+        foreach (var hitbox in hitBoxes)
+        {
+            hitbox.enabled = false;
+        }
+        yield return new WaitForSeconds(Mathf.Max(0f, attackLength - hitstart - hitDuration));
+        //anim.Play("Kizami_Tsuki");
+        //yield return null;
+        //yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
         isAttacking = false;
         ChangeState(EnemyState.Idle);
     }
@@ -225,6 +250,10 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void HandleMovement()
     {
+        if (currentState == EnemyState.Attack ||
+        currentState == EnemyState.Block ||
+        currentState == EnemyState.Hurt)
+            return;
         float  direction = Mathf.Sign(Player.position.x - transform.position.x);
         float distance = Vector3.Distance(transform.position, Player.position);
         if (shouldApproach)

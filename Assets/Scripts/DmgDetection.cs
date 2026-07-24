@@ -7,6 +7,8 @@ public class DmgDetection : MonoBehaviour
     public Animator anim;
     public Dictionary<string, string> detect;
     [SerializeField] private MatchTimer matchTimer;
+    [SerializeField] private PlayerStateMachine playerStateMachine;
+    [SerializeField] private EnemyStateMachine enemyStateMachine;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -23,25 +25,40 @@ public class DmgDetection : MonoBehaviour
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.transform.tag == "Body" && gameObject.tag == "Punch")
+        Debug.Log(
+            $"Trigger: {gameObject.tag} hit {other.tag} | " +
+            $"Player: {playerStateMachine.currentState} | " +
+            $"Enemy: {enemyStateMachine.currentState}"
+        );
+        if (other.transform.tag == "Body" && gameObject.tag == "Punch" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
             anim.Play("Hurt_Balls");
             matchTimer.RegisterHit();
             GameManager.instance.ResetPlayerPos();
         }
-        else if(other.transform.tag == "Body" && gameObject.tag == "Kick")
+        else if(other.transform.tag == "Body" && gameObject.tag == "Kick" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
             anim.Play("Hurt_Balls");
             matchTimer.RegisterHit();
             GameManager.instance.ResetPlayerPos();
         }
-        else if(other.transform.tag == "pBody" && gameObject.tag == "ePunch")
+        else if(other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
+            if(playerStateMachine!=null && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Block)
+            {
+                Debug.Log("Blocked");
+                return;
+            }
             matchTimer.RegisterHit();
             GameManager.instance.ResetPlayerPos();
         }
-        else if( other.transform.tag == "pBody" && gameObject.tag == "ekick")
+        else if( other.transform.tag == "pBody" && gameObject.tag == "ekick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
+            if (playerStateMachine != null && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Block)
+            {
+                Debug.Log("Blocked");
+                return;
+            }
             matchTimer.RegisterHit();
             GameManager.instance.ResetPlayerPos();
         } 
