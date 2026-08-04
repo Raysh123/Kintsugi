@@ -220,7 +220,15 @@ public class EnemyStateMachine : MonoBehaviour
     IEnumerator BlockRoutine()
     {
         isBlocking = true;
-        anim.Play("Dodge_2");
+        if (InputHandler.instance.punch)
+        {
+            anim.Play("Middle_Block");
+        }
+        else if(InputHandler.instance.kick)
+        {
+            yield return new WaitForSeconds(0.2f);
+            anim.Play("Lower_Block");
+        }
         yield return new WaitForSeconds(0.5f);
         isBlocking = false;
         ChangeState(EnemyState.Idle);

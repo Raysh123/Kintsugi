@@ -52,6 +52,12 @@ public class DmgDetection : MonoBehaviour
         }
         if (other.transform.tag == "Body" && gameObject.tag == "Punch" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
+            if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
+            {
+                Debug.Log("blocked by enemy");
+                hitRegistered = true;
+                return;
+            }
             //ResetHit();
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
@@ -61,6 +67,12 @@ public class DmgDetection : MonoBehaviour
         }
         else if (other.transform.tag == "Body" && gameObject.tag == "Kick" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
+            if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
+            {
+                Debug.Log("blocked by enemy");
+                hitRegistered = true;
+                return;
+            }
             //ResetHit();
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
