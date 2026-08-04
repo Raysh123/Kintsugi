@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerStateMachine : MonoBehaviour
@@ -20,6 +22,12 @@ public class PlayerStateMachine : MonoBehaviour
 
     [SerializeField] 
     private MatchTimer matchTimer;
+    [SerializeField] private float perfectBlockWindow = 0.15f;
+
+    private float lastBlockPressTime = -999f;
+    private bool blockWasHeld;
+    public List<DmgDetection> pHitBoxes;
+    private bool isAttacking;
     private void Awake()
     {
         if (instance != null)
@@ -38,9 +46,33 @@ public class PlayerStateMachine : MonoBehaviour
         HandleStates();
         if (player.isHurt)
         { currentState = PlayerStates.Hurt; }
+        bool blockPressed = InputHandler.instance.block && !blockWasHeld;
+        blockWasHeld = InputHandler.instance.block;
+        if (blockPressed)
+        {
+            lastBlockPressTime = Time.time;
+        }
+    }
+    public bool TryPerfectBlock()
+    {
+        if (Time.time - lastBlockPressTime > perfectBlockWindow)
+            return false;
+
+        lastBlockPressTime = -999f;
+
+        //animator.Play("Lower_Block");
+        return true;
     }
     public void ChangeState(PlayerStates newState)
     {
+        if (newState == PlayerStates.Attack &&
+       currentState != PlayerStates.Attack)
+        {
+            foreach (var hitbox in pHitBoxes)
+            {
+                hitbox.ResetHit();
+            }
+        }
         currentState = newState;
     } 
     private void HandleStates()
@@ -122,23 +154,47 @@ public class PlayerStateMachine : MonoBehaviour
     {
         if (!player.isHurt)
         {
+            if(!isAttacking && InputHandler.instance.punch)
+            {
+                StartCoroutine(PlayerAttackRoutine("Kizami_Tsuki"));
+                return;
+            }
+            else if(!isAttacking && InputHandler.instance.kick)
+            {
+                StartCoroutine(PlayerAttackRoutine("YokoGeri"));
+                return;
+            }
 
-
-            if (InputHandler.instance.punch == false & InputHandler.instance.kick == false)
-            {
-                ChangeState(PlayerStates.Idle);
-            }
-            else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
-            {
-                animator.Play("Kizami_Tsuki");
-            }
-            else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
-            {
-                animator.Play("YokoGeri");
-            }
+            //if (InputHandler.instance.punch == false & InputHandler.instance.kick == false)
+            //{
+            //    ChangeState(PlayerStates.Idle);
+            //}
+            //else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
+            //{
+            //    animator.Play("Kizami_Tsuki");
+            //}
+            //else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
+            //{
+            //    animator.Play("YokoGeri");
+            //}
 
         }
 
+    }
+
+    IEnumerator PlayerAttackRoutine(string animName)
+    {
+        isAttacking = true;
+        ChangeState(PlayerStates.Attack);
+
+        animator.Play(animName);
+        yield return null; // Wait until Animator enters this state.
+
+        float duration = animator.GetCurrentAnimatorStateInfo(0).length;
+        yield return new WaitForSeconds(duration);
+
+        isAttacking = false;
+        ChangeState(PlayerStates.Idle);
     }
 
     private void HandleMove()

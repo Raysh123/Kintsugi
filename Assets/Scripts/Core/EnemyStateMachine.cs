@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
 
@@ -36,6 +37,8 @@ public class EnemyStateMachine : MonoBehaviour
     private bool isAttacking;
     [SerializeField] 
     private MatchTimer matchTimer;
+    [SerializeField] List<DmgDetection> hitBoxes;
+    [SerializeField] private PlayerStateMachine playerStateMachine;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -56,7 +59,10 @@ public class EnemyStateMachine : MonoBehaviour
         decisionTimer -= Time.deltaTime;
         attackTimer -= Time.deltaTime;
         blockTimer -= Time.deltaTime;
-        if (decisionTimer <= 0)
+        if (currentState != EnemyState.Attack &&
+            currentState != EnemyState.Block &&
+            currentState != EnemyState.Hurt && 
+            decisionTimer <= 0)
         {
             decisionRoll = Random.Range(0, 100);
             DistanceDecisionMaker();
@@ -106,6 +112,13 @@ public class EnemyStateMachine : MonoBehaviour
     }
     private void HandleIdle()
     {
+        if (playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
+        {
+            shouldApproach = false;
+            shouldRetreat = false;
+            ChangeState(EnemyState.Block);
+            return;
+        }
         float distance = Vector3.Distance(transform.position, Player.position);
         if (distance < 2)
         {
@@ -124,15 +137,15 @@ public class EnemyStateMachine : MonoBehaviour
             //}
             else
             {
-                shouldRetreat = true;
+                shouldRetreat = false;
                 shouldApproach = false;
             }
         }
-        if (InputHandler.instance.punch && blockTimer <= 0 && decisionRoll > 30)
-        {
-            blockTimer = blockCooldown;
-            ChangeState(EnemyState.Block);
-        }
+        //if (InputHandler.instance.punch && blockTimer <= 0 && decisionRoll > 30)
+        //{
+        //    blockTimer = blockCooldown;
+        //    ChangeState(EnemyState.Block);
+        //}
     }
     private void HandleBlock()
     {
@@ -154,35 +167,68 @@ public class EnemyStateMachine : MonoBehaviour
 
     private void HandleAttack()
     {
+        if (isAttacking)
+        {
+            return;
+        }
         float distance = Vector3.Distance(transform.position, Player.position);
         if (distance < 2 && !isAttacking)
         {
             StartCoroutine(AttackRoutine());
         }
-        else if (distance > 2)
-        {
-            ChangeState(EnemyState.Idle);
-        }
+        //else if (distance > 2)
+        //{
+        //    ChangeState(EnemyState.Idle);
+        //}
     }
     IEnumerator AttackRoutine()
     {
+        foreach(var hitbox in hitBoxes)
+        {
+            hitbox.canDealDamage = false;
+        }
+        float hitstart = 0.20f;
+        float hitDuration = 0.12f;
         isAttacking = true;
+
+        //Debug.Log("attack");
+        //anim.Play("combo 1");
+        //yield return null;
+        //yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
         anim.Play("Kizami_Tsuki");
         yield return null;
-        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
-        anim.Play("YokoGeri");
-        yield return null;
-        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
-        anim.Play("Kizami_Tsuki");
-        yield return null;
-        yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
+        //yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
+        float attackLength = anim.GetCurrentAnimatorStateInfo(0).length;
+        yield return new WaitForSeconds(hitstart);
+        foreach (var hitbox in hitBoxes)
+        {
+            hitbox.canDealDamage = true;
+        }
+        yield return new WaitForSeconds(hitDuration);
+        foreach (var hitbox in hitBoxes)
+        {
+            hitbox.canDealDamage = false;
+            hitbox.ResetHit();
+        }
+        yield return new WaitForSeconds(Mathf.Max(0f, attackLength - hitstart - hitDuration));
+        //anim.Play("Kizami_Tsuki");
+        //yield return null;
+        //yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length /*0.6f*/);
         isAttacking = false;
         ChangeState(EnemyState.Idle);
     }
     IEnumerator BlockRoutine()
     {
         isBlocking = true;
-        anim.Play("Dodge_2");
+        if (InputHandler.instance.punch)
+        {
+            anim.Play("Middle_Block");
+        }
+        else if(InputHandler.instance.kick)
+        {
+            yield return new WaitForSeconds(0.2f);
+            anim.Play("Lower_Block");
+        }
         yield return new WaitForSeconds(0.5f);
         isBlocking = false;
         ChangeState(EnemyState.Idle);
@@ -211,7 +257,7 @@ public class EnemyStateMachine : MonoBehaviour
         }
         else if(distance < 5 && distance != 1)
         {
-            if(chance < 70)
+            if(chance < 25)
             {
                 shouldApproach = false;
                 shouldRetreat = true;
@@ -225,6 +271,10 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void HandleMovement()
     {
+        if (currentState == EnemyState.Attack ||
+        currentState == EnemyState.Block ||
+        currentState == EnemyState.Hurt)
+            return;
         float  direction = Mathf.Sign(Player.position.x - transform.position.x);
         float distance = Vector3.Distance(transform.position, Player.position);
         if (shouldApproach)
