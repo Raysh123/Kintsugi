@@ -2,13 +2,15 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
-    [Header("Movement")]
+    [Header("References")]
     [SerializeField] private float moveSpeed;
     [SerializeField] private float rotationSpeed = 720f;
     [SerializeField] private float inputDeadzone = 0.1f;
+    [SerializeField] private Transform cameraTransform;
 
     [Header("State")]
     public bool interacting;
+    public bool movementLocked;
     [SerializeField] private bool canInteract;
     [SerializeField] private GameObject interactable;
 
@@ -66,9 +68,14 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
-        if (!interacting)
+        if (!interacting && !movementLocked)
         {
             Move();
+            Interact();
+        }
+        else if (!interacting)
+        {
+            // Still allow interactions even when movement is locked (bed exercises)
             Interact();
         }
     }
@@ -78,18 +85,28 @@ public class PlayerMovement : MonoBehaviour
         float horizontalInput = Input.GetAxis("Horizontal");
         float verticalInput = Input.GetAxis("Vertical");
 
-        Vector3 moveDir = new Vector3(horizontalInput, 0f, verticalInput);
+        if (Mathf.Abs(horizontalInput) < inputDeadzone) horizontalInput = 0f;
+        if (Mathf.Abs(verticalInput) < inputDeadzone) verticalInput = 0f;
+
+        // Get camera forward and right projected flat onto the ground plane
+        // so the move direction is always relative to where the camera is looking,
+        // regardless of orbit angle — but Y is stripped so we never move up/down
+        Transform cam = cameraTransform != null ? cameraTransform : Camera.main.transform;
+        Vector3 camForward = Vector3.ProjectOnPlane(cam.forward, Vector3.up).normalized;
+        Vector3 camRight = Vector3.ProjectOnPlane(cam.right, Vector3.up).normalized;
+
+        Vector3 moveDir = (camForward * verticalInput + camRight * horizontalInput);
         float inputMagnitude = moveDir.magnitude;
 
-        // Guard: animator's GameObject is disabled during interactions, skip SetFloat then.
         if (animator != null && animator.gameObject.activeInHierarchy)
             animator.SetFloat("MoveSpeed", inputMagnitude);
 
-        if (inputMagnitude > inputDeadzone)
+        if (inputMagnitude > 0.01f)
         {
-            Vector3 motion = moveDir.normalized * moveSpeed * Time.deltaTime;
-            controller.Move(motion);
+            // Move
+            controller.Move(moveDir.normalized * moveSpeed * Time.deltaTime);
 
+            // Rotate player to face the direction they are moving
             Quaternion targetRotation = Quaternion.LookRotation(moveDir.normalized, Vector3.up);
             transform.rotation = Quaternion.RotateTowards(
                 transform.rotation,

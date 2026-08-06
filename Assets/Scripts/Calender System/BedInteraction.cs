@@ -111,6 +111,12 @@ public class BedInteraction : MonoBehaviour
             return;
         }
 
+        if (!StoryEnvironmentController.instance.CanDoActivity())
+        {
+            Debug.Log("Too tired to do more today — rest and try again tomorrow.");
+            return;
+        }
+
         player.interacting = true;
         if (playerMeshChild != null) playerMeshChild.SetActive(false);
         if (activityModel != null)
@@ -196,13 +202,18 @@ public class BedInteraction : MonoBehaviour
         // Short pause on black screen
         yield return new WaitForSeconds(0.5f);
 
-        yield return StartCoroutine(Fade(1f, 0f));
-        yield return new WaitForSeconds(.5f);
-
+        // Play wake-up animation while still faded out
         if (activityAnimator != null && !string.IsNullOrEmpty(wakeUpAnimation))
             activityAnimator.Play(wakeUpAnimation);
 
-        yield return new WaitForSeconds(2f);
+        // Wait for wake-up anim to get going before fading back in
+        yield return new WaitForSeconds(1f);
+
+        // Fade back in
+        yield return StartCoroutine(Fade(1f, 0f));
+
+        // Small pause, then cut back to player camera and restore model
+        yield return new WaitForSeconds(0.5f);
 
         if (activityModel != null) activityModel.SetActive(false);
         if (playerMeshChild != null) playerMeshChild.SetActive(true);

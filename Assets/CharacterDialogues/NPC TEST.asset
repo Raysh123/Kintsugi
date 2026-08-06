@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterName: WHO?
   dialogueBlocks:
-  - phase: 0
+  - phase: 1
     lines:
     - audioClip: {fileID: 8300000, guid: b125593f65e341a48b608001ed3b26a3, type: 3}
       subtitle: OH FUCKK

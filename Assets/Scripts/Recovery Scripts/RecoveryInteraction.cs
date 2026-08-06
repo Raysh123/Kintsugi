@@ -84,6 +84,13 @@ public class RecoveryInteraction : MonoBehaviour
             return;
         }
 
+        if (!StoryEnvironmentController.instance.CanDoActivity())
+        {
+            player.interacting = false;
+            Debug.Log("Too tired to do more today.");
+            return;
+        }
+
         // Hide player mesh, show activity model
         if (playerMeshChild != null) playerMeshChild.SetActive(false);
         if (activityModel != null)
