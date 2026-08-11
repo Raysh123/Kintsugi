@@ -32,7 +32,7 @@ public class EnemyStateMachine : MonoBehaviour
     private float attackTimer;
     private float blockTimer;
     private float attackCooldown = 3f;
-    private float blockCooldown = 2f;
+    //private float blockCooldown = 2f;
     public Vector3 enemyInitPos;
     private bool isAttacking;
     [SerializeField] 

@@ -4,9 +4,7 @@ using UnityEngine;
 
 public class DmgDetection : MonoBehaviour
 {
-    public Dictionary<string, int> punchOrKick;
     public Animator anim;
-    public Dictionary<string, string> detect;
     [SerializeField] private MatchTimer matchTimer;
     [SerializeField] private PlayerStateMachine playerStateMachine;
     [SerializeField] private EnemyStateMachine enemyStateMachine;
@@ -14,12 +12,11 @@ public class DmgDetection : MonoBehaviour
     bool hitRegistered = false;
     bool isperfectBlock;
     [SerializeField] private float perfectBlockWindow;
+    [SerializeField] private Posture posture; 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        punchOrKick = new Dictionary<string, int>();
-        punchOrKick.Add("Punch", 1);
-        punchOrKick.Add("Kick", 2);
+        posture = FindFirstObjectByType<Posture>();
     }
 
     // Update is called once per frame
@@ -55,6 +52,7 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                posture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
             }
