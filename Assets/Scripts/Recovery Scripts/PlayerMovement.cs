@@ -8,6 +8,14 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float inputDeadzone = 0.1f;
     [SerializeField] private Transform cameraTransform;
 
+    [Header("Gravity")]
+    [Tooltip("Negative value — how strongly the player is pulled down each second while airborne.")]
+    [SerializeField] private float gravity = -20f;
+    [Tooltip("Small constant downward force applied while grounded, keeping CharacterController.isGrounded " +
+             "reliably true instead of flickering on slopes/stairs. Should stay a small negative number.")]
+    [SerializeField] private float groundedStickForce = -2f;
+    private float verticalVelocity;
+
     [Header("State")]
     public bool interacting;
     public bool movementLocked;
@@ -22,8 +30,10 @@ public class PlayerMovement : MonoBehaviour
 
     private RecoveryInteraction interact;
     private Recovery_Interaction_Type_B interactTypeB;
+    private Recovery_Interaction_Type_C interactTypeC;
     public bool typeA;
     public bool typeB;
+    public bool typeC;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -40,6 +50,13 @@ public class PlayerMovement : MonoBehaviour
             interactable = other.gameObject;
             canInteract = true;
             interactTypeB = other.GetComponent<Recovery_Interaction_Type_B>();
+        }
+        else if (other.gameObject.CompareTag("Interact3"))
+        {
+            typeC = true;
+            interactable = other.gameObject;
+            canInteract = true;
+            interactTypeC = other.GetComponent<Recovery_Interaction_Type_C>();
         }
     }
 
@@ -58,6 +75,13 @@ public class PlayerMovement : MonoBehaviour
             interactable = null;
             canInteract = false;
             interactTypeB = null;
+        }
+        else if (other.gameObject.CompareTag("Interact3"))
+        {
+            typeC = false;
+            interactable = null;
+            canInteract = false;
+            interactTypeC = null;
         }
     }
 
@@ -103,9 +127,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (inputMagnitude > 0.01f)
         {
-            // Move
-            controller.Move(moveDir.normalized * moveSpeed * Time.deltaTime);
-
             // Rotate player to face the direction they are moving
             Quaternion targetRotation = Quaternion.LookRotation(moveDir.normalized, Vector3.up);
             transform.rotation = Quaternion.RotateTowards(
@@ -114,13 +135,26 @@ public class PlayerMovement : MonoBehaviour
                 rotationSpeed * Time.deltaTime
             );
         }
+
+        // Gravity. CharacterController already handles stepping up stairs (via its own
+        // Step Offset setting in the Inspector) and blocking on solid colliders — this
+        // just supplies the missing vertical component so the controller actually falls
+        // when the ground drops away, instead of floating at a fixed height.
+        if (controller.isGrounded && verticalVelocity < 0f)
+            verticalVelocity = groundedStickForce;
+        else
+            verticalVelocity += gravity * Time.deltaTime;
+
+        Vector3 horizontalMove = moveDir.normalized * moveSpeed;
+        Vector3 finalMove = new Vector3(horizontalMove.x, verticalVelocity, horizontalMove.z);
+        controller.Move(finalMove * Time.deltaTime);
     }
 
     private void Interact()
     {
         bool pressedInteract = Input.GetKey(KeyCode.E) || Input.GetButtonDown("Submit");
 
-        if (canInteract && pressedInteract && (typeA || typeB))
+        if (canInteract && pressedInteract && (typeA || typeB || typeC))
         {
             interacting = true;
             Debug.Log("Begin interaction");
