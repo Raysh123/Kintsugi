@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class DmgDetection : MonoBehaviour
 {
@@ -12,11 +13,12 @@ public class DmgDetection : MonoBehaviour
     bool hitRegistered = false;
     bool isperfectBlock;
     [SerializeField] private float perfectBlockWindow;
-    [SerializeField] private Posture posture; 
+    [SerializeField] private Posture playerPosture; 
+    [SerializeField] private Posture enemyPosture; 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        posture = FindFirstObjectByType<Posture>();
+        
     }
 
     // Update is called once per frame
@@ -52,7 +54,7 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
-                posture.posDmg(0.5f);
+                playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
             }
@@ -68,6 +70,7 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
             }
@@ -81,12 +84,24 @@ public class DmgDetection : MonoBehaviour
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
             //ResetHit();
-            if (playerStateMachine != null && playerStateMachine.TryPerfectBlock())
+            if (playerStateMachine != null)
             {
-                Debug.Log("Blocked");
-                hitRegistered = true;
-                canDealDamage = false;
-                return;
+                if (playerStateMachine.TryPerfectBlock())
+                {
+                    Debug.Log("Blocked");
+                    enemyPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
+                if (playerStateMachine.IsNormalBlockActive())
+                {
+                    Debug.Log("normal block");
+                    playerPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
             }
             Debug.Log("Enemy hit");
             hitRegistered = true;
@@ -96,12 +111,24 @@ public class DmgDetection : MonoBehaviour
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ekick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
             //ResetHit();
-            if (playerStateMachine != null && playerStateMachine.TryPerfectBlock())
+            if (playerStateMachine != null)
             {
-                Debug.Log("Blocked");
-                hitRegistered = true;
-                canDealDamage = false;
-                return;
+                if (playerStateMachine.TryPerfectBlock())
+                {
+                    Debug.Log("Blocked");
+                    enemyPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
+                if (playerStateMachine.IsNormalBlockActive())
+                {
+                    Debug.Log("normal Block");
+                    playerPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
             }
             Debug.Log("Enemy hit");
             hitRegistered = true;

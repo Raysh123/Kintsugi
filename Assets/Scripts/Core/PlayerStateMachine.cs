@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static PlayerStateMachine;
 
 public class PlayerStateMachine : MonoBehaviour
 {
@@ -14,6 +15,15 @@ public class PlayerStateMachine : MonoBehaviour
         Block,
         Hurt
     };
+
+    public enum AttackTypes
+    {
+        None,
+        Punch,
+        Kick
+    };
+
+    public AttackTypes currentAttackType {  get; private set; }
     public PlayerStates currentState;
     public static PlayerStateMachine instance;
     public PlayerController player;
@@ -23,11 +33,13 @@ public class PlayerStateMachine : MonoBehaviour
     [SerializeField] 
     private MatchTimer matchTimer;
     [SerializeField] private float perfectBlockWindow = 0.15f;
+    [SerializeField] private float normalBlockWindow = 0.50f;
 
     private float lastBlockPressTime = -999f;
     private bool blockWasHeld;
     public List<DmgDetection> pHitBoxes;
     private bool isAttacking;
+    private bool perfectBlockUsed;
     private void Awake()
     {
         if (instance != null)
@@ -51,17 +63,31 @@ public class PlayerStateMachine : MonoBehaviour
         if (blockPressed)
         {
             lastBlockPressTime = Time.time;
+            perfectBlockUsed = false;
+            StartCoroutine(BlockRoutine());
+        }
+    }
+    IEnumerator BlockRoutine()
+    {
+        ChangeState(PlayerStates.Block);
+        yield return new WaitForSeconds(normalBlockWindow);
+        if(currentState == PlayerStates.Block)
+        {
+            ChangeState(PlayerStates.Idle);
         }
     }
     public bool TryPerfectBlock()
     {
-        if (Time.time - lastBlockPressTime > perfectBlockWindow)
+        bool insidePerfectWindow = Time.time - lastBlockPressTime <= perfectBlockWindow;
+        if (!insidePerfectWindow || perfectBlockUsed)
             return false;
 
-        lastBlockPressTime = -999f;
-
-        //animator.Play("Lower_Block");
+        perfectBlockUsed = true;
         return true;
+    }
+    public bool IsNormalBlockActive()
+    {
+        return Time.time - lastBlockPressTime <= normalBlockWindow;
     }
     public void ChangeState(PlayerStates newState)
     {
@@ -130,13 +156,13 @@ public class PlayerStateMachine : MonoBehaviour
 
     private void HandleBlock()
     {
-        if (!player.isHurt)
-        {
-            if (InputHandler.instance.block == false)
-            {
-                ChangeState(PlayerStates.Idle);
-            }
-        }
+        //if (!player.isHurt)
+        //{
+        //    if (InputHandler.instance.block == false)
+        //    {
+        //        ChangeState(PlayerStates.Idle);
+        //    }
+        //}
     }
 
     private void HandleDodge()
@@ -242,8 +268,14 @@ public class PlayerStateMachine : MonoBehaviour
                 }
 
             }
-            if (InputHandler.instance.punch || InputHandler.instance.kick)
+            if (InputHandler.instance.punch)
             {
+                currentAttackType = AttackTypes.Punch;
+                ChangeState(PlayerStates.Attack);
+            }
+            if (InputHandler.instance.kick)
+            {
+                currentAttackType = AttackTypes.Kick;
                 ChangeState(PlayerStates.Attack);
             }
             if (InputHandler.instance.dodge)

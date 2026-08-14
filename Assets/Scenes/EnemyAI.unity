@@ -2881,6 +2881,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2753457688648249125, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2047168652}
+    - targetCorrespondingSourceObject: {fileID: 2753457688648249125, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2047168657}
     - targetCorrespondingSourceObject: {fileID: 2355041940552358480, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1735107574}
@@ -2998,7 +3001,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!54 &831041673
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3317,7 +3321,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!54 &1095227050
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3566,7 +3571,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!54 &1298822038
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3653,7 +3659,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!54 &1344137792
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3704,7 +3711,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!1 &1370683102
 GameObject:
   m_ObjectHideFlags: 0
@@ -4047,7 +4055,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!54 &1529948530
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -5886,6 +5895,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 600794341963295685, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2026913674}
+    - targetCorrespondingSourceObject: {fileID: 600794341963295685, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2026913680}
     - targetCorrespondingSourceObject: {fileID: 1066937781470502576, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1095227050}
@@ -6058,7 +6070,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!54 &1735107574
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -6287,52 +6300,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5194080013617558493, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
   m_PrefabInstance: {fileID: 1576218515}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1908471676
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1908471678}
-  - component: {fileID: 1908471677}
-  m_Layer: 0
-  m_Name: GameObject
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1908471677
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1908471676}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b5d5740c048ee00429d57507afcf98ce, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  postureSlider: {fileID: 1282255530}
-  dmgAdder: 2
---- !u!4 &1908471678
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1908471676}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1922231954
 GameObject:
   m_ObjectHideFlags: 0
@@ -6711,6 +6678,20 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 76
   m_CollisionDetection: 0
+--- !u!114 &2026913680
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2026913673}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5d5740c048ee00429d57507afcf98ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  postureSlider: {fileID: 1282255530}
+  dmgAdder: 2
 --- !u!1 &2047168645 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2753457688648249125, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
@@ -6744,6 +6725,20 @@ MonoBehaviour:
   - {fileID: 2059724359}
   - {fileID: 1364819251}
   playerStateMachine: {fileID: 1783550736}
+--- !u!114 &2047168657
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2047168645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5d5740c048ee00429d57507afcf98ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  postureSlider: {fileID: 1968301904}
+  dmgAdder: 2
 --- !u!1 &2059724356 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5064852512979255731, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
@@ -6767,7 +6762,8 @@ MonoBehaviour:
   enemyStateMachine: {fileID: 2047168652}
   canDealDamage: 0
   perfectBlockWindow: 0
-  posture: {fileID: 0}
+  playerPosture: {fileID: 2026913680}
+  enemyPosture: {fileID: 2047168657}
 --- !u!4 &2080370455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3517220861679807043, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
@@ -6791,4 +6787,3 @@ SceneRoots:
   - {fileID: 1086321185}
   - {fileID: 332933028}
   - {fileID: 1922231957}
-  - {fileID: 1908471678}

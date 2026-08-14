@@ -15,12 +15,11 @@ public class Posture : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        postureSlider.value -= 0.001f;
     }
-    public float posDmg(float dmg)
+    public void posDmg(float dmg)
     {
         postureSlider.value += dmg;
-        return dmg;
     }
 
 }
