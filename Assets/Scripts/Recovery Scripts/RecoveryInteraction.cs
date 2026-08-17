@@ -1,6 +1,14 @@
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// Recovery Interaction Type A — now powered by FillBarMinigame instead of
+/// Pointer. meter is activated and reset when the activity starts, and this
+/// script polls meter.finished instead of waiting on a fixed duration —
+/// FillBarMinigame still runs for its own internal fixed duration, but this
+/// keeps the wrapper's shape consistent with Type B/C rather than hardcoding
+/// the timing twice in two places.
+/// </summary>
 public class RecoveryInteraction : MonoBehaviour
 {
     [Header("Player")]
@@ -9,8 +17,6 @@ public class RecoveryInteraction : MonoBehaviour
              "This is toggled off during the activity and back on after — nothing " +
              "else on the player is touched.")]
     [SerializeField] private GameObject playerMeshChild;
-
-    private Renderer[] _playerRenderers;
 
     [Header("Activity Model")]
     [Tooltip("A dedicated model/rig for this specific interaction. Enabled only while " +
@@ -22,10 +28,8 @@ public class RecoveryInteraction : MonoBehaviour
     [SerializeField] private string activityAnimation;
 
     [Header("Minigame")]
-    [SerializeField] private GameObject meter;
-    [SerializeField] private Pointer pointer;
-    [SerializeField] private GameObject pointerObj;
-    private Rigidbody pointerRB;
+    [Tooltip("The FillBarMinigame component for this activity. Starts disabled in the scene.")]
+    [SerializeField] private FillBarMinigame meter;
     private bool meterActive = false;
 
     [Header("Calendar")]
@@ -64,8 +68,7 @@ public class RecoveryInteraction : MonoBehaviour
 
     void Start()
     {
-        pointerRB = pointerObj.GetComponent<Rigidbody>();
-        meter.gameObject.SetActive(false);
+        if (meter != null) meter.gameObject.SetActive(false);
         if (activityModel != null) activityModel.SetActive(false);
     }
 
@@ -103,31 +106,39 @@ public class RecoveryInteraction : MonoBehaviour
         SceneCameraManager.instance.ActivateCamera(activityCamera);
 
         meterActive = true;
+
+        // Activating fires Start() the very first time only, so ResetMinigame()
+        // is what actually (re)starts it on every attempt — including the
+        // first, where it's a harmless no-op on top of Start().
         meter.gameObject.SetActive(true);
-        StartCoroutine(Interaction());
+        meter.ResetMinigame();
+
+        StartCoroutine(WaitForMeter());
     }
 
-    IEnumerator Interaction()
+    private IEnumerator WaitForMeter()
     {
-        yield return new WaitForSeconds(10);
-        StartCoroutine(EndInteraction());
+        while (!meter.finished)
+            yield return null;
+
+        yield return EndInteraction();
     }
 
-    IEnumerator EndInteraction()
+    private IEnumerator EndInteraction()
     {
-        if (pointer.won)
+        if (meter.won)
         {
             Debug.Log("Won");
             HealthAndMotivation.instance.ModifyHealth(winHealth);
             HealthAndMotivation.instance.ModifyMotivation(winMotivation);
         }
-        else if (pointer.lost)
+        else if (meter.lost)
         {
             Debug.Log("Lost");
             HealthAndMotivation.instance.ModifyHealth(loseHealth);
             HealthAndMotivation.instance.ModifyMotivation(loseMotivation);
         }
-        else if (pointer.injured)
+        else if (meter.injured)
         {
             Debug.Log("Injured");
             HealthAndMotivation.instance.ModifyHealth(injuryHealth);

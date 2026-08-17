@@ -96,11 +96,15 @@ public class RhythmSequenceMinigame : MonoBehaviour
     [SerializeField] private string injuredAnimState;
 
     [Header("Outcome")]
-    public bool won;
-    public bool lost;
-    public bool injured;
+    [SerializeField] private bool _won;
+    [SerializeField] private bool _lost;
+    [SerializeField] private bool _injured;
     [Tooltip("True once won/lost/injured has been set.")]
-    public bool finished;
+    [SerializeField] private bool _finished;
+    public bool won => _won;
+    public bool lost => _lost;
+    public bool injured => _injured;
+    public bool finished => _finished;
 
     [Header("Progress (read-only, drives the UI meters)")]
     public int successCount;
@@ -205,7 +209,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
 
             if (successCount >= winThreshold)
             {
-                won = true;
+                _won = true;
                 EndSequence();
             }
             else
@@ -237,12 +241,12 @@ public class RhythmSequenceMinigame : MonoBehaviour
 
         if (riskyMissCount >= injuryThreshold)
         {
-            injured = true;
+            _injured = true;
             EndSequence();
         }
         else if (failCount >= failThreshold)
         {
-            lost = true;
+            _lost = true;
             EndSequence();
         }
         else
@@ -259,7 +263,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
 
     private void EndSequence()
     {
-        finished = true;
+        _finished = true;
         sequenceActive = false;
         RestoreCameraRotation();
     }
@@ -357,7 +361,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
     /// <summary>Call to restart the minigame (e.g. re-attempting the activity).</summary>
     public void ResetMinigame()
     {
-        won = lost = injured = finished = false;
+        _won = _lost = _injured = _finished = false;
         successCount = failCount = riskyMissCount = 0;
         currentBeatIndex = 0;
         waitingForStart = true;

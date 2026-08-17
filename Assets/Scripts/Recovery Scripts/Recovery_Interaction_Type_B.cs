@@ -1,6 +1,13 @@
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// Recovery Interaction Type B — now powered by TrackerRhythmMinigame instead
+/// of TimedPointer. meter is activated and reset when the activity starts,
+/// and this script polls meter.finished instead of a fixed WaitForSeconds —
+/// TrackerRhythmMinigame owns its own win/loss/injury timing internally now,
+/// so the old external "did they hit winCount in time" tracking is gone.
+/// </summary>
 public class Recovery_Interaction_Type_B : MonoBehaviour
 {
     [Header("Player")]
@@ -16,16 +23,13 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
     [SerializeField] private Animator activityAnimator;
     [Tooltip("Animation state to play when the interaction begins (the 'hold' or 'doing' pose).")]
     [SerializeField] private string activityAnimation;
-    [Tooltip("Animation state to play when the player hits Space during the interaction (the 'action' moment).")]
+    [Tooltip("Animation state to play when the player hits the input key during the interaction (the 'action' moment).")]
     [SerializeField] private string actionAnimation;
 
     [Header("Minigame")]
-    [SerializeField] private GameObject meter;
-    [SerializeField] private TimedPointer timedPointer;
-    [SerializeField] private GameObject timedPointerObj;
+    [Tooltip("The TrackerRhythmMinigame component for this activity. Starts disabled in the scene.")]
+    [SerializeField] private TrackerRhythmMinigame meter;
     private bool meterActive = false;
-    public bool lost;
-    public bool ending;
 
     [Header("Calendar")]
     [SerializeField] private ActivityDefinition activity;
@@ -63,9 +67,7 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
 
     void Start()
     {
-        lost = false;
-        ending = false;
-        meter.gameObject.SetActive(false);
+        if (meter != null) meter.gameObject.SetActive(false);
         if (activityModel != null) activityModel.SetActive(false);
     }
 
@@ -74,7 +76,9 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
         if (canInteract && player.interacting && !meterActive)
             BeginInteraction();
 
-        // Player hits action input during interaction — play the action anim on the activity model
+        // Player hits the action input during the interaction — play the action anim
+        // on the activity model. Purely cosmetic, doesn't affect the minigame's own
+        // hit detection (that's handled entirely inside TrackerRhythmMinigame).
         if (meterActive && activityAnimator != null)
         {
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetButtonDown("Cancel"))
@@ -82,12 +86,6 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
                 if (!string.IsNullOrEmpty(actionAnimation))
                     activityAnimator.Play(actionAnimation);
             }
-        }
-
-        if (timedPointer.won || timedPointer.injured)
-        {
-            ending = true;
-            if (ending) EndMinigame();
         }
     }
 
@@ -119,50 +117,44 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
         SceneCameraManager.instance.ActivateCamera(activityCamera);
 
         meterActive = true;
+
+        // Activating fires Start() the very first time only, so ResetMinigame()
+        // is what actually (re)starts it on every attempt — including the
+        // first, where it's a harmless no-op on top of Start().
         meter.gameObject.SetActive(true);
-        StartCoroutine(Interaction());
+        meter.ResetMinigame();
+
+        StartCoroutine(WaitForMeter());
     }
 
-    public void EndMinigame()
+    private IEnumerator WaitForMeter()
     {
-        StopAllCoroutines();
-        StartCoroutine(EndInteraction());
-        ending = false;
+        while (!meter.finished)
+            yield return null;
+
+        yield return EndInteraction();
     }
 
-    IEnumerator Interaction()
+    private IEnumerator EndInteraction()
     {
-        yield return new WaitForSeconds(20);
-        if (timedPointer.currentSuccessNumber != timedPointer.winCount)
-            lost = true;
-        StartCoroutine(EndInteraction());
-    }
-
-    IEnumerator EndInteraction()
-    {
-        if (timedPointer.won)
+        if (meter.won)
         {
             Debug.Log("Won");
             HealthAndMotivation.instance.ModifyHealth(winHealth);
             HealthAndMotivation.instance.ModifyMotivation(winMotivation);
         }
-        else if (lost)
+        else if (meter.lost)
         {
             Debug.Log("Lost");
             HealthAndMotivation.instance.ModifyHealth(loseHealth);
             HealthAndMotivation.instance.ModifyMotivation(loseMotivation);
         }
-        else if (timedPointer.injured)
+        else if (meter.injured)
         {
             Debug.Log("Injured");
             HealthAndMotivation.instance.ModifyHealth(injuryHealth);
             HealthAndMotivation.instance.ModifyMotivation(injuryMotivation);
         }
-
-        timedPointer.won = false;
-        timedPointer.injured = false;
-        timedPointer.currentFailNumber = 0;
-        timedPointer.currentSuccessNumber = 0;
 
         yield return new WaitForSeconds(0.01f);
 
@@ -172,7 +164,6 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
 
         SceneCameraManager.instance.DeactivateCamera(activityCamera);
         CalendarManager.instance.AdvanceTime(activity.timeCostMinutes);
-        lost = false;
         meter.gameObject.SetActive(false);
         player.interacting = false;
         meterActive = false;

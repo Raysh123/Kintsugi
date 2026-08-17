@@ -15,6 +15,6 @@ MonoBehaviour:
   activityId: Push_Ups
   displayName: Push Ups
   timeCostMinutes: 60
-  onceLimitPerDay: 1
+  onceLimitPerDay: 0
   minMotivationRequired: 0
   isCrossScene: 0
