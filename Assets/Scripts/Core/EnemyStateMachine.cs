@@ -32,13 +32,15 @@ public class EnemyStateMachine : MonoBehaviour
     private float attackTimer;
     private float blockTimer;
     private float attackCooldown = 3f;
-    private float blockCooldown = 2f;
+    //private float blockCooldown = 2f;
     public Vector3 enemyInitPos;
     private bool isAttacking;
     [SerializeField] 
     private MatchTimer matchTimer;
     [SerializeField] List<DmgDetection> hitBoxes;
     [SerializeField] private PlayerStateMachine playerStateMachine;
+    private PlayerStateMachine.AttackTypes incomingAttackTypes;
+    private bool hasBlockedCurrentPlayerAttack;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -114,11 +116,17 @@ public class EnemyStateMachine : MonoBehaviour
     {
         if (playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
-            shouldApproach = false;
-            shouldRetreat = false;
-            ChangeState(EnemyState.Block);
+            if (!hasBlockedCurrentPlayerAttack)
+            {
+                hasBlockedCurrentPlayerAttack = true;
+                incomingAttackTypes = playerStateMachine.currentAttackType;
+                shouldApproach = false;
+                shouldRetreat = false;
+                ChangeState(EnemyState.Block);       
+            }
             return;
         }
+        hasBlockedCurrentPlayerAttack = false;
         float distance = Vector3.Distance(transform.position, Player.position);
         if (distance < 2)
         {
@@ -220,16 +228,17 @@ public class EnemyStateMachine : MonoBehaviour
     IEnumerator BlockRoutine()
     {
         isBlocking = true;
-        if (InputHandler.instance.punch)
+        if (incomingAttackTypes == PlayerStateMachine.AttackTypes.Punch)
         {
             anim.Play("Middle_Block");
         }
-        else if(InputHandler.instance.kick)
+        else if(incomingAttackTypes == PlayerStateMachine.AttackTypes.Kick)
         {
-            yield return new WaitForSeconds(0.2f);
+            yield return new WaitForSeconds(0.1f);
             anim.Play("Lower_Block");
         }
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitUntil(() =>
+            playerStateMachine.currentState != PlayerStateMachine.PlayerStates.Attack);
         isBlocking = false;
         ChangeState(EnemyState.Idle);
     }

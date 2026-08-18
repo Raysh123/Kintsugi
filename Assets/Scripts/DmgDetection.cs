@@ -1,12 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class DmgDetection : MonoBehaviour
 {
-    public Dictionary<string, int> punchOrKick;
     public Animator anim;
-    public Dictionary<string, string> detect;
     [SerializeField] private MatchTimer matchTimer;
     [SerializeField] private PlayerStateMachine playerStateMachine;
     [SerializeField] private EnemyStateMachine enemyStateMachine;
@@ -14,12 +13,12 @@ public class DmgDetection : MonoBehaviour
     bool hitRegistered = false;
     bool isperfectBlock;
     [SerializeField] private float perfectBlockWindow;
+    [SerializeField] private Posture playerPosture; 
+    [SerializeField] private Posture enemyPosture; 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        punchOrKick = new Dictionary<string, int>();
-        punchOrKick.Add("Punch", 1);
-        punchOrKick.Add("Kick", 2);
+        
     }
 
     // Update is called once per frame
@@ -41,11 +40,6 @@ public class DmgDetection : MonoBehaviour
     }
     void CheckHit(Collider other)
     {
-        //Debug.Log(
-        //    $"Attack={gameObject.tag}, Target={other.tag}, " +
-        //    $"PlayerState={playerStateMachine.currentState}, " +
-        //    $"AlreadyHit={hitRegistered}"
-        //);
         if (hitRegistered)
         {
             return;
@@ -55,10 +49,10 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
             }
-            //ResetHit();
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
             hitRegistered = true;
@@ -70,10 +64,10 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
             }
-            //ResetHit();
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
             hitRegistered = true;
@@ -82,13 +76,24 @@ public class DmgDetection : MonoBehaviour
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
-            //ResetHit();
-            if (playerStateMachine != null && playerStateMachine.TryPerfectBlock())
+            if (playerStateMachine != null)
             {
-                Debug.Log("Blocked");
-                hitRegistered = true;
-                canDealDamage = false;
-                return;
+                if (playerStateMachine.TryPerfectBlock())
+                {
+                    Debug.Log("Blocked");
+                    enemyPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
+                if (playerStateMachine.IsNormalBlockActive())
+                {
+                    Debug.Log("normal block");
+                    playerPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
             }
             Debug.Log("Enemy hit");
             hitRegistered = true;
@@ -97,13 +102,24 @@ public class DmgDetection : MonoBehaviour
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ekick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
-            //ResetHit();
-            if (playerStateMachine != null && playerStateMachine.TryPerfectBlock())
+            if (playerStateMachine != null)
             {
-                Debug.Log("Blocked");
-                hitRegistered = true;
-                canDealDamage = false;
-                return;
+                if (playerStateMachine.TryPerfectBlock())
+                {
+                    Debug.Log("Blocked");
+                    enemyPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
+                if (playerStateMachine.IsNormalBlockActive())
+                {
+                    Debug.Log("normal Block");
+                    playerPosture.posDmg(0.5f);
+                    hitRegistered = true;
+                    canDealDamage = false;
+                    return;
+                }
             }
             Debug.Log("Enemy hit");
             hitRegistered = true;
@@ -111,10 +127,4 @@ public class DmgDetection : MonoBehaviour
             GameManager.instance.ResetPlayerPos();
         }
     }
-    //IEnumerator BlockedState()
-    //{
-    //    isperfectBlock = true;
-    //    yield return new WaitForSeconds(perfectBlockWindow);
-    //    isperfectBlock = false;
-    //}
 }
