@@ -40,11 +40,6 @@ public class DmgDetection : MonoBehaviour
     }
     void CheckHit(Collider other)
     {
-        //Debug.Log(
-        //    $"Attack={gameObject.tag}, Target={other.tag}, " +
-        //    $"PlayerState={playerStateMachine.currentState}, " +
-        //    $"AlreadyHit={hitRegistered}"
-        //);
         if (hitRegistered)
         {
             return;
@@ -58,7 +53,6 @@ public class DmgDetection : MonoBehaviour
                 hitRegistered = true;
                 return;
             }
-            //ResetHit();
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
             hitRegistered = true;
@@ -74,7 +68,6 @@ public class DmgDetection : MonoBehaviour
                 hitRegistered = true;
                 return;
             }
-            //ResetHit();
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
             hitRegistered = true;
@@ -83,7 +76,6 @@ public class DmgDetection : MonoBehaviour
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
-            //ResetHit();
             if (playerStateMachine != null)
             {
                 if (playerStateMachine.TryPerfectBlock())
@@ -110,7 +102,6 @@ public class DmgDetection : MonoBehaviour
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ekick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
-            //ResetHit();
             if (playerStateMachine != null)
             {
                 if (playerStateMachine.TryPerfectBlock())
@@ -136,10 +127,4 @@ public class DmgDetection : MonoBehaviour
             GameManager.instance.ResetPlayerPos();
         }
     }
-    //IEnumerator BlockedState()
-    //{
-    //    isperfectBlock = true;
-    //    yield return new WaitForSeconds(perfectBlockWindow);
-    //    isperfectBlock = false;
-    //}
 }
