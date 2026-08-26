@@ -3003,6 +3003,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!54 &831041673
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3323,6 +3324,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!54 &1095227050
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3573,6 +3575,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!54 &1298822038
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3661,6 +3664,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!54 &1344137792
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3713,6 +3717,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!1 &1370683102
 GameObject:
   m_ObjectHideFlags: 0
@@ -4057,6 +4062,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!54 &1529948530
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -6072,6 +6078,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!54 &1735107574
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -6764,6 +6771,7 @@ MonoBehaviour:
   perfectBlockWindow: 0
   playerPosture: {fileID: 2026913680}
   enemyPosture: {fileID: 2047168657}
+  postureMaxVal: 0.85
 --- !u!4 &2080370455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3517220861679807043, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
