@@ -1,11 +1,11 @@
-using System;
+ï»¿using System;
 using UnityEngine;
 
 /// <summary>
-/// Persistent singleton — survives scene loads alongside CalendarManager and
+/// Persistent singleton - survives scene loads alongside CalendarManager and
 /// HealthAndMotivation. Owns the current story phase and all key narrative dates.
 ///
-/// Other systems never set CurrentPhase directly — they call AdvancePhase() or
+/// Other systems never set CurrentPhase directly - they call AdvancePhase() or
 /// TryAdvanceToPhase() and let StoryManager fire the event so every subscriber
 /// updates consistently.
 /// </summary>
@@ -18,17 +18,17 @@ public class StoryManager : MonoBehaviour
     public StoryPhase CurrentPhase { get; private set; }
 
     [Header("Key Narrative Dates")]
-   
+
     public GameDate storyStartDate = new GameDate(1, 1, 1);
- 
+
     public int daysUntilFriendVisit = 3;
 
     public int daysUntilNewDojo = 1;
 
     public int daysUntilTournament = 10;
 
-    // Computed dates — set automatically when the relevant phase is reached
-    [Header("Computed Dates (read only — set at runtime)")]
+    // Computed dates - set automatically when the relevant phase is reached
+    [Header("Computed Dates (read only - set at runtime)")]
     [SerializeField] private GameDate dojoRejectionDate;
     [SerializeField] private GameDate friendVisitDate;
     [SerializeField] private GameDate newDojoDate;
@@ -45,14 +45,14 @@ public class StoryManager : MonoBehaviour
 
     /// <summary>
     /// Call this when a dojo fight begins. Returns true if this is the FIRST
-    /// time — the fight system should then trigger the injury meter tutorial
+    /// time - the fight system should then trigger the injury meter tutorial
     /// before the fight starts. Returns false on all subsequent fights.
     /// </summary>
     public bool RegisterDojoFight()
     {
         if (hasHadFirstDojoFight) return false;
         hasHadFirstDojoFight = true;
-        Debug.Log("[Story] First dojo fight — injury meter tutorial should trigger.");
+        Debug.Log("[Story] First dojo fight - injury meter tutorial should trigger.");
         return true;
     }
 
@@ -107,7 +107,7 @@ public class StoryManager : MonoBehaviour
         Debug.Log($"[Story] =============================");
         Debug.Log($"[Story] Phase changed: {old} -> {newPhase}");
         Debug.Log($"[Story] Date: {(CalendarManager.instance != null ? CalendarManager.instance.CurrentDate.ToString() : "N/A")}");
-        Debug.Log($"[Story] Time: {(CalendarManager.instance != null ? CalendarManager.instance.GetFormattedTime() : "N/A")}");
+        Debug.Log($"[Story] Phase: {(CalendarManager.instance != null ? CalendarManager.instance.CurrentPhase.ToString() : "N/A")}");
         Debug.Log($"[Story] =============================");
 
         OnPhaseChanged?.Invoke(old, newPhase);
@@ -123,40 +123,36 @@ public class StoryManager : MonoBehaviour
         switch (phase)
         {
             case StoryPhase.BedRest:
-                Debug.Log("[Story] BedRest begun — player confined to bed, physio minigames available.");
-                break;
-
-            case StoryPhase.StandingRecovery:
-                Debug.Log("[Story] StandingRecovery — player can now move around the house.");
+                Debug.Log("[Story] BedRest begun - player confined to bed, physio minigames available.");
                 break;
 
             case StoryPhase.DojoRejection:
                 dojoRejectionDate = today;
                 friendVisitDate = today.AddDays(daysUntilFriendVisit);
-                Debug.Log($"[Story] DojoRejection — removed from old dojo. Friend visits on: {friendVisitDate}");
+                Debug.Log($"[Story] DojoRejection - removed from old dojo. Friend visits on: {friendVisitDate}");
                 break;
 
             case StoryPhase.HouseTraining:
-                Debug.Log("[Story] HouseTraining — player training alone, depression beat.");
+                Debug.Log("[Story] HouseTraining - player training alone, depression beat.");
                 break;
 
             case StoryPhase.FriendVisit:
                 newDojoDate = friendVisitDate.AddDays(daysUntilNewDojo);
-                Debug.Log($"[Story] FriendVisit — friend has arrived. New dojo unlocks on: {newDojoDate}");
+                Debug.Log($"[Story] FriendVisit - friend has arrived. New dojo unlocks on: {newDojoDate}");
                 break;
 
             case StoryPhase.NewDojoJoin:
                 tournamentDate = today.AddDays(daysUntilTournament);
-                Debug.Log($"[Story] NewDojoJoin — joined new dojo. Tournament date set to: {tournamentDate}");
+                Debug.Log($"[Story] NewDojoJoin - joined new dojo. Tournament date set to: {tournamentDate}");
                 break;
 
             case StoryPhase.TournamentPrep:
-                Debug.Log($"[Story] TournamentPrep — beat both partners before {tournamentDate} to enter tournament.");
+                Debug.Log($"[Story] TournamentPrep - beat both partners before {tournamentDate} to enter tournament.");
                 Debug.Log($"[Story] Partner A beaten: {beatenPartnerA} | Partner B beaten: {beatenPartnerB}");
                 break;
 
             case StoryPhase.TournamentDay:
-                Debug.Log("[Story] TournamentDay — demo ending reached.");
+                Debug.Log("[Story] TournamentDay - demo ending reached.");
                 HandleTournamentDay();
                 break;
         }
@@ -164,7 +160,7 @@ public class StoryManager : MonoBehaviour
 
     /// <summary>
     /// Called every in-game day by CalendarManager.OnDayChanged.
-    /// Drives all date-based phase transitions — this is the single place
+    /// Drives all date-based phase transitions - this is the single place
     /// the story moves forward automatically.
     /// </summary>
     private void OnDayChanged(GameDate newDate)
@@ -172,12 +168,9 @@ public class StoryManager : MonoBehaviour
         switch (CurrentPhase)
         {
             case StoryPhase.BedRest:
+                // StandingRecovery removed - BedRest now advances straight to
+                // DojoRejection once its own day threshold is hit.
                 if (newDate >= storyStartDate.AddDays(2))
-                    TryAdvanceToPhase(StoryPhase.StandingRecovery);
-                break;
-
-            case StoryPhase.StandingRecovery:
-                if (newDate >= storyStartDate.AddDays(3))
                     TryAdvanceToPhase(StoryPhase.DojoRejection);
                 break;
 
@@ -231,7 +224,7 @@ public class StoryManager : MonoBehaviour
         Debug.Log($"[Story] Partner A: {beatenPartnerA}, Partner B: {beatenPartnerB}");
 
         if (BothPartnersBeaten)
-            Debug.Log("[Story] Both partners beaten — player can now talk to Sensei to advance to tournament.");
+            Debug.Log("[Story] Both partners beaten - player can now talk to Sensei to advance to tournament.");
     }
 
     /// <summary>
@@ -246,13 +239,13 @@ public class StoryManager : MonoBehaviour
 
     private void HandleTournamentDay()
     {
-        Debug.Log("[Story] Tournament day — demo ending reached.");
+        Debug.Log("[Story] Tournament day - demo ending reached.");
         // Hook your ending cutscene/scene load here
     }
 
     private void HandleGameOver()
     {
-        Debug.Log("[Story] Game over — tournament deadline passed without beating both partners.");
+        Debug.Log("[Story] Game over - tournament deadline passed without beating both partners.");
         // For the demo: hard reset to start of game
         // UnityEngine.SceneManagement.SceneManager.LoadScene(0);
     }

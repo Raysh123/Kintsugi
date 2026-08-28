@@ -5,26 +5,29 @@ using UnityEngine;
 public enum DayPhase { Morning, Afternoon, Evening, Night }
 
 /// <summary>
-/// Persona-style calendar: time only advances when an activity is completed.
+/// Persona-style calendar, now driven entirely by quadrant-ticks rather than
+/// continuous minutes. A day is 4 quadrants (Morning/Afternoon/Evening/Night),
+/// each made of TicksPerQuadrant ticks — default 4, giving quarter-quadrant
+/// granularity, so an activity can cost as little as 1 tick (a quarter) or as
+/// much as several quadrants at once. There's no clock-time concept anymore;
+/// CurrentPhase (and CurrentTick within it, if you need finer UI feedback) is
+/// the only notion of "what time it is."
 /// </summary>
 public class CalendarManager : MonoBehaviour
 {
     public static CalendarManager instance;
 
+    /// <summary>Ticks in one quadrant. 4 = quarter-quadrant granularity (1 tick = 25% of a quadrant).</summary>
+    public const int TicksPerQuadrant = 4;
+    private const int QuadrantsPerDay = 4;
+    /// <summary>Total ticks in a full day (all 4 quadrants).</summary>
+    public const int TicksPerDay = TicksPerQuadrant * QuadrantsPerDay;
+
     [Header("Starting Date")]
     [SerializeField] private int startYear = 1;
     [SerializeField] private int startMonth = 1;
     [SerializeField] private int startDay = 1;
-    [SerializeField] private int startHour = 6;
-
-    [Header("Day Length")]
-    [SerializeField] private int minutesPerDay = 1440;
-
-    [Header("Phase Boundaries (whole hours)")]
-    [SerializeField] private int morningStartHour = 6;
-    [SerializeField] private int afternoonStartHour = 12;
-    [SerializeField] private int eveningStartHour = 18;
-    [SerializeField] private int nightStartHour = 22;
+    [SerializeField] private DayPhase startPhase = DayPhase.Morning;
 
     [Header("Debug")]
     [SerializeField] private bool debugLog = true;
@@ -32,17 +35,19 @@ public class CalendarManager : MonoBehaviour
 
     public GameDate CurrentDate { get; private set; }
     public DayPhase CurrentPhase { get; private set; }
-    public int MinutesPerDay => minutesPerDay;
 
-    private float _preciseMinutes;
-    public float PreciseMinutesSinceDayStart => _preciseMinutes;
-    public int MinutesSinceDayStart => Mathf.FloorToInt(_preciseMinutes);
+    private int _currentTick;
+    /// <summary>Ticks elapsed since the start of the current day (0 to TicksPerDay-1).</summary>
+    public int CurrentTick => _currentTick;
+    /// <summary>How many ticks into the CURRENT quadrant specifically (0 to TicksPerQuadrant-1).</summary>
+    public int TickWithinQuadrant => _currentTick % TicksPerQuadrant;
 
     private readonly HashSet<string> _activitiesDoneToday = new HashSet<string>();
 
     public event Action<GameDate> OnDayChanged;
     public event Action<DayPhase> OnPhaseChanged;
-    public event Action<float> OnTimeAdvanced;
+    /// <summary>Fired whenever time advances, with the new CurrentTick value.</summary>
+    public event Action<int> OnTimeAdvanced;
 
     private void Awake()
     {
@@ -51,27 +56,28 @@ public class CalendarManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         CurrentDate = new GameDate(startYear, startMonth, startDay);
-        _preciseMinutes = startHour * 60f;
-        CurrentPhase = ComputePhase(_preciseMinutes);
+        _currentTick = (int)startPhase * TicksPerQuadrant;
+        CurrentPhase = startPhase;
     }
 
-    public void AdvanceTime(float minutes)
+    /// <summary>Advances time by the given number of ticks — see ActivityDefinition.quadrantTicks.</summary>
+    public void AdvanceTime(int ticks)
     {
-        if (minutes <= 0f) return;
+        if (ticks <= 0) return;
 
-        _preciseMinutes += minutes;
+        _currentTick += ticks;
 
-        while (_preciseMinutes >= minutesPerDay)
+        while (_currentTick >= TicksPerDay)
         {
-            _preciseMinutes -= minutesPerDay;
+            _currentTick -= TicksPerDay;
             AdvanceDay();
         }
 
         UpdatePhase();
-        OnTimeAdvanced?.Invoke(_preciseMinutes);
+        OnTimeAdvanced?.Invoke(_currentTick);
 
         if (debugLog)
-            Debug.Log($"[Calendar] +{minutes}m -> {CurrentDate}, {GetFormattedTime()}, {CurrentPhase}");
+            Debug.Log($"[Calendar] +{ticks} ticks -> {CurrentDate}, {CurrentPhase}");
     }
 
     public bool TryConsumeActivity(ActivityDefinition activity)
@@ -83,7 +89,7 @@ public class CalendarManager : MonoBehaviour
         }
 
         _activitiesDoneToday.Add(activity.activityId);
-        if (debugLog) Debug.Log($"[Calendar] Started '{activity.activityId}' at {GetFormattedTime()}");
+        if (debugLog) Debug.Log($"[Calendar] Started '{activity.activityId}' during {CurrentPhase}");
         return true;
     }
 
@@ -95,17 +101,11 @@ public class CalendarManager : MonoBehaviour
     /// </summary>
     public void Sleep()
     {
-        float minutesUntilMorning = (minutesPerDay - _preciseMinutes) + (morningStartHour * 60f);
-        AdvanceTime(minutesUntilMorning);
-        if (debugLog) Debug.Log($"[Calendar] Slept -> {CurrentDate}, {GetFormattedTime()}");
-    }
+        int ticksUntilNextMorning = TicksPerDay - _currentTick;
+        if (ticksUntilNextMorning <= 0) ticksUntilNextMorning = TicksPerDay;
 
-    public string GetFormattedTime()
-    {
-        int whole = Mathf.FloorToInt(_preciseMinutes);
-        int hours = (whole / 60) % 24;
-        int mins = whole % 60;
-        return $"{hours:00}:{mins:00}";
+        AdvanceTime(ticksUntilNextMorning);
+        if (debugLog) Debug.Log($"[Calendar] Slept -> {CurrentDate}, {CurrentPhase}");
     }
 
     private void AdvanceDay()
@@ -118,7 +118,7 @@ public class CalendarManager : MonoBehaviour
 
     private void UpdatePhase()
     {
-        DayPhase newPhase = ComputePhase(_preciseMinutes);
+        DayPhase newPhase = (DayPhase)(_currentTick / TicksPerQuadrant);
         if (newPhase != CurrentPhase)
         {
             CurrentPhase = newPhase;
@@ -127,22 +127,13 @@ public class CalendarManager : MonoBehaviour
         }
     }
 
-    private DayPhase ComputePhase(float minutes)
-    {
-        int hour = Mathf.FloorToInt(minutes / 60f) % 24;
-        if (hour >= nightStartHour || hour < morningStartHour) return DayPhase.Night;
-        if (hour >= eveningStartHour) return DayPhase.Evening;
-        if (hour >= afternoonStartHour) return DayPhase.Afternoon;
-        return DayPhase.Morning;
-    }
-
     public void LogCurrentState() =>
-        Debug.Log($"[Calendar] {CurrentDate}, {GetFormattedTime()}, {CurrentPhase}");
+        Debug.Log($"[Calendar] {CurrentDate}, {CurrentPhase} (tick {_currentTick}/{TicksPerDay})");
 
     private void OnGUI()
     {
         if (!showDebugOverlay) return;
-        string text = $"{CurrentDate}\n{GetFormattedTime()}\n{CurrentPhase}";
+        string text = $"{CurrentDate}\n{CurrentPhase}\ntick {_currentTick}/{TicksPerDay}";
         GUI.Box(new Rect(10, 10, 180, 70), text);
     }
 }

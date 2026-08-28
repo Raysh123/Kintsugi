@@ -94,6 +94,12 @@ public class RhythmSequenceMinigame : MonoBehaviour
     [SerializeField] private string downAnimState;
     [SerializeField] private string mistakeAnimState;
     [SerializeField] private string injuredAnimState;
+    [Tooltip("If true, Up/Down animation follows each beat's actual required button (so it randomizes " +
+             "along with it — good for exercises like kicks where either direction reads fine). If " +
+             "false, the animation ignores the button and just alternates Down/Up on its own fixed " +
+             "cycle regardless of what's required — good for exercises like squats that need a " +
+             "consistent physical cycle even though the input itself is randomized.")]
+    [SerializeField] private bool tieAnimationToButton = false;
 
     [Header("Outcome")]
     [SerializeField] private bool _won;
@@ -193,7 +199,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
     {
         RhythmBeat beat = beats[index];
         beatTimer = GetTimingWindowForBeat(beat);
-        PlayMovementAnim();
+        PlayMovementAnim(beat);
         OnBeatStarted?.Invoke(beat);
     }
 
@@ -303,11 +309,27 @@ public class RhythmSequenceMinigame : MonoBehaviour
 
     // ── Animation helpers ──────────────────────────────────────────────────────
 
-    private void PlayMovementAnim()
+    private void PlayMovementAnim(RhythmBeat beat)
     {
-        string state = nextMoveIsDown ? downAnimState : upAnimState;
+        string state;
+
+        if (tieAnimationToButton)
+        {
+            // Follows whichever button this specific beat requires — since the button
+            // itself is randomized, the animation effectively randomizes with it too.
+            // Good fit for exercises where either direction reads fine either way (kicks).
+            state = beat.expectedButton == BeatButton.Down ? downAnimState : upAnimState;
+        }
+        else
+        {
+            // Ignores the beat's button entirely — just alternates on its own fixed
+            // cycle. Good fit for exercises that need a consistent physical cycle
+            // regardless of random input (squats always look like a real squat).
+            state = nextMoveIsDown ? downAnimState : upAnimState;
+            nextMoveIsDown = !nextMoveIsDown;
+        }
+
         PlayAnimState(state);
-        nextMoveIsDown = !nextMoveIsDown;
     }
 
     private void PlayAnimState(string state)

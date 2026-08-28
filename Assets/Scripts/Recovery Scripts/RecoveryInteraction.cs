@@ -26,6 +26,17 @@ public class RecoveryInteraction : MonoBehaviour
     [SerializeField] private Animator activityAnimator;
     [Tooltip("Name of the animation state to play on the activity model.")]
     [SerializeField] private string activityAnimation;
+    [Tooltip("Name of the Animator float parameter driving that state's Motion Time (0-1) — set the " +
+             "deadlift/etc state to use Motion Time in the Animator Controller and assign it this parameter.")]
+    [SerializeField] private string fillProgressParam = "LiftProgress";
+
+    [Header("Outcome Animations")]
+    [Tooltip("Played once the activity ends in a Win — activity ends after this clip finishes.")]
+    [SerializeField] private string winAnimation;
+    [Tooltip("Played once the activity ends in a Loss — activity ends after this clip finishes.")]
+    [SerializeField] private string loseAnimation;
+    [Tooltip("Played once the activity ends Injured — activity ends after this clip finishes.")]
+    [SerializeField] private string injuredAnimation;
 
     [Header("Minigame")]
     [Tooltip("The FillBarMinigame component for this activity. Starts disabled in the scene.")]
@@ -70,6 +81,22 @@ public class RecoveryInteraction : MonoBehaviour
     {
         if (meter != null) meter.gameObject.SetActive(false);
         if (activityModel != null) activityModel.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        if (meter != null) meter.OnFillChanged += HandleFillChanged;
+    }
+
+    private void OnDisable()
+    {
+        if (meter != null) meter.OnFillChanged -= HandleFillChanged;
+    }
+
+    private void HandleFillChanged(float percent)
+    {
+        if (activityAnimator != null && !string.IsNullOrEmpty(fillProgressParam))
+            activityAnimator.SetFloat(fillProgressParam, percent / 100f);
     }
 
     void Update()
@@ -126,35 +153,61 @@ public class RecoveryInteraction : MonoBehaviour
 
     private IEnumerator EndInteraction()
     {
+        string outcomeAnimation = null;
+
         if (meter.won)
         {
             Debug.Log("Won");
             HealthAndMotivation.instance.ModifyHealth(winHealth);
             HealthAndMotivation.instance.ModifyMotivation(winMotivation);
+            outcomeAnimation = winAnimation;
         }
         else if (meter.lost)
         {
             Debug.Log("Lost");
             HealthAndMotivation.instance.ModifyHealth(loseHealth);
             HealthAndMotivation.instance.ModifyMotivation(loseMotivation);
+            outcomeAnimation = loseAnimation;
         }
         else if (meter.injured)
         {
             Debug.Log("Injured");
             HealthAndMotivation.instance.ModifyHealth(injuryHealth);
             HealthAndMotivation.instance.ModifyMotivation(injuryMotivation);
+            outcomeAnimation = injuredAnimation;
         }
 
-        yield return new WaitForSeconds(0.01f);
+        yield return PlayOutcomeAnimation(outcomeAnimation);
 
         // Restore player mesh, hide activity model
         if (activityModel != null) activityModel.SetActive(false);
         if (playerMeshChild != null) playerMeshChild.SetActive(true);
 
         SceneCameraManager.instance.DeactivateCamera(activityCamera);
-        CalendarManager.instance.AdvanceTime(activity.timeCostMinutes);
+        CalendarManager.instance.AdvanceTime(activity.quadrantTicks);
         meter.gameObject.SetActive(false);
         player.interacting = false;
         meterActive = false;
+    }
+
+    /// <summary>
+    /// Plays the given outcome animation and waits for its actual clip length before
+    /// returning — the activity ends once the animation finishes, not immediately when
+    /// time runs out. Waits one frame after Play() before reading the state's length,
+    /// since the Animator doesn't evaluate the new state until its next update pass.
+    /// </summary>
+    private IEnumerator PlayOutcomeAnimation(string stateName)
+    {
+        if (activityAnimator == null || string.IsNullOrEmpty(stateName))
+        {
+            yield return new WaitForSeconds(0.01f);
+            yield break;
+        }
+
+        activityAnimator.Play(stateName);
+        yield return null; // let the Animator actually enter the new state before reading its length
+
+        float length = activityAnimator.GetCurrentAnimatorStateInfo(0).length;
+        yield return new WaitForSeconds(length);
     }
 }

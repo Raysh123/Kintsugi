@@ -36,8 +36,8 @@ public class TrackerRhythmMinigame : MonoBehaviour
     [SerializeField] private float motivationRangeMax = 100f;
 
     [Header("Hit Requirements")]
-    [SerializeField] private int winHitsRequired = 10;
-    [SerializeField] private int injuryMissLimit = 3;
+    public int winHitsRequired = 10;
+    public int injuryMissLimit = 3;
 
     [Header("Input")]
     [SerializeField] private KeyCode hitKey = KeyCode.Space;
@@ -85,6 +85,17 @@ public class TrackerRhythmMinigame : MonoBehaviour
     public event System.Action<float, float> OnZoneChanged;
     [Tooltip("Fired whenever hitCount/missCount changes — (hitCount, missCount).")]
     public event System.Action<int, int> OnProgressChanged;
+    [Tooltip("Fired specifically on a successful hit only (not misses) — for particle/juice feedback.")]
+    public event System.Action OnSuccessfulHit;
+    [Tooltip("Fired specifically on a wrong-timing miss only (not hits) — for reaction animation/feedback.")]
+    public event System.Action OnMissedHit;
+    [Tooltip("Fired specifically on the miss that pushes missCount to injuryMissLimit — the bigger, " +
+             "final reaction moment, separate from every regular OnMissedHit.")]
+    public event System.Action OnInjuryTriggered;
+    [Tooltip("Fired once at the start of each attempt, after zone/speed are (re)randomized — a clean " +
+             "signal for UI that needs to rebuild rather than just update (e.g. respawning hearts to " +
+             "match injuryMissLimit, which can vary between exercises).")]
+    public event System.Action OnMinigameReset;
 
     private float timeRemaining;
     private bool running;
@@ -104,6 +115,7 @@ public class TrackerRhythmMinigame : MonoBehaviour
         RecalculateTrackerSpeed();
         OnTrackerPositionChanged?.Invoke(trackerPosition);
         OnProgressChanged?.Invoke(hitCount, missCount);
+        OnMinigameReset?.Invoke();
     }
 
     private void Update()
@@ -151,6 +163,7 @@ public class TrackerRhythmMinigame : MonoBehaviour
         {
             hitCount++;
             OnProgressChanged?.Invoke(hitCount, missCount);
+            OnSuccessfulHit?.Invoke();
 
             if (hitCount >= winHitsRequired)
             {
@@ -162,10 +175,12 @@ public class TrackerRhythmMinigame : MonoBehaviour
         {
             missCount++;
             OnProgressChanged?.Invoke(hitCount, missCount);
+            OnMissedHit?.Invoke();
 
             if (missCount >= injuryMissLimit)
             {
                 _injured = true;
+                OnInjuryTriggered?.Invoke();
                 EndMinigame();
             }
         }

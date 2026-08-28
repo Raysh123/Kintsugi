@@ -25,6 +25,11 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
     [SerializeField] private string activityAnimation;
     [Tooltip("Animation state to play when the player hits the input key during the interaction (the 'action' moment).")]
     [SerializeField] private string actionAnimation;
+    [Tooltip("Animation state to play on a wrong-timing miss — a reaction/flinch, separate from the generic action pose.")]
+    [SerializeField] private string missAnimation;
+    [Tooltip("Animation state to play specifically on the miss that triggers Injured — a bigger, distinct " +
+             "reaction from the regular miss flinch above.")]
+    [SerializeField] private string injuredAnimation;
 
     [Header("Minigame")]
     [Tooltip("The TrackerRhythmMinigame component for this activity. Starts disabled in the scene.")]
@@ -69,6 +74,32 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
     {
         if (meter != null) meter.gameObject.SetActive(false);
         if (activityModel != null) activityModel.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        if (meter == null) return;
+        meter.OnMissedHit += HandleMissedHit;
+        meter.OnInjuryTriggered += HandleInjuryTriggered;
+    }
+
+    private void OnDisable()
+    {
+        if (meter == null) return;
+        meter.OnMissedHit -= HandleMissedHit;
+        meter.OnInjuryTriggered -= HandleInjuryTriggered;
+    }
+
+    private void HandleMissedHit()
+    {
+        if (activityAnimator != null && !string.IsNullOrEmpty(missAnimation))
+            activityAnimator.Play(missAnimation);
+    }
+
+    private void HandleInjuryTriggered()
+    {
+        if (activityAnimator != null && !string.IsNullOrEmpty(injuredAnimation))
+            activityAnimator.Play(injuredAnimation);
     }
 
     void Update()
@@ -163,7 +194,7 @@ public class Recovery_Interaction_Type_B : MonoBehaviour
         if (playerMeshChild != null) playerMeshChild.SetActive(true);
 
         SceneCameraManager.instance.DeactivateCamera(activityCamera);
-        CalendarManager.instance.AdvanceTime(activity.timeCostMinutes);
+        CalendarManager.instance.AdvanceTime(activity.quadrantTicks);
         meter.gameObject.SetActive(false);
         player.interacting = false;
         meterActive = false;

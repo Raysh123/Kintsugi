@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -26,17 +28,42 @@ public class TrackerRhythmMeterUI : MonoBehaviour
     [Header("Hit Zone")]
     [SerializeField] private RectTransform zoneOverlay;
 
+    [Header("Hit Feedback (optional)")]
+    [Tooltip("Played on every successful hit. Parent this under the knob for it to " +
+             "automatically play at the knob's current position. Note: won't render " +
+             "through a Screen Space - Overlay Canvas — needs Screen Space - Camera " +
+             "or World Space, since particles need a camera pass to draw.")]
+    [SerializeField] private ParticleSystem hitParticles;
+
+    [Header("Hit Count Display (optional)")]
+    [Tooltip("Shows hitCount/winHitsRequired, e.g. '4/10'.")]
+    [SerializeField] private TMP_Text hitCountText;
+
+    [Header("Miss Hearts (optional)")]
+    [Tooltip("Prefab spawned once per life — count matches injuryMissLimit automatically, so different " +
+             "exercises with different miss limits just work without manually re-matching a list.")]
+    [SerializeField] private GameObject heartPrefab;
+    [Tooltip("Parent the spawned hearts are instantiated under.")]
+    [SerializeField] private Transform heartsContainer;
+
+    private readonly List<GameObject> spawnedHearts = new List<GameObject>();
+
     private void OnEnable()
     {
         if (minigame == null) return;
         minigame.OnTrackerPositionChanged += HandleTrackerMoved;
         minigame.OnZoneChanged += HandleZoneChanged;
+        minigame.OnSuccessfulHit += HandleSuccessfulHit;
+        minigame.OnProgressChanged += HandleProgressChanged;
+        minigame.OnMinigameReset += HandleMinigameReset;
 
         WarnIfZeroWidth();
 
         // Prime immediately in case some state already exists before this UI enabled.
         HandleTrackerMoved(minigame.trackerPosition);
         HandleZoneChanged(minigame.currentZoneMin, minigame.currentZoneMax);
+        HandleMinigameReset(); // spawns hearts matching the current injuryMissLimit
+        HandleProgressChanged(minigame.hitCount, minigame.missCount); // fixes visibility to current state
     }
 
     private void WarnIfZeroWidth()
@@ -52,9 +79,16 @@ public class TrackerRhythmMeterUI : MonoBehaviour
 
     private void OnDisable()
     {
-        if (minigame == null) return;
-        minigame.OnTrackerPositionChanged -= HandleTrackerMoved;
-        minigame.OnZoneChanged -= HandleZoneChanged;
+        if (minigame != null)
+        {
+            minigame.OnTrackerPositionChanged -= HandleTrackerMoved;
+            minigame.OnZoneChanged -= HandleZoneChanged;
+            minigame.OnSuccessfulHit -= HandleSuccessfulHit;
+            minigame.OnProgressChanged -= HandleProgressChanged;
+            minigame.OnMinigameReset -= HandleMinigameReset;
+        }
+
+        DestroySpawnedHearts();
     }
 
     private void HandleTrackerMoved(float normalizedPos)
@@ -91,6 +125,54 @@ public class TrackerRhythmMeterUI : MonoBehaviour
 
         zoneOverlay.anchoredPosition = new Vector2(zoneMin * trackWidth, zoneOverlay.anchoredPosition.y);
         zoneOverlay.sizeDelta = new Vector2((zoneMax - zoneMin) * trackWidth, zoneOverlay.sizeDelta.y);
+    }
+
+    private void HandleSuccessfulHit()
+    {
+        if (hitParticles == null) return;
+
+        // Play(true) restarts including any child particle systems, so rapid
+        // successive hits each get a clean burst rather than blending oddly
+        // into whatever's still finishing from the previous one.
+        hitParticles.Play(true);
+    }
+
+    private void HandleProgressChanged(int hitCount, int missCount)
+    {
+        if (hitCountText != null && minigame != null)
+            hitCountText.text = $"{hitCount}/{minigame.winHitsRequired}";
+
+        for (int i = 0; i < spawnedHearts.Count; i++)
+        {
+            if (spawnedHearts[i] != null)
+                spawnedHearts[i].SetActive(i >= missCount);
+        }
+    }
+
+    /// <summary>
+    /// Destroys any hearts left over from the previous attempt (a different exercise
+    /// may have used a different injuryMissLimit) and spawns fresh ones matching the
+    /// current one. All start active — HandleProgressChanged fixes their visibility
+    /// to the current missCount right after this runs.
+    /// </summary>
+    private void HandleMinigameReset()
+    {
+        DestroySpawnedHearts();
+
+        if (heartPrefab == null || heartsContainer == null || minigame == null) return;
+
+        for (int i = 0; i < minigame.injuryMissLimit; i++)
+            spawnedHearts.Add(Instantiate(heartPrefab, heartsContainer));
+    }
+
+    private void DestroySpawnedHearts()
+    {
+        for (int i = 0; i < spawnedHearts.Count; i++)
+        {
+            if (spawnedHearts[i] != null)
+                Destroy(spawnedHearts[i]);
+        }
+        spawnedHearts.Clear();
     }
 
     private void WarnIfNotChild(RectTransform child, string fieldName)

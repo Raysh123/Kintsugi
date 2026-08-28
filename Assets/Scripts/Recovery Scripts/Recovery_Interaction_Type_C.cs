@@ -165,7 +165,7 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
         if (playerMeshChild != null) playerMeshChild.SetActive(true);
 
         SceneCameraManager.instance.DeactivateCamera(activityCamera);
-        CalendarManager.instance.AdvanceTime(activity.timeCostMinutes);
+        CalendarManager.instance.AdvanceTime(activity.quadrantTicks);
 
         meter.gameObject.SetActive(false);
 

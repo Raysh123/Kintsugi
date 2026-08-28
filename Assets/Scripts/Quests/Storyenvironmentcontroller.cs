@@ -38,7 +38,7 @@ public class StoryEnvironmentController : MonoBehaviour
     private const float BedSaturation = -60f;
     private const float BedLensDistortion = -0.3f;
 
-    // StandingRecovery / DojoRejection / HouseTraining — grey, subdued
+    // DojoRejection / HouseTraining — grey, subdued
     private const float GreyVignetteIntensity = 0.35f;
     private const float GreyChromaticIntensity = 0.2f;
     private const float GreySaturation = -30f;
@@ -214,7 +214,6 @@ public class StoryEnvironmentController : MonoBehaviour
             case StoryPhase.BedRest:
                 return (BedVignetteIntensity, BedChromaticIntensity, BedSaturation, BedLensDistortion);
 
-            case StoryPhase.StandingRecovery:
             case StoryPhase.DojoRejection:
             case StoryPhase.HouseTraining:
                 return (GreyVignetteIntensity, GreyChromaticIntensity, GreySaturation, GreyLensDistortion);
