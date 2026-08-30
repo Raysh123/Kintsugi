@@ -39,6 +39,11 @@ public class DmgDetection : MonoBehaviour
     {
         CheckHit(other);
     }
+    IEnumerator InputLockWindow()
+    {
+        yield return new WaitForSeconds(2);
+        InputHandler.instance.SetInput(true);
+    }
     void CheckHit(Collider other)
     {
         if (hitRegistered)
@@ -52,8 +57,10 @@ public class DmgDetection : MonoBehaviour
                 Debug.Log("blocked by enemy");
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
+                    InputHandler.instance.SetInput(false);
                     Debug.Log("stun");
                 }
+                StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
@@ -71,8 +78,10 @@ public class DmgDetection : MonoBehaviour
                 Debug.Log("blocked by enemy");
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
+                    InputHandler.instance.SetInput(false);
                     Debug.Log("stun");
                 }
+                StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
@@ -92,6 +101,7 @@ public class DmgDetection : MonoBehaviour
                     Debug.Log("Blocked");
                     if (enemyPosture.postureSlider.value >= postureMaxVal)
                     {
+
                         Debug.Log("stun");
                     }
                     enemyPosture.posDmg(0.5f);

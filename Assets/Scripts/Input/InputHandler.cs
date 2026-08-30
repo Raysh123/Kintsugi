@@ -10,6 +10,8 @@ public class InputHandler : MonoBehaviour
     public bool dodge;
     public bool block;
 
+    private bool inputEnabled = true;
+
     public static InputHandler instance;
     private void Awake()
     {
@@ -26,12 +28,33 @@ public class InputHandler : MonoBehaviour
     {
         
     }
+    public void SetInput(bool enabled)
+    {
+        inputEnabled = enabled;
+        if (!enabled)
+        {
+            move = 0;
+            speed = 0;
+            kick = false;
+            punch = false;
+            dodge = false;
+            block = false;
+        }
+    }
     public void onMove(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         move = ctx.ReadValue<float>();
     }
     public void onPunch(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             punch = true;
@@ -43,6 +66,10 @@ public class InputHandler : MonoBehaviour
     }
     public void onKick(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             kick = true;
@@ -54,6 +81,10 @@ public class InputHandler : MonoBehaviour
     }
     public void onDodge(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             dodge = true;
@@ -65,6 +96,10 @@ public class InputHandler : MonoBehaviour
     }
     public void onBlock(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             block = true;
