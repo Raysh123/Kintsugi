@@ -14,7 +14,8 @@ public class DmgDetection : MonoBehaviour
     bool isperfectBlock;
     [SerializeField] private float perfectBlockWindow;
     [SerializeField] private Posture playerPosture; 
-    [SerializeField] private Posture enemyPosture; 
+    [SerializeField] private Posture enemyPosture;
+    [SerializeField] private float postureMaxVal = 0.8f;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -38,6 +39,11 @@ public class DmgDetection : MonoBehaviour
     {
         CheckHit(other);
     }
+    IEnumerator InputLockWindow()
+    {
+        yield return new WaitForSeconds(2);
+        InputHandler.instance.SetInput(true);
+    }
     void CheckHit(Collider other)
     {
         if (hitRegistered)
@@ -49,6 +55,12 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                if (playerPosture.postureSlider.value >= postureMaxVal)
+                {
+                    InputHandler.instance.SetInput(false);
+                    Debug.Log("stun");
+                }
+                StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
@@ -64,6 +76,12 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                if (playerPosture.postureSlider.value >= postureMaxVal)
+                {
+                    InputHandler.instance.SetInput(false);
+                    Debug.Log("stun");
+                }
+                StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
                 hitRegistered = true;
                 return;
@@ -81,6 +99,11 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    //Enemy stun is dealt in EnemyStateMachine
+                    if (enemyPosture.postureSlider.value >= postureMaxVal)
+                    {
+                        Debug.Log("Enemy stun");
+                    }
                     enemyPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
@@ -89,6 +112,12 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.IsNormalBlockActive())
                 {
                     Debug.Log("normal block");
+                    if (playerPosture.postureSlider.value >= postureMaxVal)
+                    {
+                        InputHandler.instance.SetInput(false);
+                        Debug.Log("stun");
+                    }
+                    StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
@@ -107,6 +136,11 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    //Enemy stun is dealt in EnemyStateMachine
+                    if (enemyPosture.postureSlider.value >= postureMaxVal)
+                    {
+                        Debug.Log("Enemy stun");
+                    }
                     enemyPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
@@ -115,6 +149,12 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.IsNormalBlockActive())
                 {
                     Debug.Log("normal Block");
+                    if (playerPosture.postureSlider.value >= postureMaxVal)
+                    {
+                        InputHandler.instance.SetInput(false);
+                        Debug.Log("stun");
+                    }
+                    StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
