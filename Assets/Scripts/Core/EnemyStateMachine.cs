@@ -12,7 +12,8 @@ public class EnemyStateMachine : MonoBehaviour
         Attack,
         Block,
         Retreat,
-        Hurt
+        Hurt,
+        Stun
     }
     public EnemyState currentState;
     public Transform Player;
@@ -41,9 +42,11 @@ public class EnemyStateMachine : MonoBehaviour
     [SerializeField] private PlayerStateMachine playerStateMachine;
     private PlayerStateMachine.AttackTypes incomingAttackTypes;
     private bool hasBlockedCurrentPlayerAttack;
+    [SerializeField] private Posture enemyPosture;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        StopAllCoroutines();
         ChangeState(EnemyState.Idle);
     }
     public void ChangeState(EnemyState state)
@@ -110,8 +113,21 @@ public class EnemyStateMachine : MonoBehaviour
             case EnemyState.Block:
                 HandleBlock();
                 break;
+            case EnemyState.Stun:
+                HandleStun();
+                break;
         }
     }
+    IEnumerator StunRoutine()
+    {
+        yield return new WaitForSeconds(10);
+        ChangeState(EnemyState.Idle);
+    }
+    private void HandleStun()
+    {
+        StartCoroutine(StunRoutine());
+    }
+
     private void HandleIdle()
     {
         if (playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
@@ -149,6 +165,10 @@ public class EnemyStateMachine : MonoBehaviour
                 shouldApproach = false;
             }
         }
+        if (enemyPosture.postureSlider.value >= 0.85)
+        {
+            ChangeState(EnemyState.Stun);
+        }
         //if (InputHandler.instance.punch && blockTimer <= 0 && decisionRoll > 30)
         //{
         //    blockTimer = blockCooldown;
@@ -175,7 +195,7 @@ public class EnemyStateMachine : MonoBehaviour
 
     private void HandleAttack()
     {
-        if (isAttacking)
+        if (isAttacking || currentState == EnemyState.Stun)
         {
             return;
         }
@@ -282,7 +302,8 @@ public class EnemyStateMachine : MonoBehaviour
     {
         if (currentState == EnemyState.Attack ||
         currentState == EnemyState.Block ||
-        currentState == EnemyState.Hurt)
+        currentState == EnemyState.Hurt || 
+        currentState == EnemyState.Stun)
             return;
         float  direction = Mathf.Sign(Player.position.x - transform.position.x);
         float distance = Vector3.Distance(transform.position, Player.position);

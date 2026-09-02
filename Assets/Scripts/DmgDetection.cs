@@ -99,10 +99,10 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    //Enemy stun is dealt in EnemyStateMachine
                     if (enemyPosture.postureSlider.value >= postureMaxVal)
                     {
-
-                        Debug.Log("stun");
+                        Debug.Log("Enemy stun");
                     }
                     enemyPosture.posDmg(0.5f);
                     hitRegistered = true;
@@ -114,8 +114,10 @@ public class DmgDetection : MonoBehaviour
                     Debug.Log("normal block");
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
+                        InputHandler.instance.SetInput(false);
                         Debug.Log("stun");
                     }
+                    StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
@@ -134,9 +136,10 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    //Enemy stun is dealt in EnemyStateMachine
                     if (enemyPosture.postureSlider.value >= postureMaxVal)
                     {
-                        Debug.Log("stun");
+                        Debug.Log("Enemy stun");
                     }
                     enemyPosture.posDmg(0.5f);
                     hitRegistered = true;
@@ -148,8 +151,10 @@ public class DmgDetection : MonoBehaviour
                     Debug.Log("normal Block");
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
+                        InputHandler.instance.SetInput(false);
                         Debug.Log("stun");
                     }
+                    StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
