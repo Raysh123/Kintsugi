@@ -749,6 +749,7 @@ MonoBehaviour:
   matchTimer: {fileID: 1086321184}
   hitBoxes: []
   playerStateMachine: {fileID: 0}
+  enemyPosture: {fileID: 0}
 --- !u!136 &332933033
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -6736,6 +6737,7 @@ MonoBehaviour:
   - {fileID: 2059724359}
   - {fileID: 1364819251}
   playerStateMachine: {fileID: 1783550736}
+  enemyPosture: {fileID: 2047168657}
 --- !u!114 &2047168657
 MonoBehaviour:
   m_ObjectHideFlags: 0
