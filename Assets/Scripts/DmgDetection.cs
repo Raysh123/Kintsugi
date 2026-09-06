@@ -69,7 +69,7 @@ public class DmgDetection : MonoBehaviour
             anim.Play("Hurt_Balls");
             hitRegistered = true;
             matchTimer.RegisterHit();
-            GameManager.instance.ResetPlayerPos();
+            //GameManager.instance.ResetPlayerPos();
         }
         else if (other.transform.tag == "Body" && gameObject.tag == "Kick" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
@@ -90,7 +90,7 @@ public class DmgDetection : MonoBehaviour
             anim.Play("Hurt_Balls");
             hitRegistered = true;
             matchTimer.RegisterHit();
-            GameManager.instance.ResetPlayerPos();
+            //GameManager.instance.ResetPlayerPos();
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
@@ -99,12 +99,12 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    enemyPosture.posDmg(0.5f);
                     //Enemy stun is dealt in EnemyStateMachine
                     if (enemyPosture.postureSlider.value >= postureMaxVal)
                     {
                         Debug.Log("Enemy stun");
                     }
-                    enemyPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
                     return;
@@ -127,9 +127,9 @@ public class DmgDetection : MonoBehaviour
             Debug.Log("Enemy hit");
             hitRegistered = true;
             matchTimer.RegisterHit();
-            GameManager.instance.ResetPlayerPos();
+            //GameManager.instance.ResetPlayerPos();
         }
-        else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ekick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
+        else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "eKick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
             if (playerStateMachine != null)
             {
@@ -164,7 +164,7 @@ public class DmgDetection : MonoBehaviour
             Debug.Log("Enemy hit");
             hitRegistered = true;
             matchTimer.RegisterHit();
-            GameManager.instance.ResetPlayerPos();
+            //GameManager.instance.ResetPlayerPos();
         }
     }
 }
