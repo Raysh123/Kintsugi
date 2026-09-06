@@ -9,8 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3fe0b8adda465ae45b6b1acbb9ca92bd, type: 3}
-  m_Name: Player
+  m_Script: {fileID: 11500000, guid: 85b0557792756164896c1525085fa05e, type: 3}
+  m_Name: DeadBugs
   m_EditorClassIdentifier: 
-  characterName: 
-  dialogueBlocks: []
+  activityId: DeadBugs
+  displayName: DeadBugs
+  quadrantTicks: 4
+  onceLimitPerDay: 0
+  minMotivationRequired: 0
+  isCrossScene: 0

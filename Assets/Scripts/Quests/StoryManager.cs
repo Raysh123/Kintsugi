@@ -21,6 +21,14 @@ public class StoryManager : MonoBehaviour
 
     public GameDate storyStartDate = new GameDate(1, 1, 1);
 
+    [Header("Phase Durations (days, relative to when each phase itself begins)")]
+    [Tooltip("How many days BedRest lasts before advancing to DojoRejection.")]
+    public int bedRestDurationDays = 2;
+    [Tooltip("How many days DojoRejection lasts before advancing to HouseTraining.")]
+    public int dojoRejectionDurationDays = 2;
+    [Tooltip("How many days NewDojoJoin lasts before advancing to TournamentPrep.")]
+    public int newDojoJoinDurationDays = 7;
+
     public int daysUntilFriendVisit = 3;
 
     public int daysUntilNewDojo = 1;
@@ -60,6 +68,19 @@ public class StoryManager : MonoBehaviour
 
     public event Action<StoryPhase> OnScheduledEventTriggered;
 
+    // Tracks when the CURRENT phase began, generically — set once at Awake for the
+    // starting phase, then re-set on every SetPhase() transition. This is what lets
+    // DialogueBlock's "day number since phase started" narrowing work for ANY phase,
+    // not just BedRest specifically.
+    private GameDate currentPhaseStartDate;
+    public GameDate CurrentPhaseStartDate => currentPhaseStartDate;
+
+    /// <summary>1-indexed day count since the current phase began (Day 1 = the day it started).</summary>
+    public int DaysSincePhaseStart =>
+        CalendarManager.instance != null
+            ? CalendarManager.instance.CurrentDate.AbsoluteDay - currentPhaseStartDate.AbsoluteDay + 1
+            : 1;
+
     private void Awake()
     {
         if (instance != null && instance != this) { Destroy(gameObject); return; }
@@ -67,6 +88,7 @@ public class StoryManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         CurrentPhase = startingPhase;
+        currentPhaseStartDate = storyStartDate;
     }
 
     private void OnEnable()
@@ -103,6 +125,9 @@ public class StoryManager : MonoBehaviour
     {
         StoryPhase old = CurrentPhase;
         CurrentPhase = newPhase;
+        currentPhaseStartDate = CalendarManager.instance != null
+            ? CalendarManager.instance.CurrentDate
+            : storyStartDate;
 
         Debug.Log($"[Story] =============================");
         Debug.Log($"[Story] Phase changed: {old} -> {newPhase}");
@@ -168,14 +193,12 @@ public class StoryManager : MonoBehaviour
         switch (CurrentPhase)
         {
             case StoryPhase.BedRest:
-                // StandingRecovery removed - BedRest now advances straight to
-                // DojoRejection once its own day threshold is hit.
-                if (newDate >= storyStartDate.AddDays(2))
+                if (newDate >= currentPhaseStartDate.AddDays(bedRestDurationDays))
                     TryAdvanceToPhase(StoryPhase.DojoRejection);
                 break;
 
             case StoryPhase.DojoRejection:
-                if (newDate >= storyStartDate.AddDays(4))
+                if (newDate >= currentPhaseStartDate.AddDays(dojoRejectionDurationDays))
                     TryAdvanceToPhase(StoryPhase.HouseTraining);
                 break;
 
@@ -196,7 +219,7 @@ public class StoryManager : MonoBehaviour
                 break;
 
             case StoryPhase.NewDojoJoin:
-                if (newDate >= storyStartDate.AddDays(7))
+                if (newDate >= currentPhaseStartDate.AddDays(newDojoJoinDurationDays))
                     TryAdvanceToPhase(StoryPhase.TournamentPrep);
                 break;
 

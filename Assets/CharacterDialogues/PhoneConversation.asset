@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8835dfddad7d4ee41a303e58bc774c6d, type: 3}
+  m_Name: PhoneConversation
+  m_EditorClassIdentifier: 
+  blocks:
+  - phase: 1
+    anyTimeOfDay: 0
+    timeOfDay: 2
+    anyDay: 1
+    dayNumber: 0
+    lines:
+    - speakerIndex: 0
+      subtitle: Good Evening, Sensei Frank
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 1
+      subtitle: "Good evening? Is this Dastaan? How are you doing my boy?\t\t"
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 2
+      subtitle: I'm getting better sensei. I'm finished with my physio and mostly
+        up and about. I was wondering if I could start training again tomorrow
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 4
+      subtitle: 'What? Why not Sensei, you know me, I''m the best in class, and i
+        really need to keep up my training. '
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 5
+      subtitle: "It's not right for you to push yourself Dastaan. \nYou must take
+        care of your injury"
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 6
+      subtitle: But Sensei, I am gettig better and I will keep getting better, and
+        I...
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 7
+      subtitle: Look boy, I have no interest in taking you in when you can be a liability.
+        One wrong move from you and i could lose my instructor license. It just wont
+        do. Good Luck Dastaan
+      audioClip: {fileID: 0}
+      waitForInput: 1

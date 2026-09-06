@@ -37,6 +37,24 @@ public class BedInteraction : MonoBehaviour
     private bool canInteract;
     private bool isSleeping;
 
+    /// <summary>
+    /// Fired once ANY sleep sequence (this script or BedRestPhaseController's) has
+    /// genuinely finished — fade back in complete, model restored. Static because
+    /// it's a single shared signal regardless of which physical bed/script
+    /// instance triggered the sleep. Used by OneTimePhaseDialogueTrigger to defer
+    /// phase-entry dialogue until the player has actually visually woken up,
+    /// rather than firing during the mid-sleep phase transition.
+    /// </summary>
+    public static event System.Action OnAnyWakeUp;
+
+    /// <summary>Call this to fire OnAnyWakeUp — events can only be invoked from inside their " +
+    /// declaring class, so external code (like BedRestPhaseController) calls this instead of " +
+    /// trying to invoke the event directly.</summary>
+    public static void RaiseWakeUp()
+    {
+        OnAnyWakeUp?.Invoke();
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
@@ -117,6 +135,8 @@ public class BedInteraction : MonoBehaviour
 
         player.interacting = false;
         isSleeping = false;
+
+        RaiseWakeUp();
     }
 
     private IEnumerator Fade(float fromAlpha, float toAlpha)

@@ -133,7 +133,8 @@ public class CalendarManager : MonoBehaviour
     private void OnGUI()
     {
         if (!showDebugOverlay) return;
-        string text = $"{CurrentDate}\n{CurrentPhase}\ntick {_currentTick}/{TicksPerDay}";
-        GUI.Box(new Rect(10, 10, 180, 70), text);
+        string storyPhase = StoryManager.instance != null ? StoryManager.instance.CurrentPhase.ToString() : "N/A";
+        string text = $"{CurrentDate}\nStory: {storyPhase}\nTime of Day: {CurrentPhase}\ntick {_currentTick}/{TicksPerDay}";
+        GUI.Box(new Rect(10, 10, 220, 90), text);
     }
 }

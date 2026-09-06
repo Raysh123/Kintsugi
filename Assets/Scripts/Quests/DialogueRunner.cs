@@ -1,26 +1,26 @@
-using System.Collections;
+ï»¿using System.Collections;
 using TMPro;
 using UnityEngine;
 
 /// <summary>
 /// Plays spoken dialogue and shows subtitles at the bottom of the screen.
-/// No dialogue box — just subtitle text that appears while audio plays and
+/// No dialogue box ï¿½ just subtitle text that appears while audio plays and
 /// clears when the conversation ends.
 ///
 /// Attach to any NPC or story trigger. Assign a CharacterDialogue asset.
 /// Call Show() from whatever interaction or story event owns this character.
 ///
 /// UI setup: one TMP_Text element anchored to the bottom of the screen
-/// (subtitleText). No panel needed — the text itself shows/clears.
+/// (subtitleText). No panel needed ï¿½ the text itself shows/clears.
 /// </summary>
 public class DialogueRunner : MonoBehaviour
 {
     [Header("Dialogue Data")]
     [SerializeField] private CharacterDialogue dialogue;
 
-    [Header("UI — Subtitles")]
+    [Header("UI ï¿½ Subtitles")]
     [Tooltip("TMP text anchored to the bottom of the screen. Always present in " +
-             "the scene — this script just sets/clears its text.")]
+             "the scene ï¿½ this script just sets/clears its text.")]
     [SerializeField] private TMP_Text subtitleText;
 
     [Tooltip("Optional: name card that shows the speaking character's name.")]
@@ -41,18 +41,22 @@ public class DialogueRunner : MonoBehaviour
     {
         if (IsRunning) return;
 
-        DialogueBlock block = dialogue?.GetBlock(StoryManager.instance.CurrentPhase);
+        StoryPhase phase = StoryManager.instance.CurrentPhase;
+        DayPhase timeOfDay = CalendarManager.instance != null ? CalendarManager.instance.CurrentPhase : DayPhase.Morning;
+        int dayNumber = StoryManager.instance.DaysSincePhaseStart;
+
+        DialogueBlock block = dialogue?.GetBlock(phase, timeOfDay, dayNumber);
         if (block == null || block.lines.Length == 0)
         {
             Debug.Log($"[Dialogue] No lines for {dialogue?.characterName} " +
-                      $"in phase {StoryManager.instance.CurrentPhase}");
+                      $"in phase {phase} (time of day: {timeOfDay}, day {dayNumber})");
             return;
         }
 
         StartCoroutine(RunDialogue(block));
     }
 
-    /// <summary>Play a specific block by phase directly — for tutorial triggers
+    /// <summary>Play a specific block by phase directly ï¿½ for tutorial triggers
     /// that need to fire outside of the normal story phase flow.</summary>
     public void ShowBlock(StoryPhase phase)
     {
@@ -67,6 +71,11 @@ public class DialogueRunner : MonoBehaviour
     private IEnumerator RunDialogue(DialogueBlock block)
     {
         IsRunning = true;
+
+        // Wait one frame before any input checking begins â€” otherwise the same
+        // button press that triggered Show() (still "down" for this whole frame)
+        // immediately satisfies the first line's WaitUntil, skipping it instantly.
+        yield return null;
 
         if (speakerNameText != null)
             speakerNameText.text = dialogue.characterName;
@@ -85,25 +94,26 @@ public class DialogueRunner : MonoBehaviour
 
                 if (line.waitForInput)
                 {
-                    // Wait for clip to finish OR player to advance, whichever is first
+                    // The clip (if any) is purely decorative here â€” a short "noise" blip
+                    // shouldn't affect pacing. Advancing depends only on player input,
+                    // regardless of how quickly the clip itself finishes.
                     yield return new WaitUntil(() =>
-                        !audioSource.isPlaying ||
                         Input.GetKeyDown(advanceKey) ||
-                        Input.GetButtonDown("Submit"));
-                    audioSource.Stop();
+                        SkipInput.Pressed());
+                    if (audioSource.isPlaying) audioSource.Stop();
                 }
                 else
                 {
-                    // Auto-advance when clip finishes
+                    // Auto-advance when clip finishes â€” for full voiced lines later.
                     yield return new WaitUntil(() => !audioSource.isPlaying);
                 }
             }
             else
             {
-                // No clip — wait for player input to advance
+                // No clip ï¿½ wait for player input to advance
                 yield return new WaitUntil(() =>
                     Input.GetKeyDown(advanceKey) ||
-                    Input.GetButtonDown("Submit"));
+                    SkipInput.Pressed());
             }
 
             yield return new WaitForSeconds(0.1f); // prevent double-advance

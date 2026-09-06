@@ -9,13 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3fe0b8adda465ae45b6b1acbb9ca92bd, type: 3}
-  m_Name: NPC TEST
+  m_Script: {fileID: 11500000, guid: 85b0557792756164896c1525085fa05e, type: 3}
+  m_Name: Cobra
   m_EditorClassIdentifier: 
-  characterName: WHO?
-  dialogueBlocks:
-  - phase: 1
-    lines:
-    - audioClip: {fileID: 8300000, guid: b125593f65e341a48b608001ed3b26a3, type: 3}
-      subtitle: OH FUCKK
-      waitForInput: 0
+  activityId: Cobra
+  displayName: Cobra
+  quadrantTicks: 4
+  onceLimitPerDay: 0
+  minMotivationRequired: 0
+  isCrossScene: 0

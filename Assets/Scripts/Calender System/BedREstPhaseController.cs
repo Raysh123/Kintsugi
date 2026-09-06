@@ -16,68 +16,46 @@ using UnityEngine;
 /// script) handles ordinary sleep everywhere else in the game instead.
 ///
 /// The recovery activity itself runs off an ordered list of slots
-/// (BedActivitySlot) — Type A morning, Type B afternoon, Type C evening,
+/// (BedActivitySlotDefinition) — Type A morning, Type B afternoon, Type C evening,
 /// repeated across however many days BedRest lasts. Completing one slot
-/// advances to the next automatically. Three shared minigame instances (one
-/// per type) are reused across every slot that needs that type — slots are
-/// just configuration (which ActivityDefinition, rewards, onboarding UI,
-/// whether the health/motivation meter shows), not separate GameObjects.
+/// advances to the next automatically. Each slot has its own dedicated
+/// minigame instance (via the parallel BedActivitySlotSceneRefs list), so
+/// Day 1 and Day 2 versions of the same type can have independently tuned
+/// base difficulty, not just different rewards.
 /// </summary>
 public class BedRestPhaseController : MonoBehaviour
 {
-    public enum BedActivityType { TypeA, TypeB, TypeC }
-
+    /// <summary>
+    /// The scene-object half of a slot — kept separate from BedActivitySlotDefinition
+    /// (an asset) because ScriptableObjects can't reference scene objects via the
+    /// Inspector. Index N here corresponds to index N in the slots list below.
+    /// </summary>
     [System.Serializable]
-    public class BedActivitySlot
+    public class BedActivitySlotSceneRefs
     {
-        [Tooltip("Inspector-only label, e.g. 'Day 1 - Morning'. Not used at runtime.")]
-        public string label;
-        public BedActivityType activityType;
-        public ActivityDefinition activity;
-
-        [Header("Minigame Instance (fill in only the one matching Activity Type above)")]
-        [Tooltip("Each slot gets its own dedicated instance — not shared — so Day 1 and Day 2 " +
-                 "versions of the same type can each have independently tuned base difficulty, " +
-                 "not just different rewards.")]
         public FillBarMinigame typeAMinigame;
         public TrackerRhythmMinigame typeBMinigame;
         public RhythmSequenceMinigame typeCMinigame;
-
-        [Header("Activity Pose")]
-        [Tooltip("Base pose animation for this specific activity — e.g. a deadlift pose for Type A, " +
-                 "holding kick pads for Type B. Falls back to the shared Recovery Animation on the " +
-                 "controller if left blank.")]
-        public string activityAnimationState;
-
-        [Header("Type A Animation (ignored for other types)")]
-        [Tooltip("Animator float parameter driving Motion Time on the pose above — set that state to " +
-                 "use Motion Time in the Animator Controller and assign it this parameter name.")]
-        public string fillProgressParam;
-        public string typeAWinAnimation;
-        public string typeALoseAnimation;
-        public string typeAInjuredAnimation;
-
-        [Header("Type B Animation (ignored for other types)")]
-        public string typeBMissAnimation;
-        public string typeBInjuredAnimation;
-
-        [Header("Rewards / Penalties")]
-        public float winHealth;
-        public float winMotivation;
-        public float loseHealth;
-        public float loseMotivation;
-        public float injuryHealth;
-        public float injuryMotivation;
-
-        [Header("Presentation")]
         [Tooltip("Shown while this slot's minigame runs — e.g. a first-time tutorial/onboarding hint.")]
         public GameObject onboardingUI;
         [Tooltip("This activity's own gameplay UI — e.g. its FillBarMeterUI/TrackerRhythmMeterUI/" +
-                 "BoardPromptUI panel. Shown once onboarding is dismissed and the minigame actually " +
-                 "starts, hidden again once it finishes.")]
+                 "BoardPromptUI panel.")]
         public GameObject activityUI;
-        [Tooltip("If true, the shared health/motivation meter UI is shown during this slot.")]
-        public bool showHealthMotivationMeter;
+
+        [Header("Optional: before this activity")]
+        [Tooltip("Plays before this slot's activity starts — e.g. an NPC reminding the player to do " +
+                 "their physio. Gates E until dismissed, same as onboardingUI.")]
+        public DialogueRunner beforeDialogue;
+        [Tooltip("If assigned, this NPC appears at Before Npc Position for the dialogue above, then " +
+                 "returns to its own default position once THIS specific slot's activity finishes — " +
+                 "not tied to the whole BedRest phase, just this one activity.")]
+        public NPCAppearance beforeNpc;
+        public Transform beforeNpcPosition;
+
+        [Header("Optional: after this activity (unprompted)")]
+        [Tooltip("Plays automatically the instant this slot's activity finishes — win, lose, or " +
+                 "injured, doesn't matter which. No button press needed to trigger it.")]
+        public DialogueRunner afterDialogue;
     }
 
     [Header("Player")]
@@ -105,12 +83,29 @@ public class BedRestPhaseController : MonoBehaviour
     [SerializeField] private float fadeDuration = 1f;
 
     [Header("Bed Rest Activity Slots")]
-    [Tooltip("Runs in order — completing one automatically advances to the next.")]
-    [SerializeField] private List<BedActivitySlot> slots = new List<BedActivitySlot>();
+    [Tooltip("Runs in order — completing one automatically advances to the next. Each entry is a " +
+             "BedActivitySlotDefinition asset (Assets > Create > RPG > Bed Activity Slot), not an " +
+             "inline list entry, to avoid a Unity Inspector bug where editing one large serializable " +
+             "list element can visibly corrupt another.")]
+    [SerializeField] private List<BedActivitySlotDefinition> slots = new List<BedActivitySlotDefinition>();
+    [Tooltip("Scene object references for each slot above, MATCHED BY INDEX — element 0 here goes " +
+             "with element 0 in Slots, etc. Split out from the asset list because ScriptableObjects " +
+             "can't hold scene object references.")]
+    [SerializeField] private List<BedActivitySlotSceneRefs> sceneRefs = new List<BedActivitySlotSceneRefs>();
     private int currentSlotIndex;
 
     [Header("Shared UI")]
     [SerializeField] private GameObject healthMotivationMeterUI;
+
+    [Header("Phase Start (unprompted, plays once automatically)")]
+    [Tooltip("Plays the moment BedRest begins, before the player can press E for anything — " +
+             "e.g. Mom's opening line. Not gated behind any button press.")]
+    [SerializeField] private DialogueRunner phaseStartDialogue;
+    [Tooltip("Optional — if assigned along with Phase Start Npc Position, this NPC appears there " +
+             "right before the dialogue above plays.")]
+    [SerializeField] private NPCAppearance phaseStartNpc;
+    [SerializeField] private Transform phaseStartNpcPosition;
+    private bool phaseStartDialogueComplete;
 
     private bool canInteract;
     private bool meterActive;
@@ -142,13 +137,13 @@ public class BedRestPhaseController : MonoBehaviour
         if (fadeImage != null) SetFadeAlpha(0f);
 
         if (healthMotivationMeterUI != null) healthMotivationMeterUI.SetActive(false);
-        foreach (BedActivitySlot slot in slots)
+        foreach (BedActivitySlotSceneRefs refs in sceneRefs)
         {
-            if (slot.onboardingUI != null) slot.onboardingUI.SetActive(false);
-            if (slot.activityUI != null) slot.activityUI.SetActive(false);
-            if (slot.typeAMinigame != null) slot.typeAMinigame.gameObject.SetActive(false);
-            if (slot.typeBMinigame != null) slot.typeBMinigame.gameObject.SetActive(false);
-            if (slot.typeCMinigame != null) slot.typeCMinigame.gameObject.SetActive(false);
+            if (refs.onboardingUI != null) refs.onboardingUI.SetActive(false);
+            if (refs.activityUI != null) refs.activityUI.SetActive(false);
+            if (refs.typeAMinigame != null) refs.typeAMinigame.gameObject.SetActive(false);
+            if (refs.typeBMinigame != null) refs.typeBMinigame.gameObject.SetActive(false);
+            if (refs.typeCMinigame != null) refs.typeCMinigame.gameObject.SetActive(false);
         }
 
         StartCoroutine(SubscribeWhenReady());
@@ -158,8 +153,32 @@ public class BedRestPhaseController : MonoBehaviour
     {
         while (StoryManager.instance == null) yield return null;
 
+        if (StoryManager.instance.CurrentPhase != StoryPhase.BedRest)
+        {
+            // Started past BedRest already — nothing for this controller to ever do.
+            ApplyPhaseVisual(StoryManager.instance.CurrentPhase);
+            phaseStartDialogueComplete = true;
+            yield break;
+        }
+
         StoryManager.instance.OnPhaseChanged += HandlePhaseChanged;
         ApplyPhaseVisual(StoryManager.instance.CurrentPhase);
+
+        yield return PlayPhaseStartDialogue();
+    }
+
+    private IEnumerator PlayPhaseStartDialogue()
+    {
+        if (phaseStartNpc != null && phaseStartNpcPosition != null)
+            phaseStartNpc.AppearAt(phaseStartNpcPosition);
+
+        if (phaseStartDialogue != null)
+        {
+            phaseStartDialogue.Show();
+            yield return new WaitUntil(() => !phaseStartDialogue.IsRunning);
+        }
+
+        phaseStartDialogueComplete = true;
     }
 
     private void OnDestroy()
@@ -174,10 +193,19 @@ public class BedRestPhaseController : MonoBehaviour
         if (!IsBedRestPhase) return;
         if (!canInteract || isSleeping || player == null) return;
 
-        if (!meterActive && !player.interacting)
+        if (!meterActive && !player.interacting && phaseStartDialogueComplete)
         {
             if (Input.GetKeyDown(KeyCode.E) || Input.GetButtonDown("Submit"))
-                BeginRecovery();
+            {
+                if (CalendarManager.instance != null && CalendarManager.instance.CurrentPhase == DayPhase.Night)
+                {
+                    Debug.Log("Too late for activities — time to sleep.");
+                }
+                else
+                {
+                    BeginRecovery();
+                }
+            }
         }
 
         if (!meterActive && !player.interacting)
@@ -201,6 +229,15 @@ public class BedRestPhaseController : MonoBehaviour
     private void HandlePhaseChanged(StoryPhase old, StoryPhase newPhase)
     {
         ApplyPhaseVisual(newPhase);
+
+        if (newPhase != StoryPhase.BedRest)
+        {
+            // BedRest has ended for good — this controller's whole job was that
+            // phase specifically. Unsubscribing here stops it from reacting to (and
+            // racing with) any later phase transition, which was fighting
+            // BedInteraction over playerMeshChild's visibility during later sleeps.
+            StoryManager.instance.OnPhaseChanged -= HandlePhaseChanged;
+        }
     }
 
     private void ApplyPhaseVisual(StoryPhase phase)
@@ -226,7 +263,17 @@ public class BedRestPhaseController : MonoBehaviour
             return;
         }
 
-        BedActivitySlot slot = slots[currentSlotIndex];
+        BedActivitySlotDefinition slot = slots[currentSlotIndex];
+
+        if (currentSlotIndex >= sceneRefs.Count)
+        {
+            Debug.LogError($"[BedRest] Slots and Scene Refs lists are out of sync — Slots has " +
+                            $"{slots.Count} entries but Scene Refs only has {sceneRefs.Count}. They " +
+                            $"must be kept the same length, matched by index.");
+            return;
+        }
+
+        BedActivitySlotSceneRefs refs = sceneRefs[currentSlotIndex];
 
         if (slot.activity == null)
         {
@@ -240,12 +287,6 @@ public class BedRestPhaseController : MonoBehaviour
             return;
         }
 
-        if (!StoryEnvironmentController.instance.CanDoActivity())
-        {
-            Debug.Log("Too tired to do more today — rest and try again tomorrow.");
-            return;
-        }
-
         player.interacting = true;
 
         string poseAnim = !string.IsNullOrEmpty(slot.activityAnimationState) ? slot.activityAnimationState : recoveryAnimation;
@@ -255,28 +296,41 @@ public class BedRestPhaseController : MonoBehaviour
         SceneCameraManager.instance.ActivateCamera(activityCamera);
         meterActive = true;
 
-        StartCoroutine(RunActivity(slot));
+        StartCoroutine(RunActivity(slot, refs));
     }
 
-    private IEnumerator RunActivity(BedActivitySlot slot)
+    private IEnumerator RunActivity(BedActivitySlotDefinition slot, BedActivitySlotSceneRefs refs)
     {
+        // NPC appears and delivers a line before this specific activity, if configured.
+        if (refs.beforeNpc != null && refs.beforeNpcPosition != null)
+            refs.beforeNpc.AppearAt(refs.beforeNpcPosition);
+
+        if (refs.beforeDialogue != null)
+        {
+            refs.beforeDialogue.Show();
+            yield return new WaitUntil(() => !refs.beforeDialogue.IsRunning);
+        }
+
         // Tutorial popup pauses here, BEFORE the minigame actually starts — otherwise
         // its timer would already be ticking away behind the popup.
-        if (slot.onboardingUI != null)
+        if (refs.onboardingUI != null)
         {
-            slot.onboardingUI.SetActive(true);
-            yield return new WaitUntil(() => Input.GetButtonDown("Submit"));
-            slot.onboardingUI.SetActive(false);
+            refs.onboardingUI.SetActive(true);
+            yield return new WaitUntil(() =>
+                Input.GetKeyDown(KeyCode.Space) ||
+                Input.GetKeyDown(KeyCode.JoystickButton1) ||
+                Input.GetButtonDown("Cancel"));
+            refs.onboardingUI.SetActive(false);
         }
 
         if (healthMotivationMeterUI != null) healthMotivationMeterUI.SetActive(slot.showHealthMotivationMeter);
-        if (slot.activityUI != null) slot.activityUI.SetActive(true);
+        if (refs.activityUI != null) refs.activityUI.SetActive(true);
 
         bool won = false, lost = false, injured = false;
 
         if (slot.activityType == BedActivityType.TypeA)
         {
-            FillBarMinigame mg = slot.typeAMinigame;
+            FillBarMinigame mg = refs.typeAMinigame;
             mg.gameObject.SetActive(true);
 
             System.Action<float> onFill = null;
@@ -298,7 +352,7 @@ public class BedRestPhaseController : MonoBehaviour
         }
         else if (slot.activityType == BedActivityType.TypeB)
         {
-            TrackerRhythmMinigame mg = slot.typeBMinigame;
+            TrackerRhythmMinigame mg = refs.typeBMinigame;
             mg.gameObject.SetActive(true);
 
             System.Action onMiss = () => PlayAnimStateIfSet(slot.typeBMissAnimation);
@@ -307,7 +361,12 @@ public class BedRestPhaseController : MonoBehaviour
             mg.OnInjuryTriggered += onInjury;
 
             mg.ResetMinigame();
-            while (!mg.finished) yield return null;
+            while (!mg.finished)
+            {
+                if (Input.GetKeyDown(KeyCode.Space) || Input.GetButtonDown("Cancel"))
+                    PlayAnimStateIfSet(slot.typeBActionAnimation);
+                yield return null;
+            }
             won = mg.won; lost = mg.lost; injured = mg.injured;
 
             mg.OnMissedHit -= onMiss;
@@ -316,7 +375,7 @@ public class BedRestPhaseController : MonoBehaviour
         }
         else // TypeC — RhythmSequenceMinigame already drives its own animator hooks internally
         {
-            RhythmSequenceMinigame mg = slot.typeCMinigame;
+            RhythmSequenceMinigame mg = refs.typeCMinigame;
             mg.gameObject.SetActive(true);
             mg.ResetMinigame();
 
@@ -325,9 +384,10 @@ public class BedRestPhaseController : MonoBehaviour
             mg.gameObject.SetActive(false);
         }
 
-        if (slot.activityUI != null) slot.activityUI.SetActive(false);
+        if (refs.activityUI != null) refs.activityUI.SetActive(false);
+        if (refs.beforeNpc != null) refs.beforeNpc.ReturnToDefault();
 
-        yield return EndRecovery(slot, won, lost, injured);
+        yield return EndRecovery(slot, refs, won, lost, injured);
     }
 
     /// <summary>
@@ -357,7 +417,7 @@ public class BedRestPhaseController : MonoBehaviour
             activityAnimator.Play(stateName);
     }
 
-    private IEnumerator EndRecovery(BedActivitySlot slot, bool won, bool lost, bool injured)
+    private IEnumerator EndRecovery(BedActivitySlotDefinition slot, BedActivitySlotSceneRefs refs, bool won, bool lost, bool injured)
     {
         if (won)
         {
@@ -378,7 +438,11 @@ public class BedRestPhaseController : MonoBehaviour
             HealthAndMotivation.instance.ModifyMotivation(slot.injuryMotivation);
         }
 
-        if (slot.onboardingUI != null) slot.onboardingUI.SetActive(false);
+        if (refs.afterDialogue != null)
+        {
+            refs.afterDialogue.Show();
+            yield return new WaitUntil(() => !refs.afterDialogue.IsRunning);
+        }
 
         yield return new WaitForSeconds(0.01f);
         SceneCameraManager.instance.DeactivateCamera(activityCamera);
@@ -428,6 +492,7 @@ public class BedRestPhaseController : MonoBehaviour
         isSleeping = false;
 
         ApplyPhaseVisual(StoryManager.instance.CurrentPhase);
+        BedInteraction.RaiseWakeUp();
     }
 
     // ── Fade helper ─────────────────────────────────────────────────────────────
