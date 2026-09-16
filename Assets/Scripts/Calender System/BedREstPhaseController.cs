@@ -107,6 +107,11 @@ public class BedRestPhaseController : MonoBehaviour
     [SerializeField] private Transform phaseStartNpcPosition;
     private bool phaseStartDialogueComplete;
 
+    [Header("Phase End Cutscene")]
+    [Tooltip("Plays during the final sleep of BedRest, right after fade-to-black and before the " +
+             "wake-up/fade-in — bridges into FriendVisit while the screen is still dark.")]
+    [SerializeField] private ComicCutscene bedRestEndCutscene;
+
     private bool canInteract;
     private bool meterActive;
     private bool isSleeping;
@@ -479,7 +484,23 @@ public class BedRestPhaseController : MonoBehaviour
 
         bool stillBedRest = IsBedRestPhase;
 
-        if (stillBedRest && activityAnimator != null && !string.IsNullOrEmpty(wakeUpAnimation))
+        // If this specific sleep transitioned OUT of BedRest, play the bridging
+        // cutscene now, while the screen is still black — before any wake-up
+        // animation or fade-in, so the player sees it resolve directly into
+        // FriendVisit rather than briefly seeing BedRest's world again first.
+        if (!stillBedRest && bedRestEndCutscene != null)
+        {
+            bool cutsceneDone = false;
+            void OnDone() => cutsceneDone = true;
+            bedRestEndCutscene.OnCutsceneComplete += OnDone;
+
+            bedRestEndCutscene.Play();
+            yield return new WaitUntil(() => cutsceneDone);
+
+            bedRestEndCutscene.OnCutsceneComplete -= OnDone;
+        }
+
+        if (activityAnimator != null && !string.IsNullOrEmpty(wakeUpAnimation))
             activityAnimator.Play(wakeUpAnimation);
 
         yield return new WaitForSeconds(1f);

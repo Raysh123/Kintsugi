@@ -22,23 +22,18 @@ public class StoryManager : MonoBehaviour
     public GameDate storyStartDate = new GameDate(1, 1, 1);
 
     [Header("Phase Durations (days, relative to when each phase itself begins)")]
-    [Tooltip("How many days BedRest lasts before advancing to DojoRejection.")]
-    public int bedRestDurationDays = 2;
-    [Tooltip("How many days DojoRejection lasts before advancing to HouseTraining.")]
-    public int dojoRejectionDurationDays = 2;
+    [Tooltip("How many days BedRest lasts before advancing to FriendVisit.")]
+    public int bedRestDurationDays = 1;
     [Tooltip("How many days NewDojoJoin lasts before advancing to TournamentPrep.")]
     public int newDojoJoinDurationDays = 7;
 
-    public int daysUntilFriendVisit = 3;
-
+    [Tooltip("How many days FriendVisit lasts before advancing to NewDojoJoin.")]
     public int daysUntilNewDojo = 1;
 
     public int daysUntilTournament = 10;
 
     // Computed dates - set automatically when the relevant phase is reached
     [Header("Computed Dates (read only - set at runtime)")]
-    [SerializeField] private GameDate dojoRejectionDate;
-    [SerializeField] private GameDate friendVisitDate;
     [SerializeField] private GameDate newDojoDate;
     [SerializeField] private GameDate tournamentDate;
 
@@ -151,18 +146,8 @@ public class StoryManager : MonoBehaviour
                 Debug.Log("[Story] BedRest begun - player confined to bed, physio minigames available.");
                 break;
 
-            case StoryPhase.DojoRejection:
-                dojoRejectionDate = today;
-                friendVisitDate = today.AddDays(daysUntilFriendVisit);
-                Debug.Log($"[Story] DojoRejection - removed from old dojo. Friend visits on: {friendVisitDate}");
-                break;
-
-            case StoryPhase.HouseTraining:
-                Debug.Log("[Story] HouseTraining - player training alone, depression beat.");
-                break;
-
             case StoryPhase.FriendVisit:
-                newDojoDate = friendVisitDate.AddDays(daysUntilNewDojo);
+                newDojoDate = today.AddDays(daysUntilNewDojo);
                 Debug.Log($"[Story] FriendVisit - friend has arrived. New dojo unlocks on: {newDojoDate}");
                 break;
 
@@ -194,16 +179,6 @@ public class StoryManager : MonoBehaviour
         {
             case StoryPhase.BedRest:
                 if (newDate >= currentPhaseStartDate.AddDays(bedRestDurationDays))
-                    TryAdvanceToPhase(StoryPhase.DojoRejection);
-                break;
-
-            case StoryPhase.DojoRejection:
-                if (newDate >= currentPhaseStartDate.AddDays(dojoRejectionDurationDays))
-                    TryAdvanceToPhase(StoryPhase.HouseTraining);
-                break;
-
-            case StoryPhase.HouseTraining:
-                if (newDate >= friendVisitDate)
                 {
                     TryAdvanceToPhase(StoryPhase.FriendVisit);
                     OnScheduledEventTriggered?.Invoke(StoryPhase.FriendVisit);
@@ -274,6 +249,5 @@ public class StoryManager : MonoBehaviour
     }
 
     public GameDate GetTournamentDate() => tournamentDate;
-    public GameDate GetFriendVisitDate() => friendVisitDate;
     public GameDate GetNewDojoDate() => newDojoDate;
 }

@@ -38,7 +38,8 @@ public class StoryEnvironmentController : MonoBehaviour
     private const float BedSaturation = -60f;
     private const float BedLensDistortion = -0.3f;
 
-    // DojoRejection / HouseTraining — grey, subdued
+    // Unused since DojoRejection/HouseTraining were removed — kept in case a future
+    // phase or beat wants this "grey, subdued" preset. Safe to delete if not needed.
     private const float GreyVignetteIntensity = 0.35f;
     private const float GreyChromaticIntensity = 0.2f;
     private const float GreySaturation = -30f;
@@ -213,10 +214,6 @@ public class StoryEnvironmentController : MonoBehaviour
         {
             case StoryPhase.BedRest:
                 return (BedVignetteIntensity, BedChromaticIntensity, BedSaturation, BedLensDistortion);
-
-            case StoryPhase.DojoRejection:
-            case StoryPhase.HouseTraining:
-                return (GreyVignetteIntensity, GreyChromaticIntensity, GreySaturation, GreyLensDistortion);
 
             case StoryPhase.FriendVisit:
                 return (LiftVignetteIntensity, LiftChromaticIntensity, LiftSaturation, LiftLensDistortion);
