@@ -109,5 +109,53 @@ public class InputHandler : MonoBehaviour
             block = false;
         }
     }
+    public void onLowerKick(InputAction.CallbackContext ctx)
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+        if (ctx.performed)
+        {
+            //kick = true;
+            Debug.Log("LK");
+        }
+        else if (ctx.canceled)
+        {
+            //kick = false;
+        }
+    }
+    public void onUpperPunch(InputAction.CallbackContext ctx)
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+        if (ctx.performed)
+        {
+            //kick = true;
+            Debug.Log("UP");
+        }
+        else if (ctx.canceled)
+        {
+            //kick = false;
+        }
+    }
+    public void onUpperKick(InputAction.CallbackContext ctx)
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+        if (ctx.performed)
+        {
+            //kick = true;
+            Debug.Log("UK");
+        }
+        else if (ctx.canceled)
+        {
+            //kick = false;
+        }
+    }
 
 }
