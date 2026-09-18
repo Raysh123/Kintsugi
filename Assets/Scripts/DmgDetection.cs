@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.UI;
 
 public class DmgDetection : MonoBehaviour
@@ -16,10 +17,11 @@ public class DmgDetection : MonoBehaviour
     [SerializeField] private Posture playerPosture; 
     [SerializeField] private Posture enemyPosture;
     [SerializeField] private float postureMaxVal = 0.8f;
+    [SerializeField] private PlayerController player;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
+        player = FindFirstObjectByType<PlayerController>();
     }
 
     // Update is called once per frame
@@ -66,6 +68,7 @@ public class DmgDetection : MonoBehaviour
                 return;
             }
             Debug.Log("Player hit");
+            
             anim.Play("Hurt_Balls");
             hitRegistered = true;
             matchTimer.RegisterHit();
@@ -124,7 +127,10 @@ public class DmgDetection : MonoBehaviour
                     return;
                 }
             }
+            Vector3 move = new Vector3(-0.1f, 0, 0);
+            player.controller.Move(move);
             Debug.Log("Enemy hit");
+            
             hitRegistered = true;
             matchTimer.RegisterHit();
             //GameManager.instance.ResetPlayerPos();
@@ -162,6 +168,8 @@ public class DmgDetection : MonoBehaviour
                 }
             }
             Debug.Log("Enemy hit");
+            Vector3 move = new Vector3(-0.1f, 0, 0);
+            player.controller.Move(move);
             hitRegistered = true;
             matchTimer.RegisterHit();
             //GameManager.instance.ResetPlayerPos();
