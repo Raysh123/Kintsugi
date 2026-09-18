@@ -31,6 +31,11 @@ public class TravelMapController : MonoBehaviour
         public Transform destination;
         [Tooltip("This location becomes selectable once the story reaches this phase (or later).")]
         public StoryPhase unlockPhase = StoryPhase.BedRest;
+        [Tooltip("Optional: a component implementing ITravelArrivalHandler. Its OnArrival() is " +
+                 "called automatically right after the player is teleported here — this is how " +
+                 "location-specific behavior (like ParkActivity starting its run sequence) plugs " +
+                 "in without TravelMapController needing to know about it directly.")]
+        public MonoBehaviour arrivalHandler;
     }
 
     [Header("Locations")]
@@ -170,6 +175,11 @@ public class TravelMapController : MonoBehaviour
 
         TeleportPlayer(location.destination);
         CloseMap();
+
+        // This is the hook: whatever component was dragged into arrivalHandler gets
+        // its OnArrival() called here, as long as it implements ITravelArrivalHandler.
+        if (location.arrivalHandler is ITravelArrivalHandler handler)
+            handler.OnArrival();
     }
 
     private void TeleportPlayer(Transform destination)

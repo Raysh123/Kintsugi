@@ -19,6 +19,7 @@ TagManager:
   - ePunch
   - eKick
   - Interact3
+  - Runner
   layers:
   - Default
   - TransparentFX
