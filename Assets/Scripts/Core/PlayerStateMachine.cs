@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static PlayerStateMachine;
 
 public class PlayerStateMachine : MonoBehaviour
 {
@@ -190,20 +189,6 @@ public class PlayerStateMachine : MonoBehaviour
                 StartCoroutine(PlayerAttackRoutine("YokoGeri"));
                 return;
             }
-
-            //if (InputHandler.instance.punch == false & InputHandler.instance.kick == false)
-            //{
-            //    ChangeState(PlayerStates.Idle);
-            //}
-            //else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
-            //{
-            //    animator.Play("Kizami_Tsuki");
-            //}
-            //else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
-            //{
-            //    animator.Play("YokoGeri");
-            //}
-
         }
 
     }
@@ -212,15 +197,27 @@ public class PlayerStateMachine : MonoBehaviour
     {
         isAttacking = true;
         ChangeState(PlayerStates.Attack);
-
+        SetInjuryMeter();
         animator.Play(animName);
-        yield return null; // Wait until Animator enters this state.
+        yield return null;
 
         float duration = animator.GetCurrentAnimatorStateInfo(0).length;
         yield return new WaitForSeconds(duration);
 
         isAttacking = false;
         ChangeState(PlayerStates.Idle);
+    }
+
+    private void SetInjuryMeter()
+    {
+        if (InjuryMeter.instance == null)
+        {
+            return;
+        }
+        else if(!TryPerfectBlock())
+        {
+            InjuryMeter.instance.injuryMeterValue.value += 0.1f;
+        }
     }
 
     private void HandleMove()
@@ -286,6 +283,7 @@ public class PlayerStateMachine : MonoBehaviour
             if (InputHandler.instance.block)
             {
                 ChangeState(PlayerStates.Block);
+                SetInjuryMeter();
                 animator.Play("Lower_Block");
             }
 

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 //Always remember to add InputHandler in the scene and reference it properly
@@ -6,6 +7,14 @@ public class InjuryMeter : MonoBehaviour
 {
     public Slider injuryMeterValue;
     public float injuryMeterDepleteRate = 0.01f;
+    public static InjuryMeter instance;
+    private void Awake()
+    {
+        if(instance == null)
+        {
+            instance = this;
+        }
+    }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {

@@ -15,28 +15,9 @@ public class InputHandler : MonoBehaviour
     private bool inputEnabled = true;
 
     public static InputHandler instance;
-    [SerializeField]
-    private InjuryMeter injuryMeter;
-    [SerializeField]
-    private float sliderIncVal = 0.1f;
     private void Awake()
     {
         instance = this;
-    }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-    private void InjuryMeterSlider()
-    {
-        injuryMeter.injuryMeterValue.value += sliderIncVal;
     }
     public void SetInput(bool enabled)
     {
@@ -68,7 +49,6 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             punch = true;
-            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -84,7 +64,6 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             kick = true;
-            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -116,7 +95,6 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             block = true;
-            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -133,7 +111,6 @@ public class InputHandler : MonoBehaviour
         {
             //kick = true;
             Debug.Log("LK");
-            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -150,7 +127,6 @@ public class InputHandler : MonoBehaviour
         {
             //kick = true;
             Debug.Log("UP");
-            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -167,7 +143,6 @@ public class InputHandler : MonoBehaviour
         {
             //kick = true;
             Debug.Log("UK");
-            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
