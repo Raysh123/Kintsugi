@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class InputHandler : MonoBehaviour
 {
@@ -16,17 +18,6 @@ public class InputHandler : MonoBehaviour
     private void Awake()
     {
         instance = this;
-    }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
     public void SetInput(bool enabled)
     {
@@ -88,6 +79,7 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             dodge = true;
+
         }
         else if (ctx.canceled)
         {
