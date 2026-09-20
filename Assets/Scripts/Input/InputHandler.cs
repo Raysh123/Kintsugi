@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class InputHandler : MonoBehaviour
 {
@@ -13,6 +15,10 @@ public class InputHandler : MonoBehaviour
     private bool inputEnabled = true;
 
     public static InputHandler instance;
+    [SerializeField]
+    private InjuryMeter injuryMeter;
+    [SerializeField]
+    private float sliderIncVal = 0.1f;
     private void Awake()
     {
         instance = this;
@@ -27,6 +33,10 @@ public class InputHandler : MonoBehaviour
     void Update()
     {
         
+    }
+    private void InjuryMeterSlider()
+    {
+        injuryMeter.injuryMeterValue.value += sliderIncVal;
     }
     public void SetInput(bool enabled)
     {
@@ -58,6 +68,7 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             punch = true;
+            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -73,6 +84,7 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             kick = true;
+            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -88,6 +100,7 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             dodge = true;
+
         }
         else if (ctx.canceled)
         {
@@ -103,6 +116,7 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             block = true;
+            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -119,6 +133,7 @@ public class InputHandler : MonoBehaviour
         {
             //kick = true;
             Debug.Log("LK");
+            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -135,6 +150,7 @@ public class InputHandler : MonoBehaviour
         {
             //kick = true;
             Debug.Log("UP");
+            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
@@ -151,6 +167,7 @@ public class InputHandler : MonoBehaviour
         {
             //kick = true;
             Debug.Log("UK");
+            InjuryMeterSlider();
         }
         else if (ctx.canceled)
         {
