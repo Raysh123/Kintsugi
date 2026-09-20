@@ -7000,14 +7000,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: InjuryMeterCanvas
       objectReference: {fileID: 0}
-    - target: {fileID: 1665943081559221541, guid: 7c311afb8b493294eadbee3495205b5a, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1941652439776487943, guid: 7c311afb8b493294eadbee3495205b5a, type: 3}
-      propertyPath: injuryMeterDepleteRate
-      value: 0.0004
-      objectReference: {fileID: 0}
     - target: {fileID: 3200681447028585382, guid: 7c311afb8b493294eadbee3495205b5a, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
