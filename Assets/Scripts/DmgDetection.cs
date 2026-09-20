@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.UI;
 
 public class DmgDetection : MonoBehaviour
@@ -16,10 +17,12 @@ public class DmgDetection : MonoBehaviour
     [SerializeField] private Posture playerPosture; 
     [SerializeField] private Posture enemyPosture;
     [SerializeField] private float postureMaxVal = 0.8f;
+    [SerializeField] private PlayerController player;
+    [SerializeField] private float knockbackDist = 0.15f;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
+        player = FindFirstObjectByType<PlayerController>();
     }
 
     // Update is called once per frame
@@ -55,6 +58,7 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
                     InputHandler.instance.SetInput(false);
@@ -76,6 +80,7 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
                     InputHandler.instance.SetInput(false);
@@ -99,6 +104,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(0.5f);
                     //Enemy stun is dealt in EnemyStateMachine
                     if (enemyPosture.postureSlider.value >= postureMaxVal)
@@ -111,7 +117,9 @@ public class DmgDetection : MonoBehaviour
                 }
                 if (playerStateMachine.IsNormalBlockActive())
                 {
+                    //Need to discuss on this block knock back
                     Debug.Log("normal block");
+                    //PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
                         InputHandler.instance.SetInput(false);
@@ -126,6 +134,7 @@ public class DmgDetection : MonoBehaviour
             }
             Debug.Log("Enemy hit");
             hitRegistered = true;
+            canDealDamage = false;
             matchTimer.RegisterHit();
             //GameManager.instance.ResetPlayerPos();
         }
@@ -136,6 +145,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    PushBackEnemy(player.transform, knockbackDist);
                     //Enemy stun is dealt in EnemyStateMachine
                     if (enemyPosture.postureSlider.value >= postureMaxVal)
                     {
@@ -148,7 +158,9 @@ public class DmgDetection : MonoBehaviour
                 }
                 if (playerStateMachine.IsNormalBlockActive())
                 {
+                    //Need to discuss on this block knock back
                     Debug.Log("normal Block");
+                    //PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
                         InputHandler.instance.SetInput(false);
@@ -162,9 +174,31 @@ public class DmgDetection : MonoBehaviour
                 }
             }
             Debug.Log("Enemy hit");
+            PushBackPlayer(enemyStateMachine.transform, knockbackDist);
             hitRegistered = true;
             matchTimer.RegisterHit();
             //GameManager.instance.ResetPlayerPos();
         }
+    }
+
+    private void PushBackPlayer(Transform source, float distance)
+    {
+        Vector3 direction = player.transform.position - source.position;
+        direction.y = 0;
+        if (direction.sqrMagnitude < 0.001f)
+        {
+            return;
+        }
+        player.controller.Move(direction.normalized * distance);
+    }
+    void PushBackEnemy(Transform source, float distance)
+    {
+        Vector3 direction = enemyStateMachine.transform.position - source.position;
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.001f)
+            return;
+
+        enemyStateMachine.transform.position += direction.normalized * distance;
     }
 }
