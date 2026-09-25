@@ -15,12 +15,12 @@ MonoBehaviour:
   characterName: Dastaan
   dialogueBlocks:
   - phase: 2
-    anyTimeOfDay: 1
+    anyTimeOfDay: 0
     timeOfDay: 0
-    anyDay: 1
-    dayNumber: 0
+    anyDay: 0
+    dayNumber: 1
     lines:
     - audioClip: {fileID: 0}
-      subtitle: How can he abandon me like this. Screw what he says, I,m gonna keep
-        training. I'll show him what he gave up on!
+      subtitle: OK. I'm not sure about this new dojo, but its my one chance of getting
+        back. Lets do this
       waitForInput: 0

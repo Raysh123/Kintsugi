@@ -16,6 +16,14 @@ public class RunnerMover : MonoBehaviour
              "faces down the track.")]
     [SerializeField] private Vector3 moveDirection = Vector3.forward;
 
+    [Header("Animation")]
+    [Tooltip("The Animator on the running model. Its Speed parameter is fed minigame.CurrentSpeed " +
+             "every frame so a blend tree can match footfall to actual movement speed — without this, " +
+             "the model moves at an exact, non-physical speed while the animation clip plays at its own " +
+             "fixed rate, which reads visually as sliding/skating rather than genuinely accelerating.")]
+    [SerializeField] private Animator animator;
+    [SerializeField] private string speedParameterName = "Speed";
+
     /// <summary>
     /// Places the runner at the given start point — ParkActivity should call this
     /// (with its runStartPosition transform) right before minigame.ResetMinigame()
@@ -48,6 +56,8 @@ public class RunnerMover : MonoBehaviour
             return;
         }
 
+        UpdateAnimatorSpeed();
+
         if (minigame.finished) return;
 
         float moveAmount = minigame.CurrentSpeed * Time.deltaTime;
@@ -61,5 +71,16 @@ public class RunnerMover : MonoBehaviour
 
         Vector3 direction = runner.TransformDirection(moveDirection.normalized);
         runner.position += direction * moveAmount;
+    }
+
+    private void UpdateAnimatorSpeed()
+    {
+        if (animator == null) return;
+
+        // Feeds the RAW speed value (same units as speedBoostPerAlternation/maxSpeed on
+        // RunningTrackMinigame) — set your blend tree's motion thresholds to match that
+        // same range (e.g. 0 = idle, ~half of Max Speed = jog, Max Speed = sprint) rather
+        // than normalizing to 0-1 here.
+        animator.SetFloat(speedParameterName, minigame.CurrentSpeed);
     }
 }

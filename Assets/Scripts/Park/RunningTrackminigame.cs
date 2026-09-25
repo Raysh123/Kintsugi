@@ -12,8 +12,15 @@ public class RunningTrackMinigame : MonoBehaviour
 
     [Header("Speed")]
     [SerializeField] private float speedBoostPerAlternation = 8f;
+    [Tooltip("How fast speed bleeds off WHILE still within the No Input Stop Delay window " +
+             "(i.e. the natural gaps between alternating key presses while actively mashing).")]
     [SerializeField] private float speedDecayPerSecond = 4f;
     [SerializeField] private float maxSpeed = 20f;
+    [Tooltip("If no alternating key press happens for this many seconds, speed snaps to zero " +
+             "immediately instead of continuing to gradually decay — this is what stops the " +
+             "'coasting' feel once the player actually lets go, rather than it slowly bleeding " +
+             "off over several seconds.")]
+    [SerializeField] private float noInputStopDelay = 0.25f;
 
     [Header("Reward Curve")]
     [Tooltip("Finish time (seconds) that earns the max reward.")]
@@ -29,6 +36,7 @@ public class RunningTrackMinigame : MonoBehaviour
     public float CurrentSpeed { get; private set; }
 
     private float elapsedTime;
+    private float timeSinceLastPress;
     private LastPress lastPress = LastPress.None;
     private bool isRunning;
 
@@ -39,6 +47,7 @@ public class RunningTrackMinigame : MonoBehaviour
         motivationEarned = 0f;
         CurrentSpeed = 0f;
         elapsedTime = 0f;
+        timeSinceLastPress = 0f;
         lastPress = LastPress.None;
         isRunning = true;
     }
@@ -48,6 +57,7 @@ public class RunningTrackMinigame : MonoBehaviour
         if (!isRunning) return;
 
         elapsedTime += Time.deltaTime;
+        timeSinceLastPress += Time.deltaTime;
 
         bool pressedLeft = Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.JoystickButton4);
         bool pressedRight = Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.JoystickButton5);
@@ -55,15 +65,28 @@ public class RunningTrackMinigame : MonoBehaviour
         if (pressedLeft && lastPress != LastPress.Left)
         {
             lastPress = LastPress.Left;
+            timeSinceLastPress = 0f;
             CurrentSpeed = Mathf.Min(CurrentSpeed + speedBoostPerAlternation, maxSpeed);
         }
         else if (pressedRight && lastPress != LastPress.Right)
         {
             lastPress = LastPress.Right;
+            timeSinceLastPress = 0f;
             CurrentSpeed = Mathf.Min(CurrentSpeed + speedBoostPerAlternation, maxSpeed);
         }
 
-        CurrentSpeed = Mathf.Max(0f, CurrentSpeed - speedDecayPerSecond * Time.deltaTime);
+        if (timeSinceLastPress >= noInputStopDelay)
+        {
+            // Player has genuinely stopped mashing — kill speed immediately rather than
+            // letting it coast down over several seconds.
+            CurrentSpeed = 0f;
+        }
+        else
+        {
+            // Still within a normal gap between alternating presses — decay gently so
+            // mashing at a steady rhythm doesn't stutter between each key press.
+            CurrentSpeed = Mathf.Max(0f, CurrentSpeed - speedDecayPerSecond * Time.deltaTime);
+        }
     }
 
     /// <summary>

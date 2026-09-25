@@ -34,8 +34,26 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
     [Header("Time Cost")]
     [SerializeField] private int quadrantTicks = 4;
 
-    private bool hasVisitedBefore;
+    [Tooltip("Flag id used with PersistentGameFlags to remember 'has the friend dialogue " +
+             "played' across scene reloads (e.g. going into the fight scene and back). " +
+             "ParkActivity itself gets destroyed/recreated on a scene reload, so this can't " +
+             "just be a plain local bool — it would reset to false every time.")]
+    [SerializeField] private string firstVisitFlagId = "ParkFriendDialogueShown";
+
     private bool isRunning;
+
+    private bool HasVisitedBefore =>
+        PersistentGameFlags.instance != null && PersistentGameFlags.instance.HasFlag(firstVisitFlagId);
+
+    private void MarkVisited()
+    {
+        if (PersistentGameFlags.instance != null)
+            PersistentGameFlags.instance.SetFlag(firstVisitFlagId);
+        else
+            Debug.LogWarning("[ParkActivity] PersistentGameFlags.instance is null — first-visit " +
+                              "state won't survive a scene reload. Make sure a PersistentGameFlags " +
+                              "object exists in your startup scene.");
+    }
 
     public void OnArrival()
     {
@@ -116,13 +134,13 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
         if (benchActivityModel != null) benchActivityModel.SetActive(true);
         else Debug.LogWarning("[ParkActivity] Bench Activity Model not assigned.");
 
-        if (!hasVisitedBefore && friendDialogue != null)
+        if (!HasVisitedBefore && friendDialogue != null)
         {
             friendDialogue.Show();
             yield return new WaitUntil(() => !friendDialogue.IsRunning);
         }
 
-        hasVisitedBefore = true;
+        MarkVisited();
 
         if (CalendarManager.instance != null)
             CalendarManager.instance.AdvanceTime(quadrantTicks);
