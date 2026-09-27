@@ -116,7 +116,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   injuryMeterValue: {fileID: 2277197540136480520}
-  injuryMeterDepleteRate: 0.001
+  injuryMeterDepleteRate: 0.0004
 --- !u!1 &2069219270456569578
 GameObject:
   m_ObjectHideFlags: 0
