@@ -292196,17 +292196,17 @@ AnimationClip:
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
-    intParameter: 0
+    intParameter: 1
     messageOptions: 0
-  - time: 0.88461536
-    functionName: CancelDamage
+  - time: 0.9230769
+    functionName: Move
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.9230769
-    functionName: Move
+  - time: 1.0769231
+    functionName: CancelDamage
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
@@ -292219,7 +292219,7 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 1.4230769
+  - time: 1.4615384
     functionName: Move
     data: 
     objectReferenceParameter: {fileID: 0}
@@ -292238,7 +292238,7 @@ AnimationClip:
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
-    intParameter: 0
+    intParameter: 1
     messageOptions: 0
   - time: 2.4230769
     functionName: CancelDamage
@@ -292252,7 +292252,7 @@ AnimationClip:
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
-    intParameter: 0
+    intParameter: 1
     messageOptions: 0
   - time: 3.4230769
     functionName: CancelDamage

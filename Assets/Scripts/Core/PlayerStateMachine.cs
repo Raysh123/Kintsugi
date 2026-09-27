@@ -27,7 +27,7 @@ public class PlayerStateMachine : MonoBehaviour
     public static PlayerStateMachine instance;
     public PlayerController player;
     [SerializeField]
-    private Animator animator;
+    public Animator animator;
 
     [SerializeField] 
     private MatchTimer matchTimer;
@@ -39,11 +39,17 @@ public class PlayerStateMachine : MonoBehaviour
     public List<DmgDetection> pHitBoxes;
     private bool isAttacking;
     private bool perfectBlockUsed;
+
+    public EnemyStateMachine enemy;
     private void Awake()
     {
-        if (instance != null)
+        if (instance == null)
         {
             instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
         }
     }
     private void Start()
@@ -284,7 +290,18 @@ public class PlayerStateMachine : MonoBehaviour
             {
                 ChangeState(PlayerStates.Block);
                 SetInjuryMeter();
-                animator.Play("Lower_Block");
+                if(enemy.requiredTag == "ePunch")
+                {
+                    animator.Play("Upper_Block");
+                }
+                else if(enemy.requiredTag == "eKick")
+                {
+                    animator.Play("Lower_Block");
+                }
+                else
+                {
+                    animator.Play("Lower_Block");
+                }
             }
 
         }

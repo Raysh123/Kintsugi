@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
+using static PlayerStateMachine;
 
 public class EnemyStateMachine : MonoBehaviour
 {
@@ -45,6 +46,11 @@ public class EnemyStateMachine : MonoBehaviour
     [SerializeField] private Posture enemyPosture;
     [SerializeField] private float moveSpeedInCombo = 0.5f;
     private Coroutine attackRoutine;
+    public string requiredTag;
+    private void Awake()
+    {
+        enemyInitPos = transform.position;
+    }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -53,7 +59,6 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void ChangeState(EnemyState state)
     {
-        enemyInitPos = transform.position;
         currentState = state;
     }
     // Update is called once per frame
@@ -76,6 +81,22 @@ public class EnemyStateMachine : MonoBehaviour
             decisionTimer = decisionInterval;
         }
         HandleMovement();
+    }
+    public void StopForRoundReset()
+    {
+        StopAllCoroutines();
+
+        CloseEnemyHitWindow();
+
+        attackRoutine = null;
+        isAttacking = false;
+        isBlocking = false;
+
+        shouldApproach = false;
+        shouldRetreat = false;
+
+        anim.Play("Idle");
+        ChangeState(EnemyState.Idle);
     }
     private void HandleFacing()
     {
@@ -130,12 +151,19 @@ public class EnemyStateMachine : MonoBehaviour
         StartCoroutine(StunRoutine());
     }
     #region ComboTriggers
-    public void OpenEnemyHitWindow()
+    public void OpenEnemyHitWindow(int attackType)
     {
+        requiredTag = attackType == 0 ? "ePunch" : "eKick";
         foreach (var hitbox in hitBoxes)
         {
-            hitbox.ResetHit();
-            hitbox.canDealDamage = true;
+            bool isThisAttack = hitbox.CompareTag(requiredTag);
+            hitbox.canDealDamage = isThisAttack;
+            if (isThisAttack)
+            {
+                hitbox.ResetHit();
+            }
+            //hitbox.ResetHit();
+            //hitbox.canDealDamage = true;
         }
     }
     public void CloseEnemyHitWindow()
@@ -251,8 +279,7 @@ public class EnemyStateMachine : MonoBehaviour
         {
             if (attackRoutine != null)
             {
-                StopCoroutine(attackRoutine);
-                attackRoutine = null;
+                StopCombo();
             }
 
             CloseEnemyHitWindow();
@@ -288,6 +315,19 @@ public class EnemyStateMachine : MonoBehaviour
         //    ChangeState(EnemyState.Idle);
         //}
     }
+
+    public void StopCombo()
+    {
+        if (attackRoutine != null)
+        {
+            StopCoroutine(attackRoutine);
+            attackRoutine = null;
+        }
+
+        CloseEnemyHitWindow();
+        isAttacking = false;
+    }
+
     IEnumerator AttackRoutine()
     {
         foreach(var hitbox in hitBoxes)

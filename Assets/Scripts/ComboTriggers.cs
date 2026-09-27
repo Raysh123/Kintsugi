@@ -7,9 +7,9 @@ public class ComboTriggers : MonoBehaviour
     {
         enemy = GetComponentInParent<EnemyStateMachine>();
     }
-    public void DealDamage()
+    public void DealDamage(int attackType)
     {
-        enemy.OpenEnemyHitWindow();
+        enemy.OpenEnemyHitWindow(attackType);
     }
     public void CancelDamage()
     {

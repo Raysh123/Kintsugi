@@ -73,7 +73,6 @@ public class DmgDetection : MonoBehaviour
             anim.Play("Hurt_Balls");
             hitRegistered = true;
             matchTimer.RegisterHit();
-            //GameManager.instance.ResetPlayerPos();
         }
         else if (other.transform.tag == "Body" && gameObject.tag == "Kick" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
@@ -95,7 +94,6 @@ public class DmgDetection : MonoBehaviour
             anim.Play("Hurt_Balls");
             hitRegistered = true;
             matchTimer.RegisterHit();
-            //GameManager.instance.ResetPlayerPos();
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
@@ -136,7 +134,6 @@ public class DmgDetection : MonoBehaviour
             hitRegistered = true;
             canDealDamage = false;
             matchTimer.RegisterHit();
-            //GameManager.instance.ResetPlayerPos();
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "eKick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
         {
@@ -177,7 +174,6 @@ public class DmgDetection : MonoBehaviour
             PushBackPlayer(enemyStateMachine.transform, knockbackDist);
             hitRegistered = true;
             matchTimer.RegisterHit();
-            //GameManager.instance.ResetPlayerPos();
         }
     }
 

@@ -17,6 +17,8 @@ public class MatchTimer : MonoBehaviour
 
     [Header("Events")]
     public UnityEvent OnTimeUp; // hook this up to your "match over" logic
+    public UnityEvent OnMatchStart;
+    public UnityEvent OnMatchStop;
 
     private float matchTimer;
     private int lastLoggedSecond = -1;
@@ -63,6 +65,16 @@ public class MatchTimer : MonoBehaviour
     {
         if (matchTimer > 0f)
             matchStopped = false;
+        if (hitPauseRoutine != null)
+        {
+            StopCoroutine(hitPauseRoutine);
+            hitPauseRoutine = null;
+        }
+
+        Time.timeScale = 1f;
+        matchStopped = false;
+
+        OnMatchStart?.Invoke();
     }
 
     // Call this from your referee script when "yame" is called (point scored, foul, etc.)
@@ -70,23 +82,47 @@ public class MatchTimer : MonoBehaviour
     {
         matchStopped = true;
         //Time.timeScale = 0f;
+        OnMatchStop?.Invoke();
     }
-
     public void RegisterHit()
     {
+        // Ignore hits while the match is stopped
+        if (matchStopped || matchTimer <= 0f)
+            return;
+
         StopTimer();
 
-        if (hitPauseRoutine != null)
-            StopCoroutine(hitPauseRoutine);
-
         hitPauseRoutine = StartCoroutine(ResumeAfterHit());
+        //StopTimer();
+
+        //if (hitPauseRoutine != null)
+        //    StopCoroutine(hitPauseRoutine);
+
+        //hitPauseRoutine = StartCoroutine(ResumeAfterHit());
     }
 
     private IEnumerator ResumeAfterHit()
     {
-        yield return new WaitForSeconds(hitPauseDuration);
-        StartTimer();
+        // Wait using real-world time
+        yield return new WaitForSecondsRealtime(hitPauseDuration);
+
         hitPauseRoutine = null;
+
+        StartTimer();
+    }
+    public void ResetMatch()
+    {
+        if (hitPauseRoutine != null)
+        {
+            StopCoroutine(hitPauseRoutine);
+            hitPauseRoutine = null;
+        }
+
+        matchTimer = matchDuration;
+        lastLoggedSecond = -1;
+        matchStopped = true;
+
+        //Time.timeScale = 1f;
     }
 
     // Handy for a UI Text/TMP element
@@ -95,5 +131,9 @@ public class MatchTimer : MonoBehaviour
         int minutes = Mathf.FloorToInt(matchTimer / 60f);
         int seconds = Mathf.FloorToInt(matchTimer % 60f);
         return $"{minutes:00}:{seconds:00}";
+    }
+    private void OnDestroy()
+    {
+        Time.timeScale = 1f;
     }
 }

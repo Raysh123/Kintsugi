@@ -26,6 +26,7 @@ public class PlayerController : MonoBehaviour
     public bool hurtFace;
     public bool hurtBody;
     public Vector3 PlayerInitPos;
+    public MatchTimer matchTimer;
 
     //private void OnCollisionEnter(Collision collision)
     //{
@@ -50,6 +51,10 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (matchTimer.matchStopped)
+        {
+            return;
+        }
         HandleMovement();
         HandleFacing();
         HandleAttack();
