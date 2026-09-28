@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class InputHandler : MonoBehaviour
 {
@@ -10,28 +12,40 @@ public class InputHandler : MonoBehaviour
     public bool dodge;
     public bool block;
 
+    private bool inputEnabled = true;
+
     public static InputHandler instance;
     private void Awake()
     {
         instance = this;
     }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public void SetInput(bool enabled)
     {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        inputEnabled = enabled;
+        if (!enabled)
+        {
+            move = 0;
+            speed = 0;
+            kick = false;
+            punch = false;
+            dodge = false;
+            block = false;
+        }
     }
     public void onMove(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         move = ctx.ReadValue<float>();
     }
     public void onPunch(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             punch = true;
@@ -43,6 +57,10 @@ public class InputHandler : MonoBehaviour
     }
     public void onKick(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             kick = true;
@@ -54,9 +72,14 @@ public class InputHandler : MonoBehaviour
     }
     public void onDodge(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             dodge = true;
+
         }
         else if (ctx.canceled)
         {
@@ -65,6 +88,10 @@ public class InputHandler : MonoBehaviour
     }
     public void onBlock(InputAction.CallbackContext ctx)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
         if (ctx.performed)
         {
             block = true;
@@ -72,6 +99,54 @@ public class InputHandler : MonoBehaviour
         else if (ctx.canceled)
         {
             block = false;
+        }
+    }
+    public void onLowerKick(InputAction.CallbackContext ctx)
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+        if (ctx.performed)
+        {
+            //kick = true;
+            Debug.Log("LK");
+        }
+        else if (ctx.canceled)
+        {
+            //kick = false;
+        }
+    }
+    public void onUpperPunch(InputAction.CallbackContext ctx)
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+        if (ctx.performed)
+        {
+            //kick = true;
+            Debug.Log("UP");
+        }
+        else if (ctx.canceled)
+        {
+            //kick = false;
+        }
+    }
+    public void onUpperKick(InputAction.CallbackContext ctx)
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+        if (ctx.performed)
+        {
+            //kick = true;
+            Debug.Log("UK");
+        }
+        else if (ctx.canceled)
+        {
+            //kick = false;
         }
     }
 
