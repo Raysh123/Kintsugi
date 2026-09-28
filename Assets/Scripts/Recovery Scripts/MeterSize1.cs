@@ -1,46 +1,44 @@
 using UnityEngine;
 
-/// <summary>
-/// Bonus fix while wiring in the singleton: previously this only read
-/// motivation once in Start() and never updated again. Now it subscribes to
-/// HealthAndMotivation's change event, so the meter updates live whenever
-/// motivation actually changes (e.g. after winning/losing a recovery minigame).
-/// </summary>
 public class MeterSize1 : MonoBehaviour
 {
-    [SerializeField] private GameObject injury;
-    [SerializeField] private GameObject winState;
-    [SerializeField] private GameObject loseState;
-
-    private Vector3 injuryBaseScale;
-    private Vector3 winBaseScale;
-    private Vector3 loseBaseScale;
-
+    [SerializeField]
+    private GameObject injury;
+    [SerializeField]
+    private GameObject winState;
+    [SerializeField]
+    private GameObject loseState;
+    [SerializeField]
+    private float motivation;
+    [SerializeField]
+    private HealthAndMotivation hnM;
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        injuryBaseScale = injury.transform.localScale;
-        winBaseScale = winState.transform.localScale;
-        loseBaseScale = loseState.transform.localScale;
+        motivation = hnM.currentMotivation;
 
-        HealthAndMotivation.instance.OnMotivationChanged += UpdateMeter;
-        UpdateMeter(HealthAndMotivation.instance.currentMotivation);
-    }
-
-    private void OnDestroy()
-    {
-        if (HealthAndMotivation.instance != null)
-            HealthAndMotivation.instance.OnMotivationChanged -= UpdateMeter;
-    }
-
-    private void UpdateMeter(float motivation)
-    {
         injury.transform.localScale = new Vector3(
-            injuryBaseScale.x, injuryBaseScale.y, injuryBaseScale.z - motivation * 1f);
+                injury.transform.localScale.x,
+                injury.transform.localScale.y,
+                injury.transform.localScale.z - motivation * 1f
+            );
 
         winState.transform.localScale = new Vector3(
-            winBaseScale.x, winBaseScale.y, winBaseScale.z + motivation * 2f);
+            winState.transform.localScale.x,
+            winState.transform.localScale.y,
+            winState.transform.localScale.z + motivation * 2f
+        );
 
         loseState.transform.localScale = new Vector3(
-            loseBaseScale.x, loseBaseScale.y, loseBaseScale.z - motivation * 1f);
+            loseState.transform.localScale.x,
+            loseState.transform.localScale.y,
+            loseState.transform.localScale.z - motivation * 1f
+        );
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
     }
 }
