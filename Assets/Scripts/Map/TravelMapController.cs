@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -11,10 +12,8 @@ using UnityEngine.UI;
 /// between UNLOCKED buttons only (locked ones are deactivated, not just
 /// dimmed) using WASD/left stick, and confirms with E/A to teleport there.
 ///
-/// Cycling uses Input.GetButtonDown("Horizontal"/"Vertical") rather than raw
-/// GetAxisRaw — Unity's Input Manager already debounces analog stick input
-/// into a discrete "just pressed" edge when queried this way, same as a real
-/// button, so no manual threshold-crossing tracking is needed here.
+/// Cycling manually debounces raw GetAxisRaw values rather than using
+/// Input.GetButtonDown - see HandleCycling for why.
 ///
 /// Requires an EventSystem in the scene, same as any other Unity UI Button.
 /// </summary>
@@ -24,15 +23,19 @@ public class TravelMapController : MonoBehaviour
     public class TravelLocation
     {
         public string locationName;
-        [Tooltip("The pin itself, as a UI Button — also used for highlighting the current selection " +
+        [Tooltip("The pin itself, as a UI Button - also used for highlighting the current selection " +
                  "via its own built-in Selected color/sprite state, no separate cursor needed.")]
         public Button icon;
         [Tooltip("The player teleports to this Transform's position/rotation when selected.")]
         public Transform destination;
         [Tooltip("This location becomes selectable once the story reaches this phase (or later).")]
         public StoryPhase unlockPhase = StoryPhase.BedRest;
+        [Tooltip("Which times of day this location can be traveled to. Leave EMPTY for no " +
+                 "restriction (selectable any time, once unlocked) - e.g. Park: Morning + " +
+                 "Evening only, Dojo: Morning + Afternoon + Evening (no Night).")]
+        public List<DayPhase> allowedTimesOfDay = new List<DayPhase>();
         [Tooltip("Optional: a component implementing ITravelArrivalHandler. Its OnArrival() is " +
-                 "called automatically right after the player is teleported here — this is how " +
+                 "called automatically right after the player is teleported here - this is how " +
                  "location-specific behavior (like ParkActivity starting its run sequence) plugs " +
                  "in without TravelMapController needing to know about it directly.")]
         public MonoBehaviour arrivalHandler;
@@ -45,14 +48,28 @@ public class TravelMapController : MonoBehaviour
     [SerializeField] private GameObject mapPanel;
     [SerializeField] private TMP_Text locationNameText;
 
+    [Header("Travel Transition")]
+    [Tooltip("Shown between teleporting the player and calling the destination's arrival " +
+             "handler - masks the follow-camera's catch-up time and forces arrival-triggered " +
+             "gameplay (e.g. ParkActivity) to wait until it finishes. Optional - if left " +
+             "unassigned, arrival happens immediately after teleporting, same as before.")]
+    [SerializeField] private TravelLoadingScreen loadingScreen;
+
     [Header("Player")]
     [SerializeField] private PlayerMovement player;
 
     private int currentIndex = -1;
     private bool isOpen;
 
+    [Tooltip("Index into Locations matching wherever the player actually starts the game " +
+             "(e.g. Home). Leave at -1 if that starting spot isn't one of the travel " +
+             "locations - in that case nothing is excluded until the player's first trip.")]
+    [SerializeField] private int startingLocationIndex = -1;
+    private int currentLocationIndex;
+
     private void Start()
     {
+        currentLocationIndex = startingLocationIndex;
         if (mapPanel != null) mapPanel.SetActive(false);
         RefreshIconVisibility();
     }
@@ -63,15 +80,21 @@ public class TravelMapController : MonoBehaviour
 
         RefreshIconVisibility();
         currentIndex = FindNextUnlockedIndex(0, 1);
+        isOpen = true;
 
         if (currentIndex == -1)
         {
-            Debug.Log("[Travel] No locations unlocked yet — nowhere to go.");
-            return;
+            // Nothing selectable right now (everything's locked, wrong time of day, or the
+            // only unlocked spot is wherever the player already is) - still open the map so
+            // the player can see that for themselves, rather than the map silently refusing
+            // to open with no feedback at all.
+            if (locationNameText != null) locationNameText.text = "Nowhere to go right now";
+            Debug.Log("[Travel] Map opened, but nothing is currently selectable.");
         }
-
-        isOpen = true;
-        UpdateSelectionVisual();
+        else
+        {
+            UpdateSelectionVisual();
+        }
 
         if (mapPanel != null) mapPanel.SetActive(true);
         if (player != null) player.movementLocked = true;
@@ -98,20 +121,41 @@ public class TravelMapController : MonoBehaviour
             CloseMap();
     }
 
+    private bool horizontalArmed = true;
+    private bool verticalArmed = true;
+    private const float cycleThreshold = 0.5f;
+
+    /// <summary>
+    /// Deliberately NOT using Input.GetButtonDown here - that relies on Unity's own
+    /// single-frame "just pressed" edge detection, which can miss with some
+    /// controller/driver combinations even though the underlying GetAxisRaw value itself
+    /// is fine (confirmed by PlayerMovement, which reads the same axes continuously and
+    /// works). Instead this polls the raw value directly every frame and debounces it
+    /// manually: once a direction fires, that axis is "disarmed" until it comes back
+    /// past cycleThreshold toward neutral, so holding the stick over doesn't spam-cycle.
+    /// </summary>
     private void HandleCycling()
     {
-        // GetButtonDown gives a genuine "just pressed" edge even for a continuous
-        // stick axis — Unity's Input Manager handles the threshold-crossing
-        // debounce internally, so this behaves like a single discrete press per
-        // flick without any manual tracking needed here.
-        if (Input.GetButtonDown("Horizontal"))
+        float h = Input.GetAxisRaw("Horizontal");
+        if (Mathf.Abs(h) < cycleThreshold)
         {
-            float h = Input.GetAxisRaw("Horizontal");
-            Cycle(h > 0f ? 1 : -1);
+            horizontalArmed = true;
         }
-        else if (Input.GetButtonDown("Vertical"))
+        else if (horizontalArmed)
         {
-            float v = Input.GetAxisRaw("Vertical");
+            horizontalArmed = false;
+            Cycle(h > 0f ? 1 : -1);
+            return; // one cycle per frame max, even if both axes are held past threshold
+        }
+
+        float v = Input.GetAxisRaw("Vertical");
+        if (Mathf.Abs(v) < cycleThreshold)
+        {
+            verticalArmed = true;
+        }
+        else if (verticalArmed)
+        {
+            verticalArmed = false;
             Cycle(v > 0f ? -1 : 1);
         }
     }
@@ -131,7 +175,7 @@ public class TravelMapController : MonoBehaviour
         int index = ((startIndex % locations.Count) + locations.Count) % locations.Count;
         for (int i = 0; i < locations.Count; i++)
         {
-            if (IsUnlocked(locations[index])) return index;
+            if (IsSelectable(index)) return index;
             index = ((index + direction) % locations.Count + locations.Count) % locations.Count;
         }
         return -1;
@@ -142,15 +186,36 @@ public class TravelMapController : MonoBehaviour
         return StoryManager.instance != null && StoryManager.instance.CurrentPhase >= location.unlockPhase;
     }
 
+    /// <summary>Empty allowedTimesOfDay means "no restriction" - always allowed, once unlocked.</summary>
+    private bool IsTimeAllowed(TravelLocation location)
+    {
+        if (location.allowedTimesOfDay == null || location.allowedTimesOfDay.Count == 0) return true;
+        return CalendarManager.instance != null &&
+               location.allowedTimesOfDay.Contains(CalendarManager.instance.CurrentPhase);
+    }
+
+    /// <summary>The full gate for "can the player actually travel here right now": story-unlocked,
+    /// the right time of day, and not the location the player is already standing at.</summary>
+    private bool IsSelectable(int index)
+    {
+        if (index == currentLocationIndex) return false;
+        TravelLocation location = locations[index];
+        return IsUnlocked(location) && IsTimeAllowed(location);
+    }
+
     private void RefreshIconVisibility()
     {
-        foreach (TravelLocation location in locations)
+        for (int i = 0; i < locations.Count; i++)
         {
+            TravelLocation location = locations[i];
             if (location.icon == null) continue;
 
+            // Unlocked-but-currently-unselectable (wrong time of day, or it's where the
+            // player already is) still shows the pin - just not interactable - rather than
+            // hiding it outright, so it doesn't look like it vanished from the map.
             bool unlocked = IsUnlocked(location);
             location.icon.gameObject.SetActive(unlocked);
-            location.icon.interactable = unlocked;
+            location.icon.interactable = unlocked && IsSelectable(i);
         }
     }
 
@@ -171,10 +236,32 @@ public class TravelMapController : MonoBehaviour
         if (currentIndex < 0 || currentIndex >= locations.Count) return;
         TravelLocation location = locations[currentIndex];
 
-        if (!IsUnlocked(location) || location.destination == null) return;
+        if (!IsSelectable(currentIndex) || location.destination == null) return;
 
+        StartCoroutine(TravelSequence(location));
+    }
+
+    /// <summary>
+    /// Teleport -> (optional) loading screen -> arrival handler, in that order, with player
+    /// movement held locked for the whole sequence. The loading screen isn't just cosmetic
+    /// here: it's what the destination's OnArrival() waits on, so e.g. ParkActivity's run
+    /// minigame can't start mid camera-catch-up.
+    /// </summary>
+    private IEnumerator TravelSequence(TravelLocation location)
+    {
         TeleportPlayer(location.destination);
+        currentLocationIndex = currentIndex;
+
+        // CloseMap() unconditionally unlocks movement (it's also the normal Cancel/close
+        // path, where that's exactly what should happen) - immediately re-lock right after
+        // so the player can't move during the loading screen below.
         CloseMap();
+        if (player != null) player.movementLocked = true;
+
+        if (loadingScreen != null)
+            yield return loadingScreen.Play();
+
+        if (player != null) player.movementLocked = false;
 
         // This is the hook: whatever component was dragged into arrivalHandler gets
         // its OnArrival() called here, as long as it implements ITravelArrivalHandler.

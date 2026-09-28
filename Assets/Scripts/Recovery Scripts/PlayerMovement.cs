@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -9,7 +9,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private Transform cameraTransform;
 
     [Header("Gravity")]
-    [Tooltip("Negative value — how strongly the player is pulled down each second while airborne.")]
+    [Tooltip("Negative value â€” how strongly the player is pulled down each second while airborne.")]
     [SerializeField] private float gravity = -20f;
     [Tooltip("Small constant downward force applied while grounded, keeping CharacterController.isGrounded " +
              "reliably true instead of flickering on slopes/stairs. Should stay a small negative number.")]
@@ -23,10 +23,15 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private GameObject interactable;
 
     private CharacterController controller;
-    [Tooltip("Animator on the player's mesh child — used only for movement blend. " +
+    [Tooltip("Animator on the player's mesh child - used only for movement blend. " +
              "Separate from the mesh child toggle so disabling the model during " +
-             "activities doesn't cause null reference errors here.")]
+             "activities doesn't cause null reference errors here. Call SetAnimator() " +
+             "to point this at a different model's Animator (e.g. DojoAppearanceZone " +
+             "swapping in the dojo outfit's rig) - movement blend keeps working on " +
+             "whichever model is actually visible.")]
     [SerializeField] private Animator animator;
+
+    public void SetAnimator(Animator newAnimator) => animator = newAnimator;
 
     private RecoveryInteraction interact;
     private Recovery_Interaction_Type_B interactTypeB;
@@ -92,7 +97,14 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
-        if (!interacting && !movementLocked)
+        // ActiveDialogueTracker.AnyActive covers ANY DialogueRunner/ConversationRunner
+        // currently on screen, anywhere - including dialogue that fires automatically
+        // (e.g. OneTimePhaseDialogueTrigger) with no interaction script wrapping it to
+        // set movementLocked manually. movementLocked itself is left in place for
+        // non-dialogue locks (e.g. the fight selection menu being open).
+        bool locked = movementLocked || ActiveDialogueTracker.AnyActive;
+
+        if (!interacting && !locked)
         {
             Move();
             Interact();
@@ -114,7 +126,7 @@ public class PlayerMovement : MonoBehaviour
 
         // Get camera forward and right projected flat onto the ground plane
         // so the move direction is always relative to where the camera is looking,
-        // regardless of orbit angle — but Y is stripped so we never move up/down
+        // regardless of orbit angle â€” but Y is stripped so we never move up/down
         Transform cam = cameraTransform != null ? cameraTransform : Camera.main.transform;
         Vector3 camForward = Vector3.ProjectOnPlane(cam.forward, Vector3.up).normalized;
         Vector3 camRight = Vector3.ProjectOnPlane(cam.right, Vector3.up).normalized;
@@ -137,7 +149,7 @@ public class PlayerMovement : MonoBehaviour
         }
 
         // Gravity. CharacterController already handles stepping up stairs (via its own
-        // Step Offset setting in the Inspector) and blocking on solid colliders — this
+        // Step Offset setting in the Inspector) and blocking on solid colliders â€” this
         // just supplies the missing vertical component so the controller actually falls
         // when the ground drops away, instead of floating at a fixed height.
         if (controller.isGrounded && verticalVelocity < 0f)

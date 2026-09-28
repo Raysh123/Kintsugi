@@ -47,6 +47,7 @@ public class FightSelectionMenu : MonoBehaviour
     /// resume — there's no separate "closed without fighting" event, closing for any reason
     /// (cancel, or a fight actually starting) just flips this false.</summary>
     public bool IsOpen { get; private set; }
+    private int openedFrame = -1;
 
     private void Start()
     {
@@ -59,11 +60,12 @@ public class FightSelectionMenu : MonoBehaviour
 
         if (options.Count == 0)
         {
-            Debug.LogWarning("[FightSelectionMenu] No fight options configured — nothing to open.");
+            Debug.LogWarning("[FightSelectionMenu] No fight options configured - nothing to open.");
             return;
         }
 
         IsOpen = true;
+        openedFrame = Time.frameCount;
         currentIndex = 0;
         UpdateSelectionVisual();
 
@@ -84,6 +86,12 @@ public class FightSelectionMenu : MonoBehaviour
     {
         if (!IsOpen) return;
 
+        // Whatever button opened this menu (e.g. SenseiInteraction's Space/B) is still
+        // "down" for the rest of this same frame as far as Input.GetKeyDown is concerned -
+        // without this guard, Close() below would fire on that same leftover press the
+        // instant the menu opens, before a single frame ever renders.
+        if (Time.frameCount == openedFrame) return;
+
         HandleCycling();
 
         if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetButtonDown("Submit"))
@@ -92,16 +100,39 @@ public class FightSelectionMenu : MonoBehaviour
             Close();
     }
 
+    private bool horizontalArmed = true;
+    private bool verticalArmed = true;
+    private const float cycleThreshold = 0.5f;
+
+    /// <summary>
+    /// Same manual debounce as TravelMapController.HandleCycling - deliberately not using
+    /// Input.GetButtonDown, which can miss its single-frame edge with some controllers even
+    /// though the underlying GetAxisRaw value is fine.
+    /// </summary>
     private void HandleCycling()
     {
-        if (Input.GetButtonDown("Horizontal"))
+        if (options.Count == 0) return;
+
+        float h = Input.GetAxisRaw("Horizontal");
+        if (Mathf.Abs(h) < cycleThreshold)
         {
-            float h = Input.GetAxisRaw("Horizontal");
-            Cycle(h > 0f ? 1 : -1);
+            horizontalArmed = true;
         }
-        else if (Input.GetButtonDown("Vertical"))
+        else if (horizontalArmed)
         {
-            float v = Input.GetAxisRaw("Vertical");
+            horizontalArmed = false;
+            Cycle(h > 0f ? 1 : -1);
+            return;
+        }
+
+        float v = Input.GetAxisRaw("Vertical");
+        if (Mathf.Abs(v) < cycleThreshold)
+        {
+            verticalArmed = true;
+        }
+        else if (verticalArmed)
+        {
+            verticalArmed = false;
             Cycle(v > 0f ? -1 : 1);
         }
     }

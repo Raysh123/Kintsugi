@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -6,7 +6,7 @@ using UnityEngine;
 /// <summary>
 /// Plays a ConversationDialogue asset. Holds the scene-side speaker list
 /// (display name + their own AudioSource) that the asset's lines reference
-/// by index — this is the multi-character counterpart to DialogueRunner,
+/// by index ï¿½ this is the multi-character counterpart to DialogueRunner,
 /// which only handles a single speaker with one shared AudioSource.
 ///
 /// Attach to any object, assign speakers in the same order the conversation
@@ -19,7 +19,7 @@ public class ConversationRunner : MonoBehaviour
     {
         [Tooltip("Shown in the speaker name UI while this character is talking.")]
         public string speakerName;
-        [Tooltip("This speaker's own AudioSource — e.g. positioned at their model for spatial audio.")]
+        [Tooltip("This speaker's own AudioSource ï¿½ e.g. positioned at their model for spatial audio.")]
         public AudioSource audioSource;
     }
 
@@ -29,7 +29,7 @@ public class ConversationRunner : MonoBehaviour
     [Header("Speakers (index must match speakerIndex on each line in the asset)")]
     [SerializeField] private List<ConversationSpeaker> speakers = new List<ConversationSpeaker>();
 
-    [Header("UI — Subtitles")]
+    [Header("UI ï¿½ Subtitles")]
     [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private TMP_Text speakerNameText;
 
@@ -61,8 +61,9 @@ public class ConversationRunner : MonoBehaviour
     private IEnumerator RunConversation(ConversationBlock block)
     {
         IsRunning = true;
+        ActiveDialogueTracker.Begin();
 
-        // Wait one frame before any input checking begins — otherwise the same
+        // Wait one frame before any input checking begins ï¿½ otherwise the same
         // button press that triggered Show() immediately satisfies the first
         // line's WaitUntil, skipping it instantly.
         yield return null;
@@ -92,7 +93,7 @@ public class ConversationRunner : MonoBehaviour
 
                 if (line.waitForInput)
                 {
-                    // The clip (if any) is purely decorative here — a short "noise" blip
+                    // The clip (if any) is purely decorative here ï¿½ a short "noise" blip
                     // shouldn't affect pacing. Advancing depends only on player input.
                     yield return new WaitUntil(() =>
                         Input.GetKeyDown(advanceKey) ||
@@ -101,7 +102,7 @@ public class ConversationRunner : MonoBehaviour
                 }
                 else
                 {
-                    // Auto-advance when clip finishes — for full voiced lines later.
+                    // Auto-advance when clip finishes ï¿½ for full voiced lines later.
                     yield return new WaitUntil(() => !source.isPlaying);
                 }
             }
@@ -120,6 +121,7 @@ public class ConversationRunner : MonoBehaviour
         if (speakerNameText != null) speakerNameText.text = string.Empty;
 
         IsRunning = false;
+        ActiveDialogueTracker.End();
         OnDialogueComplete?.Invoke();
     }
 }

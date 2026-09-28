@@ -45,6 +45,8 @@ public class ComicCutscene : MonoBehaviour
     [Tooltip("Escape skips instantly on keyboard. On gamepad, holding B for this long also skips.")]
     [SerializeField] private float holdToSkipDuration = 1f;
 
+    private const float cycleThreshold = 0.5f;
+
     private int currentIndex = -1;
     private int highestRevealedIndex = -1;
     private bool isPlaying;
@@ -87,6 +89,7 @@ public class ComicCutscene : MonoBehaviour
         currentIndex = -1;
         highestRevealedIndex = -1;
         skipHoldTimer = 0f;
+        bool horizontalArmed = true;
 
         // Wait one frame before checking input — otherwise the button press that
         // triggered this (or the wake-up moment itself) could immediately register.
@@ -119,12 +122,18 @@ public class ComicCutscene : MonoBehaviour
                 skipHoldTimer = 0f;
             }
 
-            // GetButtonDown debounces a continuous stick axis into a discrete
-            // "just pressed" edge automatically, same as TravelMapController's
-            // cycling — no manual analog tracking needed.
-            if (Input.GetButtonDown("Horizontal"))
+            // Manually debounced raw axis read - NOT Input.GetButtonDown, which turned out
+            // to miss its single-frame "just pressed" edge with some controllers, even
+            // though the underlying GetAxisRaw value itself is fine (same fix as
+            // TravelMapController/FightSelectionMenu's cycling).
+            float h = Input.GetAxisRaw("Horizontal");
+            if (Mathf.Abs(h) < cycleThreshold)
             {
-                float h = Input.GetAxisRaw("Horizontal");
+                horizontalArmed = true;
+            }
+            else if (horizontalArmed)
+            {
+                horizontalArmed = false;
                 if (h > 0f)
                 {
                     if (currentIndex >= panels.Count - 1)

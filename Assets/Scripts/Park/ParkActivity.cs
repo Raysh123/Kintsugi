@@ -142,9 +142,6 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
 
         MarkVisited();
 
-        if (CalendarManager.instance != null)
-            CalendarManager.instance.AdvanceTime(quadrantTicks);
-
         // --- Leave ---
         if (openMapPrompt != null) openMapPrompt.SetActive(true);
 
@@ -165,6 +162,16 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
             defaultCamera.SetActive(true);
             Debug.Log("[ParkActivity] Default Camera reactivated.");
         }
+
+        // Time only advances NOW, after the player has actually chosen to leave - not while
+        // they're still at the bench. If this crosses a phase boundary, CalendarManager's
+        // OnPhaseChanged fires and TimeOfDaySkybox hard-swaps the sky; doing that mid-bench
+        // would pop the sky in front of the player, which the whole no-crossfade design
+        // assumes never happens. Also has to come BEFORE OpenMap() below, since the map's
+        // time-of-day availability (Park: Morning/Evening only, etc.) is computed from the
+        // current phase at the moment it opens - opening first would show stale availability.
+        if (CalendarManager.instance != null)
+            CalendarManager.instance.AdvanceTime(quadrantTicks);
 
         if (travelMapController != null) travelMapController.OpenMap();
 

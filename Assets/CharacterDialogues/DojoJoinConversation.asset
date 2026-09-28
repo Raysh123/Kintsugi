@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8835dfddad7d4ee41a303e58bc774c6d, type: 3}
-  m_Name: PhoneConversation
+  m_Name: DojoJoinConversation
   m_EditorClassIdentifier: 
   blocks:
-  - phase: 1
+  - phase: 2
     anyTimeOfDay: 0
-    timeOfDay: 2
+    timeOfDay: 0
     anyDay: 1
     dayNumber: 0
     lines:

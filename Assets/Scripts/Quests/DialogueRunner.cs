@@ -71,6 +71,7 @@ public class DialogueRunner : MonoBehaviour
     private IEnumerator RunDialogue(DialogueBlock block)
     {
         IsRunning = true;
+        ActiveDialogueTracker.Begin();
 
         // Wait one frame before any input checking begins — otherwise the same
         // button press that triggered Show() (still "down" for this whole frame)
@@ -124,6 +125,7 @@ public class DialogueRunner : MonoBehaviour
         if (speakerNameText != null) speakerNameText.text = string.Empty;
 
         IsRunning = false;
+        ActiveDialogueTracker.End();
         OnDialogueComplete?.Invoke();
     }
 }
