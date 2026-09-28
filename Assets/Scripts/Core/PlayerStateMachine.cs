@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerStateMachine : MonoBehaviour
@@ -12,19 +14,42 @@ public class PlayerStateMachine : MonoBehaviour
         Block,
         Hurt
     };
+
+    public enum AttackTypes
+    {
+        None,
+        Punch,
+        Kick
+    };
+
+    public AttackTypes currentAttackType {  get; private set; }
     public PlayerStates currentState;
     public static PlayerStateMachine instance;
     public PlayerController player;
     [SerializeField]
-    private Animator animator;
+    public Animator animator;
 
     [SerializeField] 
     private MatchTimer matchTimer;
+    [SerializeField] private float perfectBlockWindow = 0.15f;
+    [SerializeField] private float normalBlockWindow = 0.50f;
+
+    private float lastBlockPressTime = -999f;
+    private bool blockWasHeld;
+    public List<DmgDetection> pHitBoxes;
+    private bool isAttacking;
+    private bool perfectBlockUsed;
+
+    public EnemyStateMachine enemy;
     private void Awake()
     {
-        if (instance != null)
+        if (instance == null)
         {
             instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
         }
     }
     private void Start()
@@ -38,9 +63,47 @@ public class PlayerStateMachine : MonoBehaviour
         HandleStates();
         if (player.isHurt)
         { currentState = PlayerStates.Hurt; }
+        bool blockPressed = InputHandler.instance.block && !blockWasHeld;
+        blockWasHeld = InputHandler.instance.block;
+        if (blockPressed)
+        {
+            lastBlockPressTime = Time.time;
+            perfectBlockUsed = false;
+            StartCoroutine(BlockRoutine());
+        }
+    }
+    IEnumerator BlockRoutine()
+    {
+        ChangeState(PlayerStates.Block);
+        yield return new WaitForSeconds(normalBlockWindow);
+        if(currentState == PlayerStates.Block)
+        {
+            ChangeState(PlayerStates.Idle);
+        }
+    }
+    public bool TryPerfectBlock()
+    {
+        bool insidePerfectWindow = Time.time - lastBlockPressTime <= perfectBlockWindow;
+        if (!insidePerfectWindow || perfectBlockUsed)
+            return false;
+
+        perfectBlockUsed = true;
+        return true;
+    }
+    public bool IsNormalBlockActive()
+    {
+        return Time.time - lastBlockPressTime <= normalBlockWindow;
     }
     public void ChangeState(PlayerStates newState)
     {
+        if (newState == PlayerStates.Attack &&
+       currentState != PlayerStates.Attack)
+        {
+            foreach (var hitbox in pHitBoxes)
+            {
+                hitbox.ResetHit();
+            }
+        }
         currentState = newState;
     } 
     private void HandleStates()
@@ -98,13 +161,13 @@ public class PlayerStateMachine : MonoBehaviour
 
     private void HandleBlock()
     {
-        if (!player.isHurt)
-        {
-            if (InputHandler.instance.block == false)
-            {
-                ChangeState(PlayerStates.Idle);
-            }
-        }
+        //if (!player.isHurt)
+        //{
+        //    if (InputHandler.instance.block == false)
+        //    {
+        //        ChangeState(PlayerStates.Idle);
+        //    }
+        //}
     }
 
     private void HandleDodge()
@@ -122,23 +185,45 @@ public class PlayerStateMachine : MonoBehaviour
     {
         if (!player.isHurt)
         {
-
-
-            if (InputHandler.instance.punch == false & InputHandler.instance.kick == false)
+            if(!isAttacking && InputHandler.instance.punch)
             {
-                ChangeState(PlayerStates.Idle);
+                StartCoroutine(PlayerAttackRoutine("Kizami_Tsuki"));
+                return;
             }
-            else if (InputHandler.instance.kick == false & InputHandler.instance.punch == true)
+            else if(!isAttacking && InputHandler.instance.kick)
             {
-                animator.Play("Kizami_Tsuki");
+                StartCoroutine(PlayerAttackRoutine("YokoGeri"));
+                return;
             }
-            else if (InputHandler.instance.kick == true & InputHandler.instance.punch == false)
-            {
-                animator.Play("YokoGeri");
-            }
-
         }
 
+    }
+
+    IEnumerator PlayerAttackRoutine(string animName)
+    {
+        isAttacking = true;
+        ChangeState(PlayerStates.Attack);
+        SetInjuryMeter();
+        animator.Play(animName);
+        yield return null;
+
+        float duration = animator.GetCurrentAnimatorStateInfo(0).length;
+        yield return new WaitForSeconds(duration);
+
+        isAttacking = false;
+        ChangeState(PlayerStates.Idle);
+    }
+
+    private void SetInjuryMeter()
+    {
+        if (InjuryMeter.instance == null)
+        {
+            return;
+        }
+        else if(!TryPerfectBlock())
+        {
+            InjuryMeter.instance.injuryMeterValue.value += 0.1f;
+        }
     }
 
     private void HandleMove()
@@ -186,8 +271,14 @@ public class PlayerStateMachine : MonoBehaviour
                 }
 
             }
-            if (InputHandler.instance.punch || InputHandler.instance.kick)
+            if (InputHandler.instance.punch)
             {
+                currentAttackType = AttackTypes.Punch;
+                ChangeState(PlayerStates.Attack);
+            }
+            if (InputHandler.instance.kick)
+            {
+                currentAttackType = AttackTypes.Kick;
                 ChangeState(PlayerStates.Attack);
             }
             if (InputHandler.instance.dodge)
@@ -198,7 +289,19 @@ public class PlayerStateMachine : MonoBehaviour
             if (InputHandler.instance.block)
             {
                 ChangeState(PlayerStates.Block);
-                animator.Play("Lower_Block");
+                SetInjuryMeter();
+                if(enemy.requiredTag == "ePunch")
+                {
+                    animator.Play("Upper_Block");
+                }
+                else if(enemy.requiredTag == "eKick")
+                {
+                    animator.Play("Lower_Block");
+                }
+                else
+                {
+                    animator.Play("Lower_Block");
+                }
             }
 
         }
