@@ -18,6 +18,8 @@ TagManager:
   - pBody
   - ePunch
   - eKick
+  - Interact3
+  - Runner
   layers:
   - Default
   - TransparentFX
@@ -25,9 +27,9 @@ TagManager:
   - Ball
   - Water
   - UI
-  - 
-  - 
-  - 
+  - Window
+  - CutOut
+  - Player
   - 
   - 
   - 
