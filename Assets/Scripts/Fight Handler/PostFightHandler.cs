@@ -15,10 +15,17 @@ public class PostFightHandler : MonoBehaviour
     {
         public string id;
         public Transform transform;
+        [Tooltip("Optional - if set, PlayerAppearanceController.SetModel(this) is called " +
+                 "after teleporting here (e.g. \"Dojo\"). Leave blank to not touch appearance " +
+                 "at all for this spawn point. This bypasses DojoArrivalHandler entirely - " +
+                 "PostFightHandler teleports directly rather than going through " +
+                 "TravelMapController/OnArrival, so nothing else would set it.")]
+        public string modelId;
     }
 
     [Header("Player")]
     [SerializeField] private PlayerMovement player;
+    [SerializeField] private PlayerAppearanceController appearance;
 
     [Header("Return Spawn Points")]
     [Tooltip("Match the 'id' here against the returnSpawnPointId set on each FightTrigger.")]
@@ -52,11 +59,17 @@ public class PostFightHandler : MonoBehaviour
         // Consume immediately so this doesn't replay if the scene reloads again later.
         FightSessionManager.ClearPendingResult();
 
-        Transform spawn = FindSpawn(spawnId);
+        SpawnPoint spawn = FindSpawn(spawnId);
         if (spawn != null)
-            TeleportPlayer(spawn);
+        {
+            TeleportPlayer(spawn.transform);
+            if (!string.IsNullOrEmpty(spawn.modelId) && appearance != null)
+                appearance.SetModel(spawn.modelId);
+        }
         else
+        {
             Debug.LogWarning($"[PostFightHandler] No spawn point found matching id '{spawnId}'.");
+        }
 
         if (player != null) player.movementLocked = true;
 
@@ -79,10 +92,10 @@ public class PostFightHandler : MonoBehaviour
             Debug.LogWarning("[PostFightHandler] CalendarManager.instance is null — time not advanced.");
     }
 
-    private Transform FindSpawn(string id)
+    private SpawnPoint FindSpawn(string id)
     {
         foreach (SpawnPoint sp in spawnPoints)
-            if (sp.id == id) return sp.transform;
+            if (sp.id == id) return sp;
         return null;
     }
 

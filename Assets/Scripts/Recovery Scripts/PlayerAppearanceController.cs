@@ -37,7 +37,15 @@ public class PlayerAppearanceController : MonoBehaviour
 
     public string CurrentModelId { get; private set; }
 
-    private void Start()
+    /// <summary>
+    /// Awake, NOT Start - Unity guarantees every object's Awake() runs before any object's
+    /// Start() in the same scene load, regardless of script execution order settings. This
+    /// matters because other scripts (PostFightHandler, DojoArrivalHandler) call SetModel
+    /// from their own Start()-triggered logic on the SAME scene load (e.g. returning from a
+    /// fight reloads the whole RPG scene) - if this also ran in Start(), it would be a race:
+    /// whichever Start() happened to run second would silently win and undo the other.
+    /// </summary>
+    private void Awake()
     {
         SetModel(defaultModelId);
     }
@@ -48,19 +56,38 @@ public class PlayerAppearanceController : MonoBehaviour
     /// beyond re-confirming the same state.</summary>
     public void SetModel(string id)
     {
+        Debug.Log($"[PlayerAppearanceController] SetModel(\"{id}\") called on '{gameObject.name}'.");
+
         PlayerModel match = models.Find(m => m.id == id);
         if (match == null)
         {
-            Debug.LogWarning($"[PlayerAppearanceController] No model registered with id \"{id}\" - ignoring.");
+            Debug.LogWarning($"[PlayerAppearanceController] No model registered with id \"{id}\" - ignoring. " +
+                              $"Registered ids: [{string.Join(", ", models.ConvertAll(m => m.id))}]");
             return;
+        }
+
+        if (match.modelObject == null)
+        {
+            Debug.LogWarning($"[PlayerAppearanceController] Model entry \"{id}\" has no Model Object assigned - nothing to activate.");
         }
 
         foreach (PlayerModel model in models)
         {
-            if (model.modelObject != null) model.modelObject.SetActive(model == match);
+            if (model.modelObject == null) continue;
+            bool shouldBeActive = model == match;
+            model.modelObject.SetActive(shouldBeActive);
+            Debug.Log($"[PlayerAppearanceController]   '{model.modelObject.name}' (id \"{model.id}\") -> active={shouldBeActive}");
         }
 
-        if (player != null) player.SetAnimator(match.animator);
+        if (player != null)
+        {
+            player.SetAnimator(match.animator);
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerAppearanceController] Player (PlayerMovement) is not assigned - movement animation won't follow this model switch.");
+        }
+
         CurrentModelId = id;
     }
 }

@@ -4288,6 +4288,59 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 2262303240563668989, guid: 57c48691589333741b44f37c982bc826, type: 3}
+--- !u!1 &183613108
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 183613109}
+  - component: {fileID: 183613110}
+  m_Layer: 0
+  m_Name: FightManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &183613109
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 183613108}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 635431744}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &183613110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 183613108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f154e2a408dd6b44fb8dfd416d4d0daa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 934731004}
+  appearance: {fileID: 934731005}
+  spawnPoints:
+  - id: Dojo
+    transform: {fileID: 1170150368}
+    modelId: Dojo
+  winDialogue: {fileID: 1170150370}
+  loseDialogue: {fileID: 422082743}
+  fightTimeCostTicks: 4
 --- !u!1 &202142523
 GameObject:
   m_ObjectHideFlags: 0
@@ -9023,6 +9076,55 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!1 &422082741
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 422082742}
+  - component: {fileID: 422082743}
+  m_Layer: 0
+  m_Name: LostDialouge
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &422082742
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 422082741}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1170150368}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &422082743
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 422082741}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1fa3b74304f9eee46b14e8cb525f2b86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogue: {fileID: 11400000, guid: fbd666e5ee2ceec4f810b58925810ae4, type: 2}
+  subtitleText: {fileID: 1529717724}
+  speakerNameText: {fileID: 1843716231}
+  audioSource: {fileID: 0}
+  advanceKey: 101
 --- !u!4 &431269066 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 43a3e13c7339469468fecbcff401b160, type: 3}
@@ -12657,6 +12759,7 @@ Transform:
   - {fileID: 1534876889}
   - {fileID: 248451594}
   - {fileID: 1953765711}
+  - {fileID: 183613109}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &635641465 stripped
@@ -22756,6 +22859,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 728baa0c826d48f4e8b98c5a5d834af7, type: 3}
   m_PrefabInstance: {fileID: 1015540259}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1170150367
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1170150368}
+  - component: {fileID: 1170150370}
+  m_Layer: 0
+  m_Name: Post Fight Spawn
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1170150368
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1170150367}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -76.78, y: 0.91, z: -24.71}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 422082742}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1170150370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1170150367}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1fa3b74304f9eee46b14e8cb525f2b86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogue: {fileID: 11400000, guid: 908acbe0ad80b7b4ab3c9337b8257ef4, type: 2}
+  subtitleText: {fileID: 1529717724}
+  speakerNameText: {fileID: 1843716231}
+  audioSource: {fileID: 0}
+  advanceKey: 101
 --- !u!1001 &1176326978
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -27753,12 +27906,12 @@ MonoBehaviour:
   - opponentName: Sami
     icon: {fileID: 138145237}
     fightSceneName: EnemyAI
-    returnSpawnPointId: 
+    returnSpawnPointId: Dojo
     opponentId: 
   - opponentName: Shu
     icon: {fileID: 499437678}
     fightSceneName: 
-    returnSpawnPointId: 
+    returnSpawnPointId: Dojo
     opponentId: 
   menuPanel: {fileID: 1675409481}
   opponentNameText: {fileID: 469650632}
@@ -33123,7 +33276,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a110c668902102043b3e6bf95dd76de9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingPhase: 1
+  startingPhase: 2
   storyStartDate:
     year: 20
     month: 2
@@ -35386,3 +35539,4 @@ SceneRoots:
   - {fileID: 341576375}
   - {fileID: 1743876134}
   - {fileID: 70485391}
+  - {fileID: 1170150368}

@@ -14,11 +14,12 @@ public class DmgDetection : MonoBehaviour
     bool hitRegistered = false;
     bool isperfectBlock;
     [SerializeField] private float perfectBlockWindow;
-    [SerializeField] private Posture playerPosture; 
+    [SerializeField] private Posture playerPosture;
     [SerializeField] private Posture enemyPosture;
     [SerializeField] private float postureMaxVal = 0.8f;
     [SerializeField] private PlayerController player;
     [SerializeField] private float knockbackDist = 0.15f;
+    [SerializeField] private MatchScore matchScore;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -28,7 +29,7 @@ public class DmgDetection : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+
     }
     public void ResetHit()
     {
@@ -72,6 +73,7 @@ public class DmgDetection : MonoBehaviour
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
             hitRegistered = true;
+            if (matchScore != null) matchScore.AddPlayerPoint(PlayerStateMachine.AttackTypes.Punch);
             matchTimer.RegisterHit();
         }
         else if (other.transform.tag == "Body" && gameObject.tag == "Kick" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
@@ -93,6 +95,7 @@ public class DmgDetection : MonoBehaviour
             Debug.Log("Player hit");
             anim.Play("Hurt_Balls");
             hitRegistered = true;
+            if (matchScore != null) matchScore.AddPlayerPoint(PlayerStateMachine.AttackTypes.Kick);
             matchTimer.RegisterHit();
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
@@ -133,6 +136,7 @@ public class DmgDetection : MonoBehaviour
             Debug.Log("Enemy hit");
             hitRegistered = true;
             canDealDamage = false;
+            if (matchScore != null) matchScore.AddEnemyPoint(PlayerStateMachine.AttackTypes.Punch);
             matchTimer.RegisterHit();
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "eKick" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
@@ -173,6 +177,7 @@ public class DmgDetection : MonoBehaviour
             Debug.Log("Enemy hit");
             PushBackPlayer(enemyStateMachine.transform, knockbackDist);
             hitRegistered = true;
+            if (matchScore != null) matchScore.AddEnemyPoint(PlayerStateMachine.AttackTypes.Kick);
             matchTimer.RegisterHit();
         }
     }

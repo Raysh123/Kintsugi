@@ -3067,6 +3067,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!54 &831041673
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3321,6 +3322,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1086321185}
   - component: {fileID: 1086321184}
+  - component: {fileID: 1086321186}
   m_Layer: 0
   m_Name: Timer
   m_TagString: Untagged
@@ -3340,7 +3342,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b99d2863058e9ba4891dfe32fae52b24, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  matchDuration: 120
+  matchDuration: 10
   matchStopped: 1
   hitPauseDuration: 5
   debugLog: 0
@@ -3380,6 +3382,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1086321186
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1086321183}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a008afb3408155f4db3ea350ab5ae962, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  matchTimer: {fileID: 1086321184}
+  attackPointValues: {fileID: 11400000, guid: 69137bad41d2c2e41972ce72de441efc, type: 2}
+  tieGoesToPlayer: 0
+  OnScoreChanged:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &1095227046 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1066937781470502576, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
@@ -3408,6 +3428,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!54 &1095227050
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3661,6 +3682,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!54 &1298822038
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3752,6 +3774,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!54 &1344137792
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3807,6 +3830,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!1 &1370683102
 GameObject:
   m_ObjectHideFlags: 0
@@ -4154,6 +4178,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!54 &1529948530
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -6416,6 +6441,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!54 &1735107574
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -7114,6 +7140,7 @@ MonoBehaviour:
   postureMaxVal: 0.85
   player: {fileID: 0}
   knockbackDist: 0.15
+  matchScore: {fileID: 1086321186}
 --- !u!4 &2080370455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3517220861679807043, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}

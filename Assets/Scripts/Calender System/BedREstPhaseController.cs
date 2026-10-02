@@ -2,21 +2,22 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
 /// <summary>
 /// Everything specific to the BedRest story phase: the phase-locked model
 /// swap (player's normal model hidden for the WHOLE phase, replaced by this
 /// script's activityModel), the entry/exit transition poses, the 6-slot
-/// recovery activity system, and BedRest's own sleep sequence — which keeps
+/// recovery activity system, and BedRest's own sleep sequence â€” which keeps
 /// activityModel active throughout rather than reverting to the normal mesh
 /// after every night, unlike the generic BedInteraction.
 ///
 /// This script is always resident and self-gates on the current story phase
-/// internally — it's never meant to be enabled/disabled externally. Outside
+/// internally â€” it's never meant to be enabled/disabled externally. Outside
 /// BedRest, its Update() simply no-ops; BedInteraction (a separate, generic
 /// script) handles ordinary sleep everywhere else in the game instead.
 ///
 /// The recovery activity itself runs off an ordered list of slots
-/// (BedActivitySlotDefinition) — Type A morning, Type B afternoon, Type C evening,
+/// (BedActivitySlotDefinition) â€” Type A morning, Type B afternoon, Type C evening,
 /// repeated across however many days BedRest lasts. Completing one slot
 /// advances to the next automatically. Each slot has its own dedicated
 /// minigame instance (via the parallel BedActivitySlotSceneRefs list), so
@@ -26,7 +27,7 @@ using UnityEngine;
 public class BedRestPhaseController : MonoBehaviour
 {
     /// <summary>
-    /// The scene-object half of a slot — kept separate from BedActivitySlotDefinition
+    /// The scene-object half of a slot â€” kept separate from BedActivitySlotDefinition
     /// (an asset) because ScriptableObjects can't reference scene objects via the
     /// Inspector. Index N here corresponds to index N in the slots list below.
     /// </summary>
@@ -36,24 +37,24 @@ public class BedRestPhaseController : MonoBehaviour
         public FillBarMinigame typeAMinigame;
         public TrackerRhythmMinigame typeBMinigame;
         public RhythmSequenceMinigame typeCMinigame;
-        [Tooltip("Shown while this slot's minigame runs — e.g. a first-time tutorial/onboarding hint.")]
+        [Tooltip("Shown while this slot's minigame runs â€” e.g. a first-time tutorial/onboarding hint.")]
         public GameObject onboardingUI;
-        [Tooltip("This activity's own gameplay UI — e.g. its FillBarMeterUI/TrackerRhythmMeterUI/" +
+        [Tooltip("This activity's own gameplay UI â€” e.g. its FillBarMeterUI/TrackerRhythmMeterUI/" +
                  "BoardPromptUI panel.")]
         public GameObject activityUI;
 
         [Header("Optional: before this activity")]
-        [Tooltip("Plays before this slot's activity starts — e.g. an NPC reminding the player to do " +
+        [Tooltip("Plays before this slot's activity starts â€” e.g. an NPC reminding the player to do " +
                  "their physio. Gates E until dismissed, same as onboardingUI.")]
         public DialogueRunner beforeDialogue;
         [Tooltip("If assigned, this NPC appears at Before Npc Position for the dialogue above, then " +
-                 "returns to its own default position once THIS specific slot's activity finishes — " +
+                 "returns to its own default position once THIS specific slot's activity finishes â€” " +
                  "not tied to the whole BedRest phase, just this one activity.")]
         public NPCAppearance beforeNpc;
         public Transform beforeNpcPosition;
 
         [Header("Optional: after this activity (unprompted)")]
-        [Tooltip("Plays automatically the instant this slot's activity finishes — win, lose, or " +
+        [Tooltip("Plays automatically the instant this slot's activity finishes â€” win, lose, or " +
                  "injured, doesn't matter which. No button press needed to trigger it.")]
         public DialogueRunner afterDialogue;
     }
@@ -68,7 +69,7 @@ public class BedRestPhaseController : MonoBehaviour
     [SerializeField] private GameObject activityModel;
     [SerializeField] private Animator activityAnimator;
     [Tooltip("Looping animation played whenever the player is in bed but not doing an " +
-             "activity or sleeping — the default state for the whole phase.")]
+             "activity or sleeping â€” the default state for the whole phase.")]
     [SerializeField] private string bedIdleAnimation;
     [Tooltip("Fallback pose used when a slot doesn't specify its own Activity Animation State.")]
     [SerializeField] private string recoveryAnimation;
@@ -83,12 +84,12 @@ public class BedRestPhaseController : MonoBehaviour
     [SerializeField] private float fadeDuration = 1f;
 
     [Header("Bed Rest Activity Slots")]
-    [Tooltip("Runs in order — completing one automatically advances to the next. Each entry is a " +
+    [Tooltip("Runs in order â€” completing one automatically advances to the next. Each entry is a " +
              "BedActivitySlotDefinition asset (Assets > Create > RPG > Bed Activity Slot), not an " +
              "inline list entry, to avoid a Unity Inspector bug where editing one large serializable " +
              "list element can visibly corrupt another.")]
     [SerializeField] private List<BedActivitySlotDefinition> slots = new List<BedActivitySlotDefinition>();
-    [Tooltip("Scene object references for each slot above, MATCHED BY INDEX — element 0 here goes " +
+    [Tooltip("Scene object references for each slot above, MATCHED BY INDEX â€” element 0 here goes " +
              "with element 0 in Slots, etc. Split out from the asset list because ScriptableObjects " +
              "can't hold scene object references.")]
     [SerializeField] private List<BedActivitySlotSceneRefs> sceneRefs = new List<BedActivitySlotSceneRefs>();
@@ -98,10 +99,10 @@ public class BedRestPhaseController : MonoBehaviour
     [SerializeField] private GameObject healthMotivationMeterUI;
 
     [Header("Phase Start (unprompted, plays once automatically)")]
-    [Tooltip("Plays the moment BedRest begins, before the player can press E for anything — " +
+    [Tooltip("Plays the moment BedRest begins, before the player can press E for anything â€” " +
              "e.g. Mom's opening line. Not gated behind any button press.")]
     [SerializeField] private DialogueRunner phaseStartDialogue;
-    [Tooltip("Optional — if assigned along with Phase Start Npc Position, this NPC appears there " +
+    [Tooltip("Optional â€” if assigned along with Phase Start Npc Position, this NPC appears there " +
              "right before the dialogue above plays.")]
     [SerializeField] private NPCAppearance phaseStartNpc;
     [SerializeField] private Transform phaseStartNpcPosition;
@@ -109,7 +110,7 @@ public class BedRestPhaseController : MonoBehaviour
 
     [Header("Phase End Cutscene")]
     [Tooltip("Plays during the final sleep of BedRest, right after fade-to-black and before the " +
-             "wake-up/fade-in — bridges into FriendVisit while the screen is still dark.")]
+             "wake-up/fade-in â€” bridges into FriendVisit while the screen is still dark.")]
     [SerializeField] private ComicCutscene bedRestEndCutscene;
 
     private bool canInteract;
@@ -160,8 +161,13 @@ public class BedRestPhaseController : MonoBehaviour
 
         if (StoryManager.instance.CurrentPhase != StoryPhase.BedRest)
         {
-            // Started past BedRest already — nothing for this controller to ever do.
-            ApplyPhaseVisual(StoryManager.instance.CurrentPhase);
+            // Started past BedRest already - nothing for this controller to ever do.
+            // Deliberately NOT calling ApplyPhaseVisual here (an earlier version did) -
+            // this fires in Start() on EVERY scene load once the player is past BedRest,
+            // including a post-fight return, and ApplyPhaseVisual's
+            // playerMeshChild.SetActive(!isBedRest) would force playerMeshChild back on
+            // directly, undoing whatever PlayerAppearanceController had just set (e.g. the
+            // Dojo model) completely independently of it.
             phaseStartDialogueComplete = true;
             yield break;
         }
@@ -204,7 +210,7 @@ public class BedRestPhaseController : MonoBehaviour
             {
                 if (CalendarManager.instance != null && CalendarManager.instance.CurrentPhase == DayPhase.Night)
                 {
-                    Debug.Log("Too late for activities — time to sleep.");
+                    Debug.Log("Too late for activities â€” time to sleep.");
                 }
                 else
                 {
@@ -229,7 +235,7 @@ public class BedRestPhaseController : MonoBehaviour
         }
     }
 
-    // ── Phase-driven model swap ──────────────────────────────────────────────────
+    // â”€â”€ Phase-driven model swap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private void HandlePhaseChanged(StoryPhase old, StoryPhase newPhase)
     {
@@ -237,7 +243,7 @@ public class BedRestPhaseController : MonoBehaviour
 
         if (newPhase != StoryPhase.BedRest)
         {
-            // BedRest has ended for good — this controller's whole job was that
+            // BedRest has ended for good â€” this controller's whole job was that
             // phase specifically. Unsubscribing here stops it from reacting to (and
             // racing with) any later phase transition, which was fighting
             // BedInteraction over playerMeshChild's visibility during later sleeps.
@@ -258,7 +264,7 @@ public class BedRestPhaseController : MonoBehaviour
             activityAnimator.Play(bedIdleAnimation);
     }
 
-    // ── Recovery activity (slot-driven) ─────────────────────────────────────────
+    // â”€â”€ Recovery activity (slot-driven) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private void BeginRecovery()
     {
@@ -272,7 +278,7 @@ public class BedRestPhaseController : MonoBehaviour
 
         if (currentSlotIndex >= sceneRefs.Count)
         {
-            Debug.LogError($"[BedRest] Slots and Scene Refs lists are out of sync — Slots has " +
+            Debug.LogError($"[BedRest] Slots and Scene Refs lists are out of sync â€” Slots has " +
                             $"{slots.Count} entries but Scene Refs only has {sceneRefs.Count}. They " +
                             $"must be kept the same length, matched by index.");
             return;
@@ -316,7 +322,7 @@ public class BedRestPhaseController : MonoBehaviour
             yield return new WaitUntil(() => !refs.beforeDialogue.IsRunning);
         }
 
-        // Tutorial popup pauses here, BEFORE the minigame actually starts — otherwise
+        // Tutorial popup pauses here, BEFORE the minigame actually starts â€” otherwise
         // its timer would already be ticking away behind the popup.
         if (refs.onboardingUI != null)
         {
@@ -378,7 +384,7 @@ public class BedRestPhaseController : MonoBehaviour
             mg.OnInjuryTriggered -= onInjury;
             mg.gameObject.SetActive(false);
         }
-        else // TypeC — RhythmSequenceMinigame already drives its own animator hooks internally
+        else // TypeC â€” RhythmSequenceMinigame already drives its own animator hooks internally
         {
             RhythmSequenceMinigame mg = refs.typeCMinigame;
             mg.gameObject.SetActive(true);
@@ -397,7 +403,7 @@ public class BedRestPhaseController : MonoBehaviour
 
     /// <summary>
     /// Plays the given outcome animation and waits for its actual clip length before
-    /// returning — mirrors RecoveryInteraction's approach. Waits one frame after Play()
+    /// returning â€” mirrors RecoveryInteraction's approach. Waits one frame after Play()
     /// before reading the state's length, since the Animator doesn't evaluate the new
     /// state until its next update pass.
     /// </summary>
@@ -460,9 +466,9 @@ public class BedRestPhaseController : MonoBehaviour
         ApplyPhaseVisual(StoryManager.instance.CurrentPhase);
     }
 
-    // ── BedRest-specific sleep sequence ─────────────────────────────────────────
+    // â”€â”€ BedRest-specific sleep sequence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Unlike the generic BedInteraction's sleep, this keeps activityModel active
-    // throughout rather than reverting to playerMeshChild — the phase-locked
+    // throughout rather than reverting to playerMeshChild â€” the phase-locked
     // model swap owns visibility here, not this coroutine.
 
     public IEnumerator SleepSequence()
@@ -485,7 +491,7 @@ public class BedRestPhaseController : MonoBehaviour
         bool stillBedRest = IsBedRestPhase;
 
         // If this specific sleep transitioned OUT of BedRest, play the bridging
-        // cutscene now, while the screen is still black — before any wake-up
+        // cutscene now, while the screen is still black â€” before any wake-up
         // animation or fade-in, so the player sees it resolve directly into
         // FriendVisit rather than briefly seeing BedRest's world again first.
         if (!stillBedRest && bedRestEndCutscene != null)
@@ -516,8 +522,7 @@ public class BedRestPhaseController : MonoBehaviour
         BedInteraction.RaiseWakeUp();
     }
 
-    // ── Fade helper ─────────────────────────────────────────────────────────────
-
+  
     private IEnumerator Fade(float fromAlpha, float toAlpha)
     {
         if (fadeImage == null) yield break;
