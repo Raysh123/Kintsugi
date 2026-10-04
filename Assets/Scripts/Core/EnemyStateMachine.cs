@@ -222,11 +222,11 @@ public class EnemyStateMachine : MonoBehaviour
         }
         hasBlockedCurrentPlayerAttack = false;
         float distance = Vector3.Distance(transform.position, Player.position);
-        if (distance < 2)
+        if (distance < 1)
         {
             if (decisionRoll > 50 && attackTimer <= 0)
             {
-                shouldApproach = false;
+                shouldApproach = true;
                 shouldRetreat = false;
                 attackTimer = attackCooldown;
                 ChangeState(EnemyState.Attack);
@@ -239,7 +239,7 @@ public class EnemyStateMachine : MonoBehaviour
             //}
             else
             {
-                shouldRetreat = false;
+                shouldRetreat = true;
                 shouldApproach = false;
             }
         }
