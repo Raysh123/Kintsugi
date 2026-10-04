@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour
     Vector3 playerStartPosition;
     Vector3 enemyStartPosition;
     Coroutine resetRoutine;
+    [SerializeField] Animator canvasAnim;
     private void Awake()
     {
         if(instance == null)
@@ -39,6 +40,7 @@ public class GameManager : MonoBehaviour
         if (resetRoutine != null)
             StopCoroutine(resetRoutine);
 
+        canvasAnim.Play("FadeIn");
         resetRoutine = StartCoroutine(ReturnFighters());
     }
 
@@ -64,7 +66,7 @@ public class GameManager : MonoBehaviour
             enemy.transform.position =
                 Vector3.Lerp(enemyFrom, enemyStartPosition, t);
             enemy.anim.Play("Walk_Backward");
-
+            canvasAnim.Play("FadeOut");
             yield return null;
         }
 
