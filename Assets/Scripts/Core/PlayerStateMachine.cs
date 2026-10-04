@@ -33,9 +33,16 @@ public class PlayerStateMachine : MonoBehaviour
     private MatchTimer matchTimer;
     [SerializeField] private float perfectBlockWindow = 0.15f;
     [SerializeField] private float normalBlockWindow = 0.50f;
+    [Header("Action Limits")]
+    [SerializeField] private float attackRecovery = 0.25f;
+    [SerializeField] private float blockCooldown = 0.6f;
 
     private float lastBlockPressTime = -999f;
+    private float nextAttackTime;
+    private float nextBlockTime;
     private bool blockWasHeld;
+    private bool punchWasHeld;
+    private bool kickWasHeld;
     public List<DmgDetection> pHitBoxes;
     private bool isAttacking;
     private bool perfectBlockUsed;
@@ -60,15 +67,46 @@ public class PlayerStateMachine : MonoBehaviour
     {
         if (matchTimer.matchStopped) return;
 
+        bool punchPressed = InputHandler.instance.punch && !punchWasHeld;
+        bool kickPressed = InputHandler.instance.kick && !kickWasHeld;
+        bool blockPressed = InputHandler.instance.block && !blockWasHeld;
+
+        punchWasHeld = InputHandler.instance.punch;
+        kickWasHeld = InputHandler.instance.kick;
+        blockWasHeld = InputHandler.instance.block;
+
         HandleStates();
         if (player.isHurt)
         { currentState = PlayerStates.Hurt; }
-        bool blockPressed = InputHandler.instance.block && !blockWasHeld;
-        blockWasHeld = InputHandler.instance.block;
-        if (blockPressed)
+
+        if (punchPressed && Time.time >= nextAttackTime && currentState == PlayerStates.Idle)
         {
+            currentAttackType = AttackTypes.Punch;
+            StartCoroutine(PlayerAttackRoutine("Kizami_Tsuki"));
+        }
+        else if (kickPressed && Time.time >= nextAttackTime && currentState == PlayerStates.Idle)
+        {
+            currentAttackType = AttackTypes.Kick;
+            StartCoroutine(PlayerAttackRoutine("YokoGeri"));
+        }
+
+        if (blockPressed &&
+            Time.time >= nextBlockTime &&
+            (currentState == PlayerStates.Idle || currentState == PlayerStates.Move))
+        {
+            nextBlockTime = Time.time + blockCooldown;
             lastBlockPressTime = Time.time;
             perfectBlockUsed = false;
+
+            if (enemy != null && enemy.requiredTag == "ePunch")
+            {
+                animator.Play("Upper_Block");
+            }
+            else
+            {
+                animator.Play("Lower_Block");
+            }
+
             StartCoroutine(BlockRoutine());
         }
     }
@@ -183,20 +221,7 @@ public class PlayerStateMachine : MonoBehaviour
 
     private void HandleAttacks()
     {
-        if (!player.isHurt)
-        {
-            if(!isAttacking && InputHandler.instance.punch)
-            {
-                StartCoroutine(PlayerAttackRoutine("Kizami_Tsuki"));
-                return;
-            }
-            else if(!isAttacking && InputHandler.instance.kick)
-            {
-                StartCoroutine(PlayerAttackRoutine("YokoGeri"));
-                return;
-            }
-        }
-
+        // Attacks begin only from a fresh press in Update.
     }
 
     IEnumerator PlayerAttackRoutine(string animName)
@@ -211,6 +236,7 @@ public class PlayerStateMachine : MonoBehaviour
         yield return new WaitForSeconds(duration);
 
         isAttacking = false;
+        nextAttackTime = Time.time + attackRecovery;
         ChangeState(PlayerStates.Idle);
     }
 
@@ -271,37 +297,10 @@ public class PlayerStateMachine : MonoBehaviour
                 }
 
             }
-            if (InputHandler.instance.punch)
-            {
-                currentAttackType = AttackTypes.Punch;
-                ChangeState(PlayerStates.Attack);
-            }
-            if (InputHandler.instance.kick)
-            {
-                currentAttackType = AttackTypes.Kick;
-                ChangeState(PlayerStates.Attack);
-            }
             if (InputHandler.instance.dodge)
             {
                 ChangeState(PlayerStates.Dodge);
                 animator.Play("Dodge_2");
-            }
-            if (InputHandler.instance.block)
-            {
-                ChangeState(PlayerStates.Block);
-                SetInjuryMeter();
-                if(enemy.requiredTag == "ePunch")
-                {
-                    animator.Play("Upper_Block");
-                }
-                else if(enemy.requiredTag == "eKick")
-                {
-                    animator.Play("Lower_Block");
-                }
-                else
-                {
-                    animator.Play("Lower_Block");
-                }
             }
 
         }
