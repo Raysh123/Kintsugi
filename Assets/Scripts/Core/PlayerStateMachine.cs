@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,14 +21,14 @@ public class PlayerStateMachine : MonoBehaviour
         Kick
     };
 
-    public AttackTypes currentAttackType {  get; private set; }
+    public AttackTypes currentAttackType { get; private set; }
     public PlayerStates currentState;
     public static PlayerStateMachine instance;
     public PlayerController player;
     [SerializeField]
     public Animator animator;
 
-    [SerializeField] 
+    [SerializeField]
     private MatchTimer matchTimer;
     [SerializeField] private float perfectBlockWindow = 0.15f;
     [SerializeField] private float normalBlockWindow = 0.50f;
@@ -114,7 +113,7 @@ public class PlayerStateMachine : MonoBehaviour
     {
         ChangeState(PlayerStates.Block);
         yield return new WaitForSeconds(normalBlockWindow);
-        if(currentState == PlayerStates.Block)
+        if (currentState == PlayerStates.Block)
         {
             ChangeState(PlayerStates.Idle);
         }
@@ -143,7 +142,7 @@ public class PlayerStateMachine : MonoBehaviour
             }
         }
         currentState = newState;
-    } 
+    }
     private void HandleStates()
     {
         switch (currentState)
@@ -246,7 +245,7 @@ public class PlayerStateMachine : MonoBehaviour
         {
             return;
         }
-        else if(!TryPerfectBlock())
+        else if (!TryPerfectBlock())
         {
             InjuryMeter.instance.injuryMeterValue.value += 0.1f;
         }

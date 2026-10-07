@@ -107,10 +107,24 @@ public class DmgDetection : MonoBehaviour
                     Debug.Log("Blocked");
                     PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(0.5f);
-                    //Enemy stun is dealt in EnemyStateMachine
-                    if (enemyPosture.postureSlider.value >= postureMaxVal)
+                    // A perfect block always stops the enemy's current attack outright - on
+                    // top of that, if posture is maxed, it stuns rather than just interrupting.
+                    // ChangeState handles actually cancelling the attack coroutine itself.
+                    if (enemyStateMachine != null)
                     {
-                        Debug.Log("Enemy stun");
+                        if (enemyPosture.postureSlider.value >= postureMaxVal)
+                        {
+                            Debug.Log("Enemy stun");
+                            enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Stun);
+                        }
+                        else
+                        {
+                            enemyStateMachine.StopCombo();
+                            enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
+                            // Brief freeze so he doesn't immediately resume chasing as if the
+                            // block never happened - see OnPerfectBlocked's own comment.
+                            enemyStateMachine.OnPerfectBlocked();
+                        }
                     }
                     hitRegistered = true;
                     canDealDamage = false;
@@ -118,9 +132,8 @@ public class DmgDetection : MonoBehaviour
                 }
                 if (playerStateMachine.IsNormalBlockActive())
                 {
-                    //Need to discuss on this block knock back
                     Debug.Log("normal block");
-                    //PushBackPlayer(enemyStateMachine.transform, knockbackDist);
+                    PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
                         InputHandler.instance.SetInput(false);
@@ -147,21 +160,31 @@ public class DmgDetection : MonoBehaviour
                 {
                     Debug.Log("Blocked");
                     PushBackEnemy(player.transform, knockbackDist);
-                    //Enemy stun is dealt in EnemyStateMachine
-                    if (enemyPosture.postureSlider.value >= postureMaxVal)
-                    {
-                        Debug.Log("Enemy stun");
-                    }
                     enemyPosture.posDmg(0.5f);
+                    // Same as the punch branch above - a perfect block always stops the
+                    // enemy's current attack outright, and stuns instead if posture is maxed.
+                    if (enemyStateMachine != null)
+                    {
+                        if (enemyPosture.postureSlider.value >= postureMaxVal)
+                        {
+                            Debug.Log("Enemy stun");
+                            enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Stun);
+                        }
+                        else
+                        {
+                            enemyStateMachine.StopCombo();
+                            enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
+                            enemyStateMachine.OnPerfectBlocked();
+                        }
+                    }
                     hitRegistered = true;
                     canDealDamage = false;
                     return;
                 }
                 if (playerStateMachine.IsNormalBlockActive())
                 {
-                    //Need to discuss on this block knock back
                     Debug.Log("normal Block");
-                    //PushBackPlayer(enemyStateMachine.transform, knockbackDist);
+                    PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
                         InputHandler.instance.SetInput(false);

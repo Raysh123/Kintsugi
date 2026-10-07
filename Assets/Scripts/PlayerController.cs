@@ -20,6 +20,8 @@ public class PlayerController : MonoBehaviour
     public bool facingRight = true;
     public CapsuleCollider capCollider;
     public float dodgeTime;
+    [Tooltip("How far the backward dash actually travels, over Dodge Time seconds.")]
+    [SerializeField] private float dodgeDistance = 6f;
     public LayerMask excludeMask;
     public LayerMask nothingLayer;
     public bool isHurt;
@@ -27,6 +29,9 @@ public class PlayerController : MonoBehaviour
     public bool hurtBody;
     public Vector3 PlayerInitPos;
     public MatchTimer matchTimer;
+
+    private bool dodgeWasHeld;
+    private Coroutine dodgeRoutine;
 
     //private void OnCollisionEnter(Collision collision)
     //{
@@ -63,24 +68,53 @@ public class PlayerController : MonoBehaviour
 
     private void HandleDodge()
     {
-        if (InputHandler.instance.dodge)
+        // Edge-detected (just pressed), not held - checking InputHandler.instance.dodge
+        // directly every frame (the old version) restarted CollisionOnOff every single frame
+        // the button stayed held, stacking multiple overlapping coroutines.
+        bool dodgePressed = InputHandler.instance.dodge && !dodgeWasHeld;
+        dodgeWasHeld = InputHandler.instance.dodge;
+
+        if (dodgePressed)
         {
             controller.excludeLayers = excludeMask;
-            StartCoroutine(CollisionOnOff());
+
+            if (dodgeRoutine != null) StopCoroutine(dodgeRoutine);
+            dodgeRoutine = StartCoroutine(DodgeDashRoutine());
         }
     }
-    IEnumerator CollisionOnOff()
+
+    /// <summary>Actually moves the player a short distance directly away from the opponent
+    /// over dodgeTime seconds, via the CharacterController (so it respects collisions the
+    /// same way normal movement does) - rather than just playing the dodge animation in
+    /// place. Also restores excludeLayers at the end, replacing the old separate
+    /// CollisionOnOff coroutine.</summary>
+    IEnumerator DodgeDashRoutine()
     {
-        yield return new WaitForSeconds(dodgeTime);
+        float awayDir = opponent != null
+            ? Mathf.Sign(transform.position.x - opponent.position.x)
+            : (facingRight ? -1f : 1f);
+        if (awayDir == 0f) awayDir = facingRight ? -1f : 1f; // directly overlapping opponent on X - fall back to facing
+
+        float elapsed = 0f;
+        while (elapsed < dodgeTime)
+        {
+            elapsed += Time.deltaTime;
+            float step = (dodgeDistance / dodgeTime) * Time.deltaTime;
+            controller.Move(new Vector3(awayDir * step, 0f, 0f));
+            yield return null;
+        }
+
         controller.excludeLayers = nothingLayer;
+        dodgeRoutine = null;
     }
+
     private void HandleAttack()
     {
         if (InputHandler.instance.punch)
         {
             //Debug.Log("punch");
         }
-        if (InputHandler.instance.kick) 
+        if (InputHandler.instance.kick)
         {
             //Debug.Log("kick");
         }
@@ -88,7 +122,7 @@ public class PlayerController : MonoBehaviour
 
     private void HandleMovement()
     {
-        if(!isHurt)
+        if (!isHurt)
         {
             if (gameObject.transform.rotation.y > 0.1f)
             { facingRight = true; }
@@ -98,7 +132,7 @@ public class PlayerController : MonoBehaviour
             move = new Vector3(InputHandler.instance.move, 0f, 0f);
             controller.Move(move * speed * Time.deltaTime);
         }
-      
+
     }
     private void HandleFacing()
     {

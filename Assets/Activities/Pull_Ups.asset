@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   activityId: Pull_Ups
   displayName: Pull Ups
-  timeCostMinutes: 60
-  onceLimitPerDay: 1
+  quadrantTicks: 4
+  onceLimitPerDay: 0
   minMotivationRequired: 0
   isCrossScene: 0
