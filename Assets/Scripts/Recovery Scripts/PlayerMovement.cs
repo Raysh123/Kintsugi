@@ -19,6 +19,13 @@ public class PlayerMovement : MonoBehaviour
     [Header("State")]
     public bool interacting;
     public bool movementLocked;
+    [Tooltip("Separate from movementLocked - StoryEnvironmentController owns movementLocked " +
+             "and unconditionally overwrites it based on StoryPhase alone (locked only during " +
+             "BedRest), so anything else that needs to lock movement for a reason unrelated to " +
+             "story phase (e.g. ComicCutscene) would get silently un-locked the moment that " +
+             "phase-driven check next runs. This flag is OR'd in below instead, the same way " +
+             "ActiveDialogueTracker.AnyActive already is, so it can't be stomped by that system.")]
+    public bool cutsceneLocked;
     [SerializeField] private bool canInteract;
     [SerializeField] private GameObject interactable;
 
@@ -102,7 +109,7 @@ public class PlayerMovement : MonoBehaviour
         // (e.g. OneTimePhaseDialogueTrigger) with no interaction script wrapping it to
         // set movementLocked manually. movementLocked itself is left in place for
         // non-dialogue locks (e.g. the fight selection menu being open).
-        bool locked = movementLocked || ActiveDialogueTracker.AnyActive;
+        bool locked = movementLocked || cutsceneLocked || ActiveDialogueTracker.AnyActive;
 
         if (!interacting && !locked)
         {

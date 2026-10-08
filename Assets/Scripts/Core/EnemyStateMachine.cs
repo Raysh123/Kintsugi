@@ -22,21 +22,106 @@ public class EnemyStateMachine : MonoBehaviour
     public bool shouldRetreat;
     [SerializeField]
     float moveSpeed = 10f;
-    float decisionInterval = 0.5f;
+    [Header("Attack Tempo")]
+    [Tooltip("How often (seconds) he re-rolls his decisions, including 'do I attack now?'. " +
+             "Lower = he reacts and attacks sooner.")]
+    [SerializeField] private float decisionInterval = 0.5f;
+    [Tooltip("Minimum seconds between the START of one attack and the next. Was hardcoded at 3.")]
+    [SerializeField] private float attackCooldown = 1.4f;
+    [Range(0f, 100f)]
+    [Tooltip("Chance (%) that, once in range and off cooldown, he actually launches an attack on " +
+             "each decision roll. Was effectively 50.")]
+    [SerializeField] private float attackChancePercent = 75f;
+
+    [Header("Walking")]
+    [Tooltip("Animator state played while he moves TOWARD the player.")]
+    [SerializeField] private string walkForwardAnim = "Walk_Forward";
+    [Tooltip("Animator state played while he moves AWAY from the player.")]
+    [SerializeField] private string walkBackwardAnim = "Walk_Backward";
+    [Tooltip("How quickly he gets up to Move Speed (units/second per second). Higher = snappier " +
+             "start, lower = a slower build-up.")]
+    [SerializeField] private float moveAcceleration = 25f;
+    [Tooltip("How quickly he slows down when he stops.")]
+    [SerializeField] private float moveDeceleration = 40f;
+    [Tooltip("Within this distance of his stopping point he eases off instead of arriving at full " +
+             "speed, so he doesn't overshoot into the player.")]
+    [SerializeField] private float approachSlowRadius = 1.0f;
+    private float moveVelX;
+
+    [Header("Debug")]
+    [Tooltip("Logs one line per AI decision (every Decision Interval): his state, distance, attack " +
+             "cooldown, the roll, and the movement flags - plus a line whenever an attack starts. " +
+             "Turn on, play a bit, and paste the Console if he isn't behaving.")]
+    [SerializeField] private bool debugAI = false;
+
+    [Header("Close Range (stops him walking into the player)")]
+    [Tooltip("He stops walking toward the player once he's this close. Was effectively 0.5, which " +
+             "is why he kept shuffling forward while already touching the player. Keep it " +
+             "smaller than Attack Range so he stops INSIDE attack range.")]
+    [SerializeField] private float approachStopDistance = 1.2f;
+
+    [Header("Back Dash (replaces the old walk-away retreat)")]
+    [Tooltip("Animator state played during the dash. Falls back to Walk Backward if no state " +
+             "with this name exists.")]
+    [SerializeField] private string backDashAnim = "Dash_Backward";
+    [Tooltip("How far the dash carries him straight away from the player.")]
+    [SerializeField] private float backDashDistance = 1.8f;
+    [Tooltip("How long the dash takes, in seconds.")]
+    [SerializeField] private float backDashDuration = 0.3f;
+    [Range(0f, 100f)]
+    [Tooltip("When he's inside attack range and the dash cooldown is over, the chance (%) per " +
+             "decision roll (every Decision Interval) that he back-dashes instead of attacking.")]
+    [SerializeField] private float backDashChancePercent = 35f;
+    [Range(0f, 100f)]
+    [Tooltip("Chance (%) that after a dash he goes straight back in and attacks (ignores his " +
+             "attack cooldown and roll). Otherwise he just returns to Idle and resumes normal AI.")]
+    [SerializeField] private float attackAfterDashChancePercent = 50f;
+    [Header("Guaranteed-ish Dodges (back dash in recovery situations)")]
+    [Range(0f, 100f)]
+    [Tooltip("When his combo is broken (perfect block) and his short recovery freeze ends, the " +
+             "chance (%) he back-dashes out instead of just resuming.")]
+    [SerializeField] private float dodgeAfterComboBreakPercent = 50f;
+    [Range(0f, 100f)]
+    [Tooltip("Once per stun: the chance (%) that at a random moment in the final part of the stun he " +
+             "dashes out of it early (posture is dropped just under the stun threshold so he " +
+             "isn't instantly re-stunned).")]
+    [SerializeField] private float dodgeDuringStunPercent = 10f;
+    [Range(1f, 100f)]
+    [Tooltip("The stun dodge can only happen in the LAST this-many percent of the stun " +
+             "(20 = the final 2 seconds of a 10s stun).")]
+    [SerializeField] private float stunDodgeWindowPercent = 20f;
+    [Range(0f, 100f)]
+    [Tooltip("When a stun ends, the chance (%) he back-dashes right away instead of going " +
+             "straight back to normal AI.")]
+    [SerializeField] private float dodgeAfterStunPercent = 80f;
+    [Tooltip("How long a posture-break stun lasts, in seconds. This used to be hardcoded at 10.")]
+    [SerializeField] private float stunDuration = 3f;
+    private bool parryRecoveryPending;
+    private Coroutine backDashRoutine;
+    private bool attackNextOpportunity;
+    private float attackNextTimer;
+
+    [Header("Lunge (step in while attacking)")]
+    [Tooltip("How far his attack can actually reach. If he starts an attack from further away " +
+             "than this (but still inside Attack Range) he can lunge forward during the " +
+             "wind-up, like the step-in between combo hits, instead of whiffing from out of reach. " +
+             "Tune it to roughly where the hitbox really lands.")]
+    [SerializeField] private float hitRange = 1.3f;
+    [Range(0f, 100f)]
+    [Tooltip("Chance (%) he lunges when he starts an attack from outside Hit Range. " +
+             "0 = never (he just swings from where he is), 100 = always.")]
+    [SerializeField] private float lungeChancePercent = 60f;
+    [Tooltip("Furthest a single lunge can carry him, in units.")]
+    [SerializeField] private float maxLungeDistance = 1.5f;
+    [Tooltip("How long the lunge takes, in seconds. Shorter = snappier. Should finish before " +
+             "the attack's first hit window opens.")]
+    [SerializeField] private float lungeDuration = 0.2f;
     float decisionTimer;
     float minDist = 0.5f;
     float maxDist = 2f;
 
-    [Header("Approach / Retreat AI")]
-    [Tooltip("Only allow a retreat to start if the enemy is at least this close - no point " +
-             "'retreating' when he isn't even engaged yet. Approach itself is unconditional " +
-             "now (he always closes the distance rather than rolling dice on it), so this is " +
-             "really the only approach-side range that still matters here.")]
-    [SerializeField] private float retreatEngageDistance = 4f;
-    [Tooltip("How long a single retreat burst lasts before he goes back to chasing, assuming " +
-             "he hasn't already backed out past maxDist first.")]
-    [SerializeField] private float retreatDuration = 0.6f;
-    [Tooltip("Average seconds between retreats when posture is empty (0).")]
+    [Header("Back Dash Cooldown (scales with posture)")]
+    [Tooltip("Average seconds between back dashes when posture is empty (0).")]
     [SerializeField] private float retreatCooldownAtZeroPosture = 6f;
     [Tooltip("Average seconds between retreats when posture is maxed (near stun) - lower than " +
              "the zero-posture cooldown so he backs off more often the more rattled he is.")]
@@ -45,8 +130,10 @@ public class EnemyStateMachine : MonoBehaviour
              "this is the 'randomly' part now that approach itself is no longer a coin flip.")]
     [SerializeField] private float retreatCooldownJitter = 1.5f;
     private float retreatTimer;
-    private float retreatElapsed;
 
+    [Tooltip("Master switch for the breathers below. OFF = he never stops mid-chase to stand " +
+             "still (this is what was making him walk, stop, walk, stop).")]
+    [SerializeField] private bool enableIdleBreathers = false;
     [Tooltip("Average seconds of nonstop chasing before he takes a breather - this is what " +
              "stops the approach from reading as relentless/robotic. Randomized between Min " +
              "and Max each time.")]
@@ -74,7 +161,6 @@ public class EnemyStateMachine : MonoBehaviour
     public Transform opponent;
     private float attackTimer;
     private float blockTimer;
-    private float attackCooldown = 3f;
     //private float blockCooldown = 2f;
     public Vector3 enemyInitPos;
     private bool isAttacking;
@@ -157,6 +243,7 @@ public class EnemyStateMachine : MonoBehaviour
         shouldRetreat = false;
         isIdlePausing = false;
         decisionLockTimer = parryRecoveryDuration;
+        parryRecoveryPending = true;
     }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -221,6 +308,12 @@ public class EnemyStateMachine : MonoBehaviour
             moveBetComboRoutine = null;
         }
 
+        if (state != EnemyState.Retreat && backDashRoutine != null)
+        {
+            StopCoroutine(backDashRoutine);
+            backDashRoutine = null;
+        }
+
         if (state != EnemyState.Stun && currentState == EnemyState.Stun && stunRoutine != null)
         {
             StopCoroutine(stunRoutine);
@@ -255,13 +348,28 @@ public class EnemyStateMachine : MonoBehaviour
         if (matchTimer.matchStopped) return;
 
         HandleFacing();
-        HandleStates();
         decisionTimer -= Time.deltaTime;
         attackTimer -= Time.deltaTime;
         blockTimer -= Time.deltaTime;
         if (decisionLockTimer > 0f) decisionLockTimer -= Time.deltaTime;
+        retreatTimer -= Time.deltaTime; // back-dash cooldown
+        if (parryRecoveryPending && decisionLockTimer <= 0f)
+        {
+            parryRecoveryPending = false;
+            if (currentState == EnemyState.Idle && Random.value * 100f < dodgeAfterComboBreakPercent)
+            {
+                if (debugAI) Debug.Log("[EnemyAI] BACK DASH after combo break.");
+                StartBackDash();
+            }
+        }
+        if (attackNextOpportunity)
+        {
+            attackNextTimer -= Time.deltaTime;
+            if (attackNextTimer <= 0f) attackNextOpportunity = false;
+        }
         if (currentState != EnemyState.Attack &&
             currentState != EnemyState.Block &&
+            currentState != EnemyState.Retreat &&
             currentState != EnemyState.Hurt &&
             decisionLockTimer <= 0f &&
             decisionTimer <= 0)
@@ -269,6 +377,22 @@ public class EnemyStateMachine : MonoBehaviour
             decisionRoll = Random.Range(0, 100);
             DistanceDecisionMaker();
             decisionTimer = decisionInterval;
+            if (debugAI)
+                Debug.Log($"[EnemyAI] state={currentState} dist={Vector3.Distance(transform.position, Player.position):F2} " +
+                          $"attackTimer={attackTimer:F2} dashCd={retreatTimer:F1} roll={decisionRoll:F0} approach={shouldApproach} " +
+                          $"dash={(backDashRoutine != null)} pausing={isIdlePausing} lock={decisionLockTimer:F2}");
+        }
+        // After the decision tick on purpose: if the tick starts a back dash, state is already
+        // Retreat here, so HandleIdle can't attack on the same frame and pre-empt it.
+        HandleStates();
+        // Keep closing every frame until he's at his stopping distance (not just attack range -
+        // stopping the moment he crossed attackRange is what made him take one step and stop).
+        // Attacking or a back dash is what interrupts this, not the range line.
+        if (currentState == EnemyState.Idle && decisionLockTimer <= 0f &&
+            !isIdlePausing && !shouldRetreat &&
+            Vector3.Distance(transform.position, Player.position) > approachStopDistance)
+        {
+            shouldApproach = true;
         }
         HandleMovement();
     }
@@ -291,6 +415,10 @@ public class EnemyStateMachine : MonoBehaviour
         }
 
         attackRoutine = null;
+        backDashRoutine = null;
+        attackNextOpportunity = false;
+        moveVelX = 0f;
+        currentMovementAnim = null;
         isAttacking = false;
         isBlocking = false;
 
@@ -346,9 +474,32 @@ public class EnemyStateMachine : MonoBehaviour
     private Coroutine stunRoutine;
     IEnumerator StunRoutine()
     {
-        yield return new WaitForSeconds(10);
+        bool dodgeOut = Random.value * 100f < dodgeDuringStunPercent;
+        float windowStart = stunDuration * (1f - stunDodgeWindowPercent / 100f);
+        float dodgeAt = Random.Range(windowStart, stunDuration - 0.1f);
+        float t = 0f;
+        while (t < stunDuration)
+        {
+            t += Time.deltaTime;
+            if (dodgeOut && t >= dodgeAt)
+            {
+                if (debugAI) Debug.Log("[EnemyAI] BACK DASH out of stun.");
+                stunRoutine = null;
+                // Otherwise HandleIdle would see posture still over the threshold and re-stun him.
+                if (enemyPosture != null)
+                    enemyPosture.postureSlider.value = Mathf.Min(enemyPosture.postureSlider.value, 0.8f);
+                StartBackDash();
+                yield break;
+            }
+            yield return null;
+        }
         stunRoutine = null;
         ChangeState(EnemyState.Idle);
+        if (Random.value * 100f < dodgeAfterStunPercent)
+        {
+            if (debugAI) Debug.Log("[EnemyAI] BACK DASH after stun.");
+            StartBackDash();
+        }
     }
     private void HandleStun()
     {
@@ -435,6 +586,27 @@ public class EnemyStateMachine : MonoBehaviour
 
         transform.position = targetPos;
     }
+    private IEnumerator LungeToward(float distance)
+    {
+        // Close the gap to just inside Hit Range, never past it, and never further than the cap.
+        float travel = Mathf.Min(distance - hitRange * 0.85f, maxLungeDistance);
+        if (travel <= 0f) yield break;
+
+        float direction = Mathf.Sign(Player.position.x - transform.position.x);
+        Vector3 startPos = transform.position;
+        Vector3 targetPos = startPos + new Vector3(direction * travel, 0f, 0f);
+
+        float elapsed = 0f;
+        while (elapsed < lungeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / Mathf.Max(lungeDuration, 0.01f)));
+            transform.position = Vector3.Lerp(startPos, targetPos, t);
+            yield return null;
+        }
+        transform.position = targetPos;
+    }
+
     private Coroutine moveBetComboRoutine;
     public void MoveBetCombo()
     {
@@ -466,11 +638,14 @@ public class EnemyStateMachine : MonoBehaviour
         float distance = Vector3.Distance(transform.position, Player.position);
         if (distance < attackRange)
         {
-            if (decisionRoll > 50 && attackTimer <= 0)
+            bool forced = attackNextOpportunity;
+            if (forced || (decisionRoll > 100f - attackChancePercent && attackTimer <= 0))
             {
+                attackNextOpportunity = false;
                 shouldApproach = false;
                 shouldRetreat = false;
                 attackTimer = attackCooldown;
+                if (debugAI) Debug.Log($"[EnemyAI] ATTACK started (dist={distance:F2}, roll={decisionRoll:F0}).");
                 ChangeState(EnemyState.Attack);
             }
             //else if (decisionRoll > 20)
@@ -481,8 +656,9 @@ public class EnemyStateMachine : MonoBehaviour
             //}
             else
             {
-                shouldRetreat = false;
-                shouldApproach = false;
+                // Inside attack range but not attacking right now: keep walking in until he's at
+                // his stopping distance, only then stand still.
+                if (distance <= approachStopDistance) shouldApproach = false;
             }
         }
         if (enemyPosture.postureSlider.value >= 0.85)
@@ -607,6 +783,15 @@ public class EnemyStateMachine : MonoBehaviour
         anim.Play("InPlaceCombo1");
         yield return null; // one frame so GetCurrentAnimatorStateInfo reflects the new clip, not the previous one
         attackLength = anim.GetCurrentAnimatorStateInfo(0).length;
+
+        // Inside attack range but too far for the hit to land: sometimes step in during the
+        // wind-up. Tracked in moveBetComboRoutine, so leaving Attack (hit, block, stun) cancels it.
+        float startDistance = Vector3.Distance(transform.position, Player.position);
+        if (startDistance > hitRange && Random.value * 100f < lungeChancePercent)
+        {
+            if (moveBetComboRoutine != null) StopCoroutine(moveBetComboRoutine);
+            moveBetComboRoutine = StartCoroutine(LungeToward(startDistance));
+        }
         if (telegraph != null)
         {
             telegraph.Show(telegraphSafeColor, attackLength);
@@ -706,12 +891,9 @@ public class EnemyStateMachine : MonoBehaviour
     }
 
     /// <summary>
-    /// Called once per decisionInterval while not Attack/Block/Hurt. Approach is no longer a
-    /// dice roll - he always closes the distance by default, which reads as purposeful chasing
-    /// instead of randomly drifting back and forth. Retreating is the exception: an occasional,
-    /// randomly-timed burst that interrupts the chase, gets more frequent the higher his
-    /// posture climbs (ComputeNextRetreatCooldown), and ends on its own after retreatDuration
-    /// or once he's backed out past maxDist, whichever comes first.
+    /// Called once per decisionInterval while Idle. He always closes toward the player; the only
+    /// "backing off" is an occasional discrete back dash (StartBackDash) when he's in range but
+    /// on attack cooldown, plus the idle breathers.
     /// </summary>
     public void DistanceDecisionMaker()
     {
@@ -729,34 +911,25 @@ public class EnemyStateMachine : MonoBehaviour
             return;
         }
 
-        if (shouldRetreat)
+        // Inside attack range: HandleIdle attacks as soon as he's off cooldown. Until then he
+        // keeps closing to his stopping distance, or occasionally back-dashes (one discrete
+        // move, then Idle or a follow-up attack - never a continuous walk-away).
+        if (distance < attackRange)
         {
-            retreatElapsed += decisionInterval;
-            if (retreatElapsed >= retreatDuration || distance >= maxDist)
+            shouldApproach = distance > approachStopDistance;
+            if (retreatTimer <= 0f && Random.value * 100f < backDashChancePercent)
             {
-                shouldRetreat = false;
-                shouldApproach = true;
-                retreatTimer = ComputeNextRetreatCooldown();
+                if (debugAI) Debug.Log($"[EnemyAI] BACK DASH started (dist={distance:F2}).");
+                StartBackDash();
             }
             return;
         }
 
         shouldApproach = true;
 
-        retreatTimer -= decisionInterval;
         idlePauseTimer -= decisionInterval;
 
-        if (retreatTimer <= 0f && distance <= retreatEngageDistance)
-        {
-            shouldApproach = false;
-            shouldRetreat = true;
-            retreatElapsed = 0f;
-            return;
-        }
-
-        // Checked after retreat so the two bursts can't trigger on the same tick - retreat
-        // wins if both happen to come due at once.
-        if (idlePauseTimer <= 0f)
+        if (enableIdleBreathers && idlePauseTimer <= 0f)
         {
             shouldApproach = false;
             isIdlePausing = true;
@@ -765,7 +938,70 @@ public class EnemyStateMachine : MonoBehaviour
         }
     }
 
-    /// <summary>Lower posture -> longer, more spread-out cooldown (rarer retreats). Higher
+    private void StartBackDash()
+    {
+        if (backDashRoutine != null) return;
+        shouldApproach = false;
+        shouldRetreat = false;
+        retreatTimer = ComputeNextRetreatCooldown();
+        ChangeState(EnemyState.Retreat);
+        backDashRoutine = StartCoroutine(BackDashRoutine());
+    }
+
+    /// <summary>One committed backward dash straight away from the player (same idea as the
+    /// player's dodge), then back to Idle - optionally primed to attack the moment he's back in
+    /// range. Cancelled by ChangeState if he gets stunned/blocks/etc.</summary>
+    private IEnumerator BackDashRoutine()
+    {
+        moveVelX = 0f;
+        currentMovementAnim = null;
+        float direction = -Mathf.Sign(Player.position.x - transform.position.x);
+
+        if (anim != null)
+        {
+            bool hasDash = !string.IsNullOrEmpty(backDashAnim) &&
+                           anim.HasState(0, Animator.StringToHash(backDashAnim));
+            anim.Play(hasDash ? backDashAnim : walkBackwardAnim);
+            if (!hasDash)
+                Debug.LogWarning($"[EnemyStateMachine] No animator state \"{backDashAnim}\" - using \"{walkBackwardAnim}\" for the back dash.");
+        }
+
+        Vector3 startPos = transform.position;
+        Vector3 targetPos = startPos + new Vector3(direction * backDashDistance, 0f, 0f);
+        float duration = Mathf.Max(backDashDuration, 0.01f);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            if (matchTimer != null && matchTimer.matchStopped)
+            {
+                // A point / pause landed mid-dash: abandon it rather than resuming later.
+                backDashRoutine = null;
+                if (anim != null) anim.Play(idleAnimationName);
+                ChangeState(EnemyState.Idle);
+                yield break;
+            }
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            t = 1f - (1f - t) * (1f - t); // ease-out: bursts away, then settles
+            transform.position = Vector3.Lerp(startPos, targetPos, t);
+            yield return null;
+        }
+        transform.position = targetPos;
+
+        backDashRoutine = null;
+        if (anim != null) anim.Play(idleAnimationName);
+
+        if (Random.value * 100f < attackAfterDashChancePercent)
+        {
+            attackNextOpportunity = true;
+            attackNextTimer = 3f;   // expires if he can't get back in range
+            decisionTimer = 0f;     // re-decide immediately
+        }
+        ChangeState(EnemyState.Idle);
+    }
+
+    /// <summary>Lower posture -> longer, more spread-out cooldown (rarer back dashes). Higher
     /// posture -> shorter cooldown (he backs off more often the closer he is to being
     /// stunned). The jitter keeps consecutive cooldowns from feeling mechanically identical.</summary>
     private float ComputeNextRetreatCooldown()
@@ -784,42 +1020,74 @@ public class EnemyStateMachine : MonoBehaviour
     // "just started moving, actually trigger it" - see that method's comment for why this
     // matters.
     private string currentMovementAnim;
+    private bool wasMovingLogged;
 
     public void HandleMovement()
     {
         if (currentState == EnemyState.Attack ||
         currentState == EnemyState.Block ||
         currentState == EnemyState.Hurt ||
+        currentState == EnemyState.Retreat ||
         currentState == EnemyState.Stun)
         {
             currentMovementAnim = null; // so the clip restarts cleanly next time he moves, instead of HandleMovement thinking it's still mid-loop from before
+            if (debugAI && wasMovingLogged)
+                Debug.Log($"[EnemyMove] STOPPED because state changed to {currentState} (dist={Vector3.Distance(transform.position, Player.position):F2}).");
+            wasMovingLogged = false;
+            moveVelX = 0f;
             return;
         }
+
         float direction = Mathf.Sign(Player.position.x - transform.position.x);
         float distance = Vector3.Distance(transform.position, Player.position);
-        bool moved = false;
+
+        // Desired signed velocity along X.
+        float desiredVel = 0f;
         if (shouldApproach)
         {
-            if (distance > minDist)
+            if (distance > approachStopDistance)
             {
-                Vector3 newPos = transform.position + new Vector3(direction * moveSpeed * Time.deltaTime, 0, 0);
-                PlayMovementAnim("Dash_Forward");
-                transform.position = newPos;
-                moved = true;
-            }
-        }
-        else if (shouldRetreat)
-        {
-            if (distance < maxDist)
-            {
-                Vector3 newPos = transform.position - new Vector3(direction * moveSpeed * Time.deltaTime, 0, 0);
-                PlayMovementAnim("Dash_Backward");
-                transform.position = newPos;
-                moved = true;
+                // Ease off as he nears his stopping distance instead of arriving at full speed.
+                float arrive = Mathf.Clamp01((distance - approachStopDistance) / Mathf.Max(approachSlowRadius, 0.01f));
+                desiredVel = direction * moveSpeed * Mathf.Max(arrive, 0.25f);
             }
         }
 
-        if (!moved) currentMovementAnim = null; // standing still (e.g. an idle breather) - next movement should trigger fresh, not be skipped as a false "already playing" match
+        float rate = Mathf.Abs(desiredVel) > Mathf.Abs(moveVelX) ? moveAcceleration : moveDeceleration;
+        moveVelX = Mathf.MoveTowards(moveVelX, desiredVel, rate * Time.deltaTime);
+
+        if (Mathf.Abs(moveVelX) > 0.05f)
+        {
+            if (debugAI && !wasMovingLogged)
+                Debug.Log($"[EnemyMove] started moving (dist={distance:F2}, vel={moveVelX:F2}).");
+            wasMovingLogged = true;
+            transform.position += new Vector3(moveVelX * Time.deltaTime, 0f, 0f);
+            bool towardPlayer = Mathf.Sign(moveVelX) == direction;
+            string clip = towardPlayer ? walkForwardAnim : walkBackwardAnim;
+            PlayMovementAnim(clip);
+            // Only for clips NOT set to loop: they end after one cycle and he'd glide on the last
+            // pose, so restart them. (Looping clips have normalizedTime > 1 forever - never restart those.)
+            if (anim != null && !anim.IsInTransition(0))
+            {
+                AnimatorStateInfo st = anim.GetCurrentAnimatorStateInfo(0);
+                if (st.IsName(clip) && !st.loop && st.normalizedTime >= 1f) anim.Play(clip, 0, 0f);
+            }
+        }
+        else
+        {
+            if (debugAI && wasMovingLogged)
+                Debug.Log($"[EnemyMove] STOPPED: state={currentState} approach={shouldApproach} retreat={shouldRetreat} " +
+                          $"pausing={isIdlePausing} lock={decisionLockTimer:F2} dist={distance:F2} " +
+                          $"stopDist={approachStopDistance} desiredVel={desiredVel:F2} " +
+                          $"dx={Mathf.Abs(Player.position.x - transform.position.x):F2} " +
+                          $"dz={Mathf.Abs(Player.position.z - transform.position.z):F2}");
+            wasMovingLogged = false;
+            moveVelX = 0f;
+            // Stopped after walking: go back to Idle (the walk clips loop, so without this he'd
+            // keep walking in place). Only if a walk clip was actually playing.
+            if (currentMovementAnim != null && anim != null) anim.Play(idleAnimationName);
+            currentMovementAnim = null;
+        }
     }
 
     /// <summary>

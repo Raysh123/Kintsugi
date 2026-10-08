@@ -67,6 +67,16 @@ public class ComicCutscene : MonoBehaviour
     public void Play()
     {
         if (isPlaying) return;
+
+        // These two are the only things that actually make the cutscene visible - if either
+        // is unassigned (e.g. a reference lost when this object was moved/duplicated into a
+        // new scene), everything below still "runs" (Play() gets called, the coroutine
+        // starts, logs say it's playing) but nothing ever appears on screen, silently.
+        if (stripContainer == null)
+            Debug.LogWarning("[Comic] Play() called but Strip Container is not assigned - nothing will show.");
+        if (panels == null || panels.Count == 0)
+            Debug.LogWarning("[Comic] Play() called but Panels list is empty - nothing will show.");
+
         StartCoroutine(RunCutscene());
     }
 
@@ -74,8 +84,20 @@ public class ComicCutscene : MonoBehaviour
     {
         isPlaying = true;
 
-        if (stripContainer != null) stripContainer.gameObject.SetActive(true);
-        if (player != null) player.movementLocked = true;
+        if (stripContainer != null)
+        {
+            stripContainer.gameObject.SetActive(true);
+            Debug.Log($"[Comic] stripContainer activated: {stripContainer.gameObject.name} - " +
+                      $"activeSelf={stripContainer.gameObject.activeSelf}, " +
+                      $"activeInHierarchy={stripContainer.gameObject.activeInHierarchy} " +
+                      "(if activeInHierarchy is false, a PARENT object above this one is inactive - " +
+                      "that parent is what needs to be turned on, not this object).");
+        }
+        // cutsceneLocked, NOT movementLocked - StoryEnvironmentController owns movementLocked
+        // and unconditionally sets it to (phase == BedRest) whenever its own phase-changed
+        // check runs, which was silently un-locking movement here the instant that happened
+        // to fire right after this line - see PlayerMovement.cutsceneLocked's own comment.
+        if (player != null) player.cutsceneLocked = true;
 
         if (cameraFollow != null)
         {
@@ -95,6 +117,8 @@ public class ComicCutscene : MonoBehaviour
         // triggered this (or the wake-up moment itself) could immediately register.
         yield return null;
 
+        Debug.Log($"[Comic] Entering navigation loop - panels.Count={panels.Count}, currentIndex={currentIndex}.");
+
         RevealAndFocus(0);
 
         bool finished = false;
@@ -102,6 +126,7 @@ public class ComicCutscene : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                Debug.Log("[Comic] Ending: Escape pressed.");
                 finished = true;
                 break;
             }
@@ -113,6 +138,7 @@ public class ComicCutscene : MonoBehaviour
                 skipHoldTimer += Time.deltaTime;
                 if (skipHoldTimer >= holdToSkipDuration)
                 {
+                    Debug.Log("[Comic] Ending: JoystickButton1 held for holdToSkipDuration.");
                     finished = true;
                     break;
                 }
@@ -122,6 +148,8 @@ public class ComicCutscene : MonoBehaviour
                 skipHoldTimer = 0f;
             }
 
+            // Back to the analog stick/raw axis read (reverted - stick drift turned out not
+            // to be the actual cause here, and the stick genuinely feels better for this).
             // Manually debounced raw axis read - NOT Input.GetButtonDown, which turned out
             // to miss its single-frame "just pressed" edge with some controllers, even
             // though the underlying GetAxisRaw value itself is fine (same fix as
@@ -134,10 +162,16 @@ public class ComicCutscene : MonoBehaviour
             else if (horizontalArmed)
             {
                 horizontalArmed = false;
+                Debug.Log($"[Comic] Horizontal axis triggered a cycle - h={h:F2}, currentIndex={currentIndex}, " +
+                          $"panels.Count={panels.Count}.");
                 if (h > 0f)
                 {
                     if (currentIndex >= panels.Count - 1)
+                    {
+                        Debug.Log($"[Comic] Ending: moved past the last panel (currentIndex={currentIndex}, " +
+                                  $"panels.Count={panels.Count}).");
                         finished = true; // moved past the last panel - done
+                    }
                     else
                         RevealAndFocus(currentIndex + 1);
                 }
@@ -150,6 +184,7 @@ public class ComicCutscene : MonoBehaviour
             yield return null;
         }
 
+        Debug.Log("[Comic] EndCutscene() called.");
         EndCutscene();
     }
 
@@ -214,7 +249,7 @@ public class ComicCutscene : MonoBehaviour
     private void EndCutscene()
     {
         if (stripContainer != null) stripContainer.gameObject.SetActive(false);
-        if (player != null) player.movementLocked = false;
+        if (player != null) player.cutsceneLocked = false;
         if (cameraFollow != null) cameraFollow.enableOrbitRotation = cameraOrbitWasEnabled;
 
         isPlaying = false;

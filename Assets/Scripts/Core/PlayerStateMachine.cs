@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -13,6 +14,12 @@ public class PlayerStateMachine : MonoBehaviour
         Block,
         Hurt
     };
+
+    [Header("Stun")]
+    [Tooltip("How long the player's input is locked when he's stunned (posture maxed while his " +
+             "attack is blocked). Read by DmgDetection - this used to be hardcoded at 2 seconds " +
+             "there, per hitbox.")]
+    public float stunDuration = 2f;
 
     public enum AttackTypes
     {
@@ -32,6 +39,22 @@ public class PlayerStateMachine : MonoBehaviour
     private MatchTimer matchTimer;
     [SerializeField] private float perfectBlockWindow = 0.15f;
     [SerializeField] private float normalBlockWindow = 0.50f;
+    [Header("Player Hit Window (fraction of the attack animation's length)")]
+    [Tooltip("Your hitboxes only count a hit between these two points of the animation, the same " +
+             "way the enemy's do. Before the start there's wind-up and can't score, so pressing " +
+             "attack right next to a stunned enemy no longer scores on the very first frame.")]
+    [Range(0f, 1f)][SerializeField] private float punchHitStart = 0.3f;
+    [Range(0f, 1f)][SerializeField] private float punchHitEnd = 0.65f;
+    [Range(0f, 1f)][SerializeField] private float kickHitStart = 0.35f;
+    [Range(0f, 1f)][SerializeField] private float kickHitEnd = 0.7f;
+
+    [Header("Hurt reactions (which animation plays depends on the incoming attack)")]
+    [SerializeField] private string hurtOnPunchAnim = "Hurt_Face";
+    [SerializeField] private string hurtOnKickAnim = "Hurt_Balls";
+    [Tooltip("How long the player stays in the Hurt state after being hit.")]
+    [SerializeField] private float hurtDuration = 0.5f;
+    private Coroutine hurtRoutine;
+
     [Header("Action Limits")]
     [SerializeField] private float attackRecovery = 0.25f;
     [SerializeField] private float blockCooldown = 0.6f;
@@ -232,11 +255,65 @@ public class PlayerStateMachine : MonoBehaviour
         yield return null;
 
         float duration = animator.GetCurrentAnimatorStateInfo(0).length;
-        yield return new WaitForSeconds(duration);
+
+        bool isPunch = currentAttackType == AttackTypes.Punch;
+        float start = Mathf.Clamp01(isPunch ? punchHitStart : kickHitStart);
+        float end = Mathf.Clamp(isPunch ? punchHitEnd : kickHitEnd, start, 1f);
+
+        SetPlayerHitWindow(false);
+        yield return new WaitForSeconds(duration * start);
+        SetPlayerHitWindow(true);
+        yield return new WaitForSeconds(duration * (end - start));
+        SetPlayerHitWindow(false);
+        yield return new WaitForSeconds(duration * (1f - end));
 
         isAttacking = false;
         nextAttackTime = Time.time + attackRecovery;
         ChangeState(PlayerStates.Idle);
+    }
+
+    /// <summary>Called by DmgDetection when an enemy attack lands unblocked. Plays the hurt
+    /// reaction matching the incoming attack (punch = high/face, kick = low/body), the same way
+    /// blocks pick Upper_Block / Lower_Block. Runs on its own coroutine, because Update() returns
+    /// early while the match is stopped - which is exactly when a point has just landed.</summary>
+    public void PlayHurt(bool incomingIsPunch)
+    {
+        // Cancel whatever the player was doing (attack/block routines) so it can't overwrite this.
+        StopAllCoroutines();
+        isAttacking = false;
+        SetPlayerHitWindow(false);
+
+        string preferred = incomingIsPunch ? hurtOnPunchAnim : hurtOnKickAnim;
+        string other = incomingIsPunch ? hurtOnKickAnim : hurtOnPunchAnim;
+        if (animator != null && !animator.HasState(0, Animator.StringToHash(preferred)))
+        {
+            Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{preferred}' - playing '{other}' instead.");
+            preferred = other;
+        }
+
+        hurtRoutine = StartCoroutine(HurtRoutine(preferred));
+    }
+
+    private IEnumerator HurtRoutine(string animName)
+    {
+        ChangeState(PlayerStates.Hurt);
+        if (animator != null) animator.Play(animName);
+
+        yield return new WaitForSecondsRealtime(hurtDuration);
+
+        hurtRoutine = null;
+        if (currentState == PlayerStates.Hurt)
+        {
+            nextAttackTime = Time.time + attackRecovery;
+            ChangeState(PlayerStates.Idle);
+            if (animator != null) animator.Play("Idle");
+        }
+    }
+
+    private void SetPlayerHitWindow(bool open)
+    {
+        foreach (var hitbox in pHitBoxes)
+            if (hitbox != null) hitbox.canDealDamage = open;
     }
 
     private void SetInjuryMeter()

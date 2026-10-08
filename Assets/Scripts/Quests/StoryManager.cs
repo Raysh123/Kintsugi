@@ -14,7 +14,13 @@ public class StoryManager : MonoBehaviour
     public static StoryManager instance;
 
     [Header("Current State")]
-    [SerializeField] private StoryPhase startingPhase = StoryPhase.BedRest;
+    [Tooltip("Set to FriendVisit for the EGX build - BedRest is skipped entirely this way. " +
+             "BedRestPhaseController/DojoArrivalHandler/HomeArrivalHandler all already handle " +
+             "starting past BedRest gracefully (they no-op/self-gate on CurrentPhase), so no " +
+             "other script needs to change for this - just this default (or set it directly " +
+             "on the StoryManager component in the Inspector instead, same effect, no code " +
+             "edit needed).")]
+    [SerializeField] private StoryPhase startingPhase = StoryPhase.FriendVisit;
     public StoryPhase CurrentPhase { get; private set; }
 
     [Header("Key Narrative Dates")]

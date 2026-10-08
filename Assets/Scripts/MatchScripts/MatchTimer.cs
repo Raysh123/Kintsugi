@@ -9,6 +9,11 @@ public class MatchTimer : MonoBehaviour
     [SerializeField] private float matchDuration = 120f; // total match length in seconds
     public bool matchStopped = true;                     // starts stopped until referee says "hajime"
 
+    [Tooltip("ON = the timer starts itself the moment the scene loads (old behaviour). Turn OFF " +
+             "when a FightIntroSequence is in the scene - it calls StartTimer() itself once the " +
+             "referee says begin, and until then the match stays stopped so nobody can fight.")]
+    [SerializeField] private bool autoStartOnSceneLoad = true;
+
     [Header("Hit Pause")]
     [SerializeField] private float hitPauseDuration = 5f;
 
@@ -33,7 +38,7 @@ public class MatchTimer : MonoBehaviour
 
     private void Start()
     {
-        StartTimer();
+        if (autoStartOnSceneLoad) StartTimer();
     }
 
     private void Update()

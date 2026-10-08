@@ -20,6 +20,11 @@ public class DmgDetection : MonoBehaviour
     [SerializeField] private PlayerController player;
     [SerializeField] private float knockbackDist = 0.15f;
     [SerializeField] private MatchScore matchScore;
+    [Header("Enemy hurt reactions (when the player's attack lands)")]
+    [Tooltip("Animator state names on the enemy's animator. If a state doesn't exist, it falls " +
+             "back to the other one (and logs a warning) instead of playing nothing.")]
+    [SerializeField] private string enemyHurtOnPunchAnim = "Hurt_Face";
+    [SerializeField] private string enemyHurtOnKickAnim = "Hurt_Balls";
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -45,7 +50,7 @@ public class DmgDetection : MonoBehaviour
     }
     IEnumerator InputLockWindow()
     {
-        yield return new WaitForSeconds(2);
+        yield return new WaitForSeconds(playerStateMachine != null ? playerStateMachine.stunDuration : 2f);
         InputHandler.instance.SetInput(true);
     }
     void CheckHit(Collider other)
@@ -54,7 +59,13 @@ public class DmgDetection : MonoBehaviour
         {
             return;
         }
-        if (other.transform.tag == "Body" && gameObject.tag == "Punch" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
+        // Nothing scores while the match is stopped (intro, or the pause after a point) -
+        // otherwise a combo still in flight kept landing hits and adding points through the pause.
+        if (matchTimer != null && matchTimer.matchStopped)
+        {
+            return;
+        }
+        if (canDealDamage && other.transform.tag == "Body" && gameObject.tag == "Punch" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
@@ -70,13 +81,21 @@ public class DmgDetection : MonoBehaviour
                 hitRegistered = true;
                 return;
             }
+            if (enemyStateMachine != null)
+            {
+                // Same cut the perfect-block branch uses - ends the combo on any point. Only
+                // leave the Attack state, so a stunned/blocking enemy isn't knocked out of it.
+                enemyStateMachine.StopCombo();
+                if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
+                    enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
+            }
             Debug.Log("Player hit");
-            anim.Play("Hurt_Balls");
+            PlayEnemyHurt(enemyHurtOnPunchAnim, enemyHurtOnKickAnim);
             hitRegistered = true;
-            if (matchScore != null) matchScore.AddPlayerPoint(PlayerStateMachine.AttackTypes.Punch);
+            if (matchScore != null) matchScore.AddPlayerPoint(PlayerMoveForScoring(PlayerStateMachine.AttackTypes.Punch));
             matchTimer.RegisterHit();
         }
-        else if (other.transform.tag == "Body" && gameObject.tag == "Kick" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
+        else if (canDealDamage && other.transform.tag == "Body" && gameObject.tag == "Kick" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
@@ -92,10 +111,18 @@ public class DmgDetection : MonoBehaviour
                 hitRegistered = true;
                 return;
             }
+            if (enemyStateMachine != null)
+            {
+                // Same cut the perfect-block branch uses - ends the combo on any point. Only
+                // leave the Attack state, so a stunned/blocking enemy isn't knocked out of it.
+                enemyStateMachine.StopCombo();
+                if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
+                    enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
+            }
             Debug.Log("Player hit");
-            anim.Play("Hurt_Balls");
+            PlayEnemyHurt(enemyHurtOnKickAnim, enemyHurtOnPunchAnim);
             hitRegistered = true;
-            if (matchScore != null) matchScore.AddPlayerPoint(PlayerStateMachine.AttackTypes.Kick);
+            if (matchScore != null) matchScore.AddPlayerPoint(PlayerMoveForScoring(PlayerStateMachine.AttackTypes.Kick));
             matchTimer.RegisterHit();
         }
         else if (canDealDamage && other.transform.tag == "pBody" && gameObject.tag == "ePunch" && enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
@@ -146,7 +173,16 @@ public class DmgDetection : MonoBehaviour
                     return;
                 }
             }
+            if (enemyStateMachine != null)
+            {
+                // Same cut the perfect-block branch uses - ends the combo on any point. Only
+                // leave the Attack state, so a stunned/blocking enemy isn't knocked out of it.
+                enemyStateMachine.StopCombo();
+                if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
+                    enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
+            }
             Debug.Log("Enemy hit");
+            if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
             hitRegistered = true;
             canDealDamage = false;
             if (matchScore != null) matchScore.AddEnemyPoint(PlayerStateMachine.AttackTypes.Punch);
@@ -197,12 +233,47 @@ public class DmgDetection : MonoBehaviour
                     return;
                 }
             }
+            if (enemyStateMachine != null)
+            {
+                // Same cut the perfect-block branch uses - ends the combo on any point. Only
+                // leave the Attack state, so a stunned/blocking enemy isn't knocked out of it.
+                enemyStateMachine.StopCombo();
+                if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
+                    enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
+            }
             Debug.Log("Enemy hit");
+            if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
             PushBackPlayer(enemyStateMachine.transform, knockbackDist);
             hitRegistered = true;
             if (matchScore != null) matchScore.AddEnemyPoint(PlayerStateMachine.AttackTypes.Kick);
             matchTimer.RegisterHit();
         }
+    }
+
+    private void PlayEnemyHurt(string preferred, string fallback)
+    {
+        if (anim == null) return;
+
+        if (anim.HasState(0, Animator.StringToHash(preferred)))
+        {
+            anim.Play(preferred);
+        }
+        else
+        {
+            Debug.LogWarning($"[DmgDetection] Enemy animator has no state '{preferred}' - " +
+                             $"playing '{fallback}' instead. Add the state, or change the name in the Inspector.");
+            anim.Play(fallback);
+        }
+    }
+
+    // Score by the move the player actually performed (set when they pressed punch/kick),
+    // not just by which hitbox's tag happened to connect - falls back to the tag's type.
+    private PlayerStateMachine.AttackTypes PlayerMoveForScoring(PlayerStateMachine.AttackTypes fromTag)
+    {
+        if (playerStateMachine != null &&
+            playerStateMachine.currentAttackType != PlayerStateMachine.AttackTypes.None)
+            return playerStateMachine.currentAttackType;
+        return fromTag;
     }
 
     private void PushBackPlayer(Transform source, float distance)

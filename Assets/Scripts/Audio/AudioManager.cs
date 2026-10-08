@@ -40,10 +40,12 @@ using UnityEngine.Audio;
 /// --- Audio Mixer setup (one-time, in the Unity Editor) ---
 /// 1. Create an Audio Mixer asset (right-click in Project -> Create -> Audio Mixer).
 /// 2. In it, create two Groups: "Music" and "SFX" (under Master).
-/// 3. On each group, add an effect that gives you gain control per band — either a
-///    "ParamEQ" (simplest: adds one adjustable band, add three instances for low/mid/high)
-///    or Unity's built-in 3-band EQ effect if your version exposes one. Give each band's
-///    gain parameter a distinct name when exposing it.
+/// 3. On each group, add three "Parametric Equalizer" effects (Unity has no built-in 3-band
+///    EQ - one ParamEQ per band is the way): set one to a low Center freq (~200 Hz), one
+///    mid (~1000 Hz), one high (~6000 Hz). Their "Frequency gain" is a LINEAR multiplier
+///    (0.05 to 3.0, 1.0 = no change), not dB - the EQ methods below take dB and convert for
+///    you (see eqGainParamsAreLinear). Give each band's gain parameter a distinct name when
+///    exposing it.
 /// 4. Right-click each parameter you want scriptable (group Volume, each EQ band's gain)
 ///    and choose "Expose ... to script". Then open the mixer's "Exposed Parameters" list
 ///    (top-left dropdown) and rename each to match the *Param fields below exactly
@@ -77,6 +79,12 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private string sfxMidGainParam = "SFXMidGain";
     [SerializeField] private string sfxHighGainParam = "SFXHighGain";
 
+    [Tooltip("Tick if your EQ band gain params are a LINEAR multiplier - Unity's built-in " +
+             "Parametric Equalizer effect (0.05 to 3.0, 1.0 = no change), which is what the " +
+             "setup steps above use. Untick only if the exposed params genuinely take dB. " +
+             "SetMusicEQ/SetSfxEQ and the pause effect all take dB and convert accordingly.")]
+    [SerializeField] private bool eqGainParamsAreLinear = true;
+
     [Header("SFX Pool")]
     [Tooltip("How many SFX (including active loops — a loop occupies a pool slot for its " +
              "entire lifetime) can play at once. If every source is busy when PlaySFX or " +
@@ -88,6 +96,55 @@ public class AudioManager : MonoBehaviour
     private int activeMusicChannel = -1;
     private string currentMusicId;
     private Coroutine musicFadeRoutine;
+
+    [Header("Layered Music (2 simultaneous channels - see PlayMusicLayer)")]
+    [Tooltip("Which layer index DuckMusicLayer/RestoreMusicLayer below operate on.")]
+    [SerializeField] private int duckableLayerIndex = 1;
+    [Tooltip("Fraction (0-1) of the duckable layer's normal volume it fades down to on " +
+             "DuckMusicLayer, e.g. 0.3 = 30% of whatever that track normally plays at.")]
+    [SerializeField] private float duckedVolume = 0.3f;
+    [SerializeField] private float duckFadeTime = 0.5f;
+
+    [Header("Music: auto-start one track on scene load (e.g. the fight scene)")]
+    [Tooltip("SoundDefinition id of the music track to start as soon as this scene loads, via " +
+             "the normal PlayMusic. Leave empty for no auto-start.")]
+    [SerializeField] private string autoPlayMusicId;
+    [SerializeField] private float autoPlayMusicFadeIn = 1.5f;
+
+    [Header("Music: pause treatment (wire to MatchTimer.OnMatchStop / OnMatchStart)")]
+    [Tooltip("Fraction of the music's current volume while paused, e.g. 0.4 = 40% as loud.")]
+    [SerializeField] private float pauseVolumeMultiplier = 0.4f;
+    [Tooltip("EQ change while paused, in dB relative to however each band is set right before " +
+             "the pause. Defaults give a muffled 'held breath' feel: highs pulled down, mids a " +
+             "little down, lows left alone.")]
+    [SerializeField] private float pauseLowGainOffsetDb = 0f;
+    [SerializeField] private float pauseMidGainOffsetDb = -2f;
+    [SerializeField] private float pauseHighGainOffsetDb = -12f;
+    [Tooltip("Playback speed multiplier while paused, e.g. 0.85 = 15% slower. 1 = no change. " +
+             "AudioSource pitch changes tempo AND pitch together (tape-slowdown feel).")]
+    [Range(0.3f, 1f)]
+    [SerializeField] private float pausePitchMultiplier = 0.85f;
+    [SerializeField] private float pauseTransitionTime = 0.4f;
+    [SerializeField] private float resumeTransitionTime = 0.8f;
+
+    // Pitch is tracked as (each channel's own base pitch) x (a shared pause factor), so the
+    // restore is exact and a track that starts mid-pause still gets the slowdown applied.
+    private readonly float[] musicBasePitch = new float[2] { 1f, 1f };
+    private float musicPitchFactor = 1f;
+    private Coroutine musicPitchRoutine;
+
+    // Pause-treatment bookkeeping. Index: 0 = volume, 1 = low, 2 = mid, 3 = high.
+    private bool musicPauseActive;
+    private readonly float[] musicPauseBase = new float[4];
+    private readonly bool[] musicPauseHas = new bool[4];
+    private Coroutine musicBusRoutine;
+
+    private readonly AudioSource[] layerChannels = new AudioSource[2];
+    private readonly Coroutine[] layerFadeRoutines = new Coroutine[2];
+    // The volume each layer was started at (the SoundDefinition's own authored volume) -
+    // duck/restore scale relative to this, so restoring returns to the real level instead
+    // of jumping to an absolute 1.0.
+    private readonly float[] layerBaseVolume = new float[2] { 1f, 1f };
 
     private List<AudioSource> sfxPool;
 
@@ -109,7 +166,16 @@ public class AudioManager : MonoBehaviour
         instance = this;
 
         BuildMusicChannels();
+        BuildLayerChannels();
         BuildSfxPool();
+    }
+
+    private void Start()
+    {
+        if (string.IsNullOrEmpty(autoPlayMusicId)) return;
+
+        Debug.Log($"[AudioManager] Auto-starting music '{autoPlayMusicId}'.");
+        PlayMusic(autoPlayMusicId, autoPlayMusicFadeIn);
     }
 
     private void OnDestroy()
@@ -117,6 +183,19 @@ public class AudioManager : MonoBehaviour
         // Not persistent, so a scene change destroys this along with everything else — make
         // sure the static reference doesn't keep pointing at a dead object in the meantime.
         if (instance == this) instance = null;
+
+        // The mixer's exposed values outlive this scene - if the scene is left mid-pause
+        // (e.g. straight to the next scene during the post-point freeze), put the music bus
+        // back exactly where it was so the next scene doesn't start muffled and quiet.
+        if (musicPauseActive && mixer != null)
+        {
+            string[] names = MusicBusParams();
+            for (int i = 0; i < 4; i++)
+                if (musicPauseHas[i]) mixer.SetFloat(names[i], musicPauseBase[i]);
+            musicPauseActive = false;
+        }
+
+        // Channels are destroyed with this object, so no pitch restore needed there.
     }
 
     private void BuildMusicChannels()
@@ -134,6 +213,24 @@ public class AudioManager : MonoBehaviour
             source.volume = 0f;
 
             musicChannels[i] = source;
+        }
+    }
+
+    private void BuildLayerChannels()
+    {
+        for (int i = 0; i < layerChannels.Length; i++)
+        {
+            GameObject channelObj = new GameObject($"MusicLayerChannel_{i}");
+            channelObj.transform.SetParent(transform);
+
+            AudioSource source = channelObj.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            source.loop = true;
+            source.spatialBlend = 0f;
+            source.outputAudioMixerGroup = musicMixerGroup;
+            source.volume = 0f;
+
+            layerChannels[i] = source;
         }
     }
 
@@ -367,7 +464,8 @@ public class AudioManager : MonoBehaviour
 
         incoming.clip = clip;
         incoming.volume = 0f;
-        incoming.pitch = sound.GetPitch();
+        musicBasePitch[nextChannel] = sound.GetPitch();
+        incoming.pitch = musicBasePitch[nextChannel] * musicPitchFactor;
         incoming.loop = true;
         incoming.Play();
 
@@ -429,6 +527,270 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+    // ---------------- Layered Music (2 simultaneous channels) ----------------
+    // Separate from the crossfade pair above - PlayMusic/StopMusic replace one track with
+    // another. These two channels are instead meant to play AT THE SAME TIME (e.g. a
+    // constant fight theme on layer 0 plus a secondary layer on layer 1 that gets ducked
+    // rather than stopped during the between-fights pause), so starting one never touches
+    // the other.
+
+    /// <summary>Starts musicId looping on the given layer (0 or 1), independent of whatever's
+    /// playing on the other layer. A no-op if that layer is already playing this exact clip,
+    /// so it's safe to call every time a scene/fight starts without restarting the loop.</summary>
+    public void PlayMusicLayer(int layerIndex, string musicId, float fadeInTime = 0f)
+    {
+        if (layerIndex < 0 || layerIndex >= layerChannels.Length)
+        {
+            Debug.LogWarning($"[AudioManager] PlayMusicLayer: layerIndex {layerIndex} out of range.");
+            return;
+        }
+
+        SoundDefinition sound = library != null ? library.Get(musicId) : null;
+        if (sound == null)
+        {
+            Debug.LogWarning($"[AudioManager] Could not play music layer '{musicId}' — not found in library.");
+            return;
+        }
+
+        AudioClip clip = sound.GetClip();
+        if (clip == null)
+        {
+            Debug.LogWarning($"[AudioManager] SoundDefinition '{musicId}' has no clips assigned.");
+            return;
+        }
+
+        AudioSource source = layerChannels[layerIndex];
+        if (source.isPlaying && source.clip == clip) return; // already playing this track on this layer
+
+        if (layerFadeRoutines[layerIndex] != null)
+        {
+            StopCoroutine(layerFadeRoutines[layerIndex]);
+            layerFadeRoutines[layerIndex] = null;
+        }
+
+        float targetVolume = sound.volume;
+        layerBaseVolume[layerIndex] = targetVolume;
+
+        source.clip = clip;
+        source.pitch = sound.GetPitch();
+        source.loop = true;
+        source.volume = fadeInTime > 0f ? 0f : targetVolume;
+        source.Play();
+
+        if (fadeInTime > 0f)
+            layerFadeRoutines[layerIndex] = StartCoroutine(FadeSource(source, 0f, targetVolume, fadeInTime, stopAtEnd: false));
+    }
+
+    /// <summary>Fades a currently-playing layer to a FRACTION (0-1) of its normal volume,
+    /// without stopping it - 1 = the level the track was started at (the SoundDefinition's own
+    /// volume), 0.3 = 30% of that. This is the "duck" call: SetMusicLayerVolume(1, 0.3f, 0.5f)
+    /// pulls layer 1 down over half a second, SetMusicLayerVolume(1, 1f, 0.5f) brings it back
+    /// to exactly where it started. Does nothing if that layer isn't currently playing.</summary>
+    public void SetMusicLayerVolume(int layerIndex, float targetVolume01, float fadeTime = 0.5f)
+    {
+        if (layerIndex < 0 || layerIndex >= layerChannels.Length) return;
+
+        AudioSource source = layerChannels[layerIndex];
+        if (source == null || !source.isPlaying) return;
+
+        if (layerFadeRoutines[layerIndex] != null) StopCoroutine(layerFadeRoutines[layerIndex]);
+
+        float target = Mathf.Clamp01(targetVolume01) * layerBaseVolume[layerIndex];
+        if (fadeTime <= 0f)
+        {
+            source.volume = target;
+            return;
+        }
+
+        layerFadeRoutines[layerIndex] = StartCoroutine(FadeSource(source, source.volume, target, fadeTime, stopAtEnd: false));
+    }
+
+    /// <summary>Stops a layer outright, e.g. when leaving the fight scene entirely.</summary>
+    public void StopMusicLayer(int layerIndex, float fadeOutTime = 0.5f)
+    {
+        if (layerIndex < 0 || layerIndex >= layerChannels.Length) return;
+
+        AudioSource source = layerChannels[layerIndex];
+        if (source == null) return;
+
+        if (layerFadeRoutines[layerIndex] != null) StopCoroutine(layerFadeRoutines[layerIndex]);
+
+        if (fadeOutTime <= 0f)
+        {
+            source.volume = 0f;
+            source.Stop();
+            return;
+        }
+
+        layerFadeRoutines[layerIndex] = StartCoroutine(FadeSource(source, source.volume, 0f, fadeOutTime, stopAtEnd: true));
+    }
+
+    /// <summary>
+    /// No-argument convenience pair for MatchTimer.OnMatchStop / OnMatchStart — a plain
+    /// UnityEvent in the Inspector can only bind a persistent call to a zero-argument method
+    /// (or one with a single value typed directly into the Inspector), so these wrap
+    /// SetMusicLayerVolume using the duckableLayerIndex/duckedVolume/duckFadeTime fields above
+    /// rather than needing any extra wiring script. Drag this AudioManager onto
+    /// MatchTimer.OnMatchStop and pick DuckMusicLayer, then onto OnMatchStart and pick
+    /// RestoreMusicLayer.
+    /// </summary>
+    public void DuckMusicLayer() => SetMusicLayerVolume(duckableLayerIndex, duckedVolume, duckFadeTime);
+    public void RestoreMusicLayer() => SetMusicLayerVolume(duckableLayerIndex, 1f, duckFadeTime);
+
+    // ---------------- Music pause treatment (volume + EQ on the music bus) ----------------
+
+    private string[] MusicBusParams() =>
+        new[] { musicVolumeParam, musicLowGainParam, musicMidGainParam, musicHighGainParam };
+
+    /// <summary>dB -> the value an EQ band param actually takes (linear multiplier for
+    /// Unity's Parametric Equalizer, clamped to its 0.05-3.0 range; raw dB otherwise).</summary>
+    private float DbToEqValue(float db) =>
+        eqGainParamsAreLinear ? Mathf.Clamp(Mathf.Pow(10f, db / 20f), 0.05f, 3f) : db;
+
+    /// <summary>Applies a dB offset on top of a band's current value, in that param's own unit.</summary>
+    private float ApplyEqOffset(float currentValue, float offsetDb) =>
+        eqGainParamsAreLinear
+            ? Mathf.Clamp(currentValue * Mathf.Pow(10f, offsetDb / 20f), 0.05f, 3f)
+            : currentValue + offsetDb;
+
+    /// <summary>
+    /// Music keeps playing exactly as normal - this just lowers its volume and shifts its EQ
+    /// on the mixer's music bus (the pauseVolumeMultiplier / pause*GainOffsetDb fields above),
+    /// fading over pauseTransitionTime. It remembers the bus's exact values from just before,
+    /// so ClearMusicPauseEffect returns to those precisely. Zero-argument on purpose, so it
+    /// can be bound directly to MatchTimer.OnMatchStop in the Inspector. Needs the mixer set up
+    /// per the class comment (volume + EQ params exposed); any param that isn't exposed is
+    /// skipped with a warning rather than blocking the rest.
+    /// </summary>
+    public void ApplyMusicPauseEffect()
+    {
+        if (mixer == null)
+        {
+            Debug.LogWarning("[AudioManager] ApplyMusicPauseEffect: no AudioMixer assigned - nothing to change.");
+            return;
+        }
+
+        if (musicPauseActive) return;
+
+        string[] names = MusicBusParams();
+
+        // Only capture the "normal" values when no fade is mid-flight - if a resume fade is
+        // still running (a point scored right as the last pause ended), the live values are
+        // partway between muffled and normal, which would become a wrong baseline. The
+        // previously captured base is still right in that case.
+        if (musicBusRoutine == null)
+        {
+            bool anyFound = false;
+            for (int i = 0; i < 4; i++)
+            {
+                musicPauseHas[i] = mixer.GetFloat(names[i], out musicPauseBase[i]);
+                anyFound |= musicPauseHas[i];
+                if (!musicPauseHas[i])
+                    Debug.LogWarning($"[AudioManager] Mixer param '{names[i]}' isn't exposed - " +
+                                      "skipping it in the pause effect.");
+            }
+
+            if (!anyFound) return;
+        }
+
+        musicPauseActive = true;
+
+        float volumeDb = 20f * Mathf.Log10(Mathf.Max(pauseVolumeMultiplier, 0.0001f));
+        float[] targets =
+        {
+            musicPauseBase[0] + volumeDb,
+            ApplyEqOffset(musicPauseBase[1], pauseLowGainOffsetDb),
+            ApplyEqOffset(musicPauseBase[2], pauseMidGainOffsetDb),
+            ApplyEqOffset(musicPauseBase[3], pauseHighGainOffsetDb),
+        };
+
+        StartMusicBusFade(targets, pauseTransitionTime);
+        StartMusicPitchFade(Mathf.Clamp(pausePitchMultiplier, 0.3f, 1f), pauseTransitionTime);
+        Debug.Log("[AudioManager] Music pause effect ON.");
+    }
+
+    /// <summary>Fades the music bus back to exactly the volume/EQ it had before
+    /// ApplyMusicPauseEffect, over resumeTransitionTime. Bind to MatchTimer.OnMatchStart. Safe
+    /// to call when no pause effect is active (MatchTimer fires OnMatchStart once at scene
+    /// start too) - it just does nothing.</summary>
+    public void ClearMusicPauseEffect()
+    {
+        if (!musicPauseActive) return;
+
+        musicPauseActive = false;
+        StartMusicBusFade((float[])musicPauseBase.Clone(), resumeTransitionTime);
+        StartMusicPitchFade(1f, resumeTransitionTime);
+        Debug.Log("[AudioManager] Music pause effect OFF (restoring).");
+    }
+
+    private void ApplyMusicPitch()
+    {
+        for (int i = 0; i < musicChannels.Length; i++)
+            if (musicChannels[i] != null)
+                musicChannels[i].pitch = musicBasePitch[i] * musicPitchFactor;
+    }
+
+    private void StartMusicPitchFade(float targetFactor, float duration)
+    {
+        if (musicPitchRoutine != null) StopCoroutine(musicPitchRoutine);
+        musicPitchRoutine = StartCoroutine(FadeMusicPitch(targetFactor, duration));
+    }
+
+    private IEnumerator FadeMusicPitch(float targetFactor, float duration)
+    {
+        float from = musicPitchFactor;
+        if (duration > 0f)
+        {
+            float t = 0f;
+            while (t < duration)
+            {
+                t += Time.unscaledDeltaTime;
+                musicPitchFactor = Mathf.Lerp(from, targetFactor, Mathf.Clamp01(t / duration));
+                ApplyMusicPitch();
+                yield return null;
+            }
+        }
+
+        musicPitchFactor = targetFactor;
+        ApplyMusicPitch();
+        musicPitchRoutine = null;
+    }
+
+    private void StartMusicBusFade(float[] targets, float duration)
+    {
+        if (musicBusRoutine != null) StopCoroutine(musicBusRoutine);
+        musicBusRoutine = StartCoroutine(FadeMusicBus(targets, duration));
+    }
+
+    private IEnumerator FadeMusicBus(float[] targets, float duration)
+    {
+        string[] names = MusicBusParams();
+
+        float[] from = new float[4];
+        for (int i = 0; i < 4; i++)
+            if (musicPauseHas[i]) mixer.GetFloat(names[i], out from[i]);
+
+        if (duration > 0f)
+        {
+            float t = 0f;
+            while (t < duration)
+            {
+                // Unscaled - this runs during MatchTimer's real-time hit pause, and shouldn't
+                // care what Time.timeScale is doing.
+                t += Time.unscaledDeltaTime;
+                float f = Mathf.Clamp01(t / duration);
+                for (int i = 0; i < 4; i++)
+                    if (musicPauseHas[i]) mixer.SetFloat(names[i], Mathf.Lerp(from[i], targets[i], f));
+                yield return null;
+            }
+        }
+
+        for (int i = 0; i < 4; i++)
+            if (musicPauseHas[i]) mixer.SetFloat(names[i], targets[i]);
+
+        musicBusRoutine = null;
+    }
+
     // ---------------- Volume (requires Mixer setup) ----------------
 
     public void SetMusicVolume01(float linearVolume) => SetMixerVolume(musicVolumeParam, linearVolume);
@@ -475,8 +837,11 @@ public class AudioManager : MonoBehaviour
             return;
         }
 
-        mixer.SetFloat(lowParam, lowGainDb);
-        mixer.SetFloat(midParam, midGainDb);
-        mixer.SetFloat(highParam, highGainDb);
+        // Callers pass dB; convert to whatever the exposed params actually take (a linear
+        // multiplier for Unity's Parametric Equalizer - passing raw dB there would clamp, e.g.
+        // -12 would slam the band to its 0.05 floor, nearly silent).
+        mixer.SetFloat(lowParam, DbToEqValue(lowGainDb));
+        mixer.SetFloat(midParam, DbToEqValue(midGainDb));
+        mixer.SetFloat(highParam, DbToEqValue(highGainDb));
     }
 }

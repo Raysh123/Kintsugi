@@ -1,17 +1,17 @@
-using System.Collections;
+ï»¿using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Recovery Interaction Type C — same pattern as RecoveryInteraction and
+/// Recovery Interaction Type C ï¿½ same pattern as RecoveryInteraction and
 /// Recovery_Interaction_Type_B: this script does NOT listen for the E press
-/// itself. PlayerMovement owns that — it detects this object via its trigger
+/// itself. PlayerMovement owns that ï¿½ it detects this object via its trigger
 /// tag ("Interact3"), and sets player.interacting = true when E is pressed
 /// while typeC is true. This script just polls canInteract (its own trigger,
 /// tag "Player") and player.interacting, same as the other two.
 ///
 /// Wraps RhythmSequenceMinigame the way RecoveryInteraction wraps Pointer and
 /// Recovery_Interaction_Type_B wraps TimedPointer. RhythmSequenceMinigame
-/// itself is untouched — it only tracks input and outcome. This script owns
+/// itself is untouched ï¿½ it only tracks input and outcome. This script owns
 /// everything around it: the once-per-day/time-cost bookkeeping via
 /// ActivityDefinition/CalendarManager, StoryEnvironmentController's daily
 /// activity limit, camera/model swap, and applying health/motivation rewards
@@ -58,6 +58,18 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
     [SerializeField] private float loseMotivation;
     [SerializeField] private float injuryHealth;
     [SerializeField] private float injuryMotivation;
+
+    [Header("First-Time Tutorial")]
+    [Tooltip("Shown the first time this interaction is ever used, before the minigame starts " +
+             "- dismiss input pauses here same as BedRest's onboarding popups. Leave blank for " +
+             "no tutorial on this interaction.")]
+    [SerializeField] private GameObject onboardingUI;
+    [Tooltip("Leave empty to auto-generate one from this component + the activity.")]
+    [SerializeField] private string onboardingFlagId;
+
+    private string OnboardingFlagId => string.IsNullOrEmpty(onboardingFlagId)
+        ? $"Recovery_Interaction_Type_C_{GetInstanceID()}_onboarding_seen"
+        : onboardingFlagId;
 
     private bool canInteract;
 
@@ -107,6 +119,32 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
             return;
         }
 
+        meterActive = true;
+        StartCoroutine(RunInteraction());
+    }
+
+    private IEnumerator RunInteraction()
+    {
+        // Tutorial popup pauses here, BEFORE the minigame actually starts - and only ever
+        // the first time, same gating pattern as AudioEventTrigger/AudioCollisionTrigger's
+        // onlyPlayOnce (PersistentGameFlags), so it won't re-show on later visits.
+        if (onboardingUI != null &&
+            !(PersistentGameFlags.instance != null && PersistentGameFlags.instance.HasFlag(OnboardingFlagId)))
+        {
+            onboardingUI.SetActive(true);
+            yield return new WaitUntil(() =>
+                Input.GetKeyDown(KeyCode.Space) ||
+                Input.GetKeyDown(KeyCode.JoystickButton1) ||
+                Input.GetButtonDown("Cancel"));
+            onboardingUI.SetActive(false);
+
+            if (PersistentGameFlags.instance != null)
+                PersistentGameFlags.instance.SetFlag(OnboardingFlagId);
+            else
+                Debug.LogWarning("[Recovery_Interaction_Type_C] onboardingUI shown but PersistentGameFlags.instance " +
+                                  "is null - this won't be remembered across scene reloads.");
+        }
+
         // Hide player mesh, show activity model
         if (playerMeshChild != null) playerMeshChild.SetActive(false);
         if (activityModel != null)
@@ -118,19 +156,12 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
 
         SceneCameraManager.instance.ActivateCamera(activityCamera);
 
-        meterActive = true;
-
         // Activating fires Start() the very first time only, so ResetMinigame()
-        // is what actually (re)starts it on every attempt — including the
+        // is what actually (re)starts it on every attempt, including the
         // first, where it's a harmless no-op on top of Start().
         meter.gameObject.SetActive(true);
         meter.ResetMinigame();
 
-        StartCoroutine(WaitForMeter());
-    }
-
-    private IEnumerator WaitForMeter()
-    {
         while (!meter.finished)
             yield return null;
 
