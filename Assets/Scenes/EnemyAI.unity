@@ -790,6 +790,10 @@ MonoBehaviour:
   shouldApproach: 0
   shouldRetreat: 0
   moveSpeed: 10
+  aggression: 1.5
+  chaseSprintDistance: 2.5
+  chaseSprintMultiplier: 1.4
+  attackRangeBonus: 0.6
   decisionInterval: 0.5
   attackCooldown: 3
   attackChancePercent: 75
@@ -4761,6 +4765,11 @@ MonoBehaviour:
   matchTimer: {fileID: 1086321184}
   attackPointValues: {fileID: 11400000, guid: 69137bad41d2c2e41972ce72de441efc, type: 2}
   tieGoesToPlayer: 0
+  pointsToWin: 10
+  winDelay: 3
+  onPointsToWinReached:
+    m_PersistentCalls:
+      m_Calls: []
   OnScoreChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -9216,7 +9225,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   postureSlider: {fileID: 1282255530}
   dmgAdder: 2
-  drainRate: 0.0006
+  drainPerSecond: 0.06
+  drainDelay: 1
 --- !u!1 &2047168645 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2753457688648249125, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}
@@ -9239,9 +9249,13 @@ MonoBehaviour:
   shouldApproach: 0
   shouldRetreat: 0
   moveSpeed: 2
+  aggression: 1.5
+  chaseSprintDistance: 2.5
+  chaseSprintMultiplier: 1.4
+  attackRangeBonus: 0.6
   decisionInterval: 0.25
   attackCooldown: 0.5
-  attackChancePercent: 80
+  attackChancePercent: 84.2
   walkForwardAnim: Walk_Forward
   walkBackwardAnim: Walk_Backward
   moveAcceleration: 25
@@ -9252,12 +9266,12 @@ MonoBehaviour:
   backDashAnim: Dash_Backward
   backDashDistance: 1.8
   backDashDuration: 0.3
-  backDashChancePercent: 35
-  attackAfterDashChancePercent: 50
-  dodgeAfterComboBreakPercent: 49.8
-  dodgeDuringStunPercent: 7.9
-  stunDodgeWindowPercent: 30
-  dodgeAfterStunPercent: 80
+  backDashChancePercent: 28.4
+  attackAfterDashChancePercent: 82.3
+  dodgeAfterComboBreakPercent: 43.1
+  dodgeDuringStunPercent: 0
+  stunDodgeWindowPercent: 34.3
+  dodgeAfterStunPercent: 81.9
   stunDuration: 2
   hitRange: 1.2
   lungeChancePercent: 60
@@ -9288,8 +9302,8 @@ MonoBehaviour:
   requiredTag: 
   stunAnimationName: Stun
   idleAnimationName: Idle
-  attackRange: 1.2
-  breakComboRange: 2.2
+  attackRange: 2
+  breakComboRange: 2.5
   telegraph: {fileID: 1618587566}
   telegraphSafeColor: {r: 1, g: 0.12787381, b: 0, a: 0.6666667}
   telegraphWarningColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 0}
@@ -9311,7 +9325,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   postureSlider: {fileID: 1968301904}
   dmgAdder: 2
-  drainRate: 0.0003
+  drainPerSecond: 0.06
+  drainDelay: 1
 --- !u!1 &2059724356 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5064852512979255731, guid: 30e65a9de0875254986a1bd4ba3dee8e, type: 3}

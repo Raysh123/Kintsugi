@@ -25,6 +25,10 @@ public class MatchTimer : MonoBehaviour
     public UnityEvent OnMatchStart;
     public UnityEvent OnMatchStop;
 
+    /// <summary>True once the match has been decided (e.g. first to N points). Nothing can restart
+    /// the clock after this - the post-point resume is ignored.</summary>
+    public bool matchOver { get; private set; }
+
     private float matchTimer;
     private int lastLoggedSecond = -1;
     private Coroutine hitPauseRoutine;
@@ -68,6 +72,7 @@ public class MatchTimer : MonoBehaviour
     // Call this from your referee script when "hajime" is called
     public void StartTimer()
     {
+        if (matchOver) { matchStopped = true; return; }
         if (matchTimer > 0f)
             matchStopped = false;
         if (hitPauseRoutine != null)
@@ -89,6 +94,18 @@ public class MatchTimer : MonoBehaviour
         //Time.timeScale = 0f;
         OnMatchStop?.Invoke();
     }
+    /// <summary>Ends the match for good: freezes the clock and blocks any later resume.</summary>
+    public void EndMatch()
+    {
+        matchOver = true;
+        matchStopped = true;
+        if (hitPauseRoutine != null)
+        {
+            StopCoroutine(hitPauseRoutine);
+            hitPauseRoutine = null;
+        }
+    }
+
     public void RegisterHit()
     {
         // Ignore hits while the match is stopped

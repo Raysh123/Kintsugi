@@ -22,6 +22,23 @@ public class EnemyStateMachine : MonoBehaviour
     public bool shouldRetreat;
     [SerializeField]
     float moveSpeed = 10f;
+    [Header("Aggression (scales the values below, so it works even if the Inspector overrides them)")]
+    [Tooltip("1 = exactly the values below. 1.5 = moves 50% faster, re-decides 50% sooner, attack " +
+             "cooldown 33% shorter, attack chance 50% higher (capped at 100%).")]
+    [Range(0.5f, 3f)]
+    [SerializeField] private float aggression = 1.5f;
+    [Tooltip("While he is farther than this from the player he sprints.")]
+    [SerializeField] private float chaseSprintDistance = 2.5f;
+    [Tooltip("Speed multiplier while sprinting in from far away.")]
+    [SerializeField] private float chaseSprintMultiplier = 1.4f;
+    [Tooltip("Added to Attack Range: he starts attacking from this much farther away (his lunge " +
+             "closes the rest of the gap). 0 = old behaviour.")]
+    [SerializeField] private float attackRangeBonus = 0.6f;
+
+    private float Aggro => Mathf.Max(0.1f, aggression);
+    private float DecisionInterval => decisionInterval / Aggro;
+    private float EngageRange => attackRange + attackRangeBonus;
+
     [Header("Attack Tempo")]
     [Tooltip("How often (seconds) he re-rolls his decisions, including 'do I attack now?'. " +
              "Lower = he reacts and attacks sooner.")]
@@ -377,7 +394,7 @@ public class EnemyStateMachine : MonoBehaviour
         {
             decisionRoll = Random.Range(0, 100);
             DistanceDecisionMaker();
-            decisionTimer = decisionInterval;
+            decisionTimer = DecisionInterval;
             if (debugAI)
                 Debug.Log($"[EnemyAI] state={currentState} dist={Vector3.Distance(transform.position, Player.position):F2} " +
                           $"attackTimer={attackTimer:F2} dashCd={retreatTimer:F1} roll={decisionRoll:F0} approach={shouldApproach} " +
@@ -638,15 +655,15 @@ public class EnemyStateMachine : MonoBehaviour
         if (decisionLockTimer > 0f) return;
 
         float distance = Vector3.Distance(transform.position, Player.position);
-        if (distance < attackRange)
+        if (distance < EngageRange)
         {
             bool forced = attackNextOpportunity;
-            if (forced || (decisionRoll > 100f - attackChancePercent && attackTimer <= 0))
+            if (forced || (decisionRoll > 100f - Mathf.Min(100f, attackChancePercent * Aggro) && attackTimer <= 0))
             {
                 attackNextOpportunity = false;
                 shouldApproach = false;
                 shouldRetreat = false;
-                attackTimer = attackCooldown;
+                attackTimer = attackCooldown / Aggro;
                 if (debugAI) Debug.Log($"[EnemyAI] ATTACK started (dist={distance:F2}, roll={decisionRoll:F0}).");
                 ChangeState(EnemyState.Attack);
             }
@@ -723,7 +740,7 @@ public class EnemyStateMachine : MonoBehaviour
         {
             return;
         }
-        if (distance < attackRange && !isAttacking)
+        if (distance < EngageRange && !isAttacking)
         {
             attackRoutine = StartCoroutine(AttackRoutine());
         }
@@ -903,7 +920,7 @@ public class EnemyStateMachine : MonoBehaviour
 
         if (isIdlePausing)
         {
-            idlePauseElapsed += decisionInterval;
+            idlePauseElapsed += DecisionInterval;
             if (idlePauseElapsed >= idlePauseDurationCurrent)
             {
                 isIdlePausing = false;
@@ -916,7 +933,7 @@ public class EnemyStateMachine : MonoBehaviour
         // Inside attack range: HandleIdle attacks as soon as he's off cooldown. Until then he
         // keeps closing to his stopping distance, or occasionally back-dashes (one discrete
         // move, then Idle or a follow-up attack - never a continuous walk-away).
-        if (distance < attackRange)
+        if (distance < EngageRange)
         {
             shouldApproach = distance > approachStopDistance;
             if (retreatTimer <= 0f && Random.value * 100f < backDashChancePercent)
@@ -929,7 +946,7 @@ public class EnemyStateMachine : MonoBehaviour
 
         shouldApproach = true;
 
-        idlePauseTimer -= decisionInterval;
+        idlePauseTimer -= DecisionInterval;
 
         if (enableIdleBreathers && idlePauseTimer <= 0f)
         {
@@ -943,6 +960,14 @@ public class EnemyStateMachine : MonoBehaviour
     private void StartBackDash()
     {
         if (backDashRoutine != null) return;
+        // Posture is over the stun line: HandleIdle is about to stun him, and a dash would
+        // pre-empt that (stun -> dash -> stun again). Let the stun happen first. The dash out of a
+        // stun lowers posture below this before calling, so it isn't affected.
+        if (enemyPosture != null && enemyPosture.postureSlider.value >= 0.85f)
+        {
+            if (debugAI) Debug.Log("[EnemyAI] Back dash skipped - he's about to be stunned.");
+            return;
+        }
         shouldApproach = false;
         shouldRetreat = false;
         retreatTimer = ComputeNextRetreatCooldown();
@@ -1051,7 +1076,8 @@ public class EnemyStateMachine : MonoBehaviour
             {
                 // Ease off as he nears his stopping distance instead of arriving at full speed.
                 float arrive = Mathf.Clamp01((distance - approachStopDistance) / Mathf.Max(approachSlowRadius, 0.01f));
-                desiredVel = direction * moveSpeed * Mathf.Max(arrive, 0.25f);
+                float sprint = distance > chaseSprintDistance ? chaseSprintMultiplier : 1f;
+                desiredVel = direction * moveSpeed * Aggro * sprint * Mathf.Max(arrive, 0.25f);
             }
         }
 

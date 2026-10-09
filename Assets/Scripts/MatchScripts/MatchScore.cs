@@ -27,6 +27,16 @@ public class MatchScore : MonoBehaviour
              "winner is if points are exactly equal when time runs out.")]
     [SerializeField] private bool tieGoesToPlayer = false;
 
+    [Header("Win by points")]
+    [Tooltip("First fighter to reach this many points wins the match immediately (the timer " +
+             "running out is still the other win condition). 0 = off.")]
+    [SerializeField] private int pointsToWin = 10;
+    [Tooltip("Real seconds between the winning point and the scene change - room for the " +
+             "referee's point call.")]
+    [SerializeField] private float winDelay = 3f;
+    [Tooltip("Fired when someone reaches the winning score, before the delay.")]
+    public UnityEvent onPointsToWinReached;
+
     public int PlayerScore { get; private set; }
     public int EnemyScore { get; private set; }
 
@@ -53,6 +63,7 @@ public class MatchScore : MonoBehaviour
         PlayerScore += points;
         Debug.Log($"[MatchScore] Player +{points} ({moveType}) -> {PlayerScore}");
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
+        CheckPointsToWin();
     }
 
     public void AddEnemyPoint(PlayerStateMachine.AttackTypes moveType)
@@ -61,6 +72,26 @@ public class MatchScore : MonoBehaviour
         EnemyScore += points;
         Debug.Log($"[MatchScore] Enemy +{points} ({moveType}) -> {EnemyScore}");
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
+        CheckPointsToWin();
+    }
+
+    private bool endingByPoints;
+
+    private void CheckPointsToWin()
+    {
+        if (pointsToWin <= 0 || winnerDeclared || endingByPoints) return;
+        if (PlayerScore < pointsToWin && EnemyScore < pointsToWin) return;
+        endingByPoints = true;
+        StartCoroutine(EndByPoints());
+    }
+
+    private System.Collections.IEnumerator EndByPoints()
+    {
+        Debug.Log($"[MatchScore] {pointsToWin} points reached ({PlayerScore}-{EnemyScore}) - match over.");
+        if (matchTimer != null) matchTimer.EndMatch();
+        onPointsToWinReached?.Invoke();
+        yield return new WaitForSecondsRealtime(winDelay);
+        DeclareWinner();
     }
 
     /// <summary>Compares final scores and hands the result off to FightSessionManager, which
@@ -88,6 +119,7 @@ public class MatchScore : MonoBehaviour
         PlayerScore = 0;
         EnemyScore = 0;
         winnerDeclared = false;
+        endingByPoints = false;
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
     }
 }
