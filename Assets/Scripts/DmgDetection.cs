@@ -20,6 +20,17 @@ public class DmgDetection : MonoBehaviour
     [SerializeField] private PlayerController player;
     [SerializeField] private float knockbackDist = 0.15f;
     [SerializeField] private MatchScore matchScore;
+    [Header("Leg hits (posture damage only, no points)")]
+    [Tooltip("Tag on the PLAYER's leg collider(s). An enemy punch/kick that lands on it adds " +
+             "posture damage to the player and scores NOTHING. Create this tag in Project " +
+             "Settings > Tags and Layers.")]
+    [SerializeField] private string playerLegTag = "Leg";
+    [Tooltip("Tag on the ENEMY's leg collider(s). Leave EMPTY to switch enemy leg hits off " +
+             "(not set up yet) - a player attack on the enemy then just hits whatever its " +
+             "normal Body collider does.")]
+    [SerializeField] private string enemyLegTag = "";
+    [Tooltip("Posture damage dealt by a leg hit. (A normal block adds 0.5; a Posture max of 0.8 stuns.)")]
+    [SerializeField] private float legHitPostureDamage = 0.3f;
     [Header("Enemy hurt reactions (when the player's attack lands)")]
     [Tooltip("Animator state names on the enemy's animator. If a state doesn't exist, it falls " +
              "back to the other one (and logs a warning) instead of playing nothing.")]
@@ -53,6 +64,53 @@ public class DmgDetection : MonoBehaviour
         yield return new WaitForSeconds(playerStateMachine != null ? playerStateMachine.stunDuration : 2f);
         InputHandler.instance.SetInput(true);
     }
+    /// <summary>A hit on a leg collider: posture damage only - no points, no hit pause, no hurt
+    /// reaction. Returns true if this collision was a leg hit (so the normal scoring is skipped).</summary>
+    bool TryResolveLegHit(Collider other)
+    {
+        string hitTag = other.transform.tag;
+        string myTag = gameObject.tag;
+
+        bool playerAttacking = canDealDamage && (myTag == "Punch" || myTag == "Kick") &&
+                               playerStateMachine != null &&
+                               playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack;
+        if (playerAttacking && !string.IsNullOrEmpty(enemyLegTag) && hitTag == enemyLegTag)
+        {
+            hitRegistered = true;
+            Debug.Log($"Leg hit on enemy (+{legHitPostureDamage} posture, no points).");
+            FightSounds.LegHit();
+            if (enemyPosture != null) enemyPosture.posDmg(legHitPostureDamage);
+            if (enemyStateMachine != null && enemyPosture != null &&
+                enemyPosture.postureSlider.value >= postureMaxVal &&
+                enemyStateMachine.currentState != EnemyStateMachine.EnemyState.Stun)
+            {
+                enemyStateMachine.StopCombo();
+                enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Stun);
+            }
+            return true;
+        }
+
+        bool enemyAttacking = canDealDamage && (myTag == "ePunch" || myTag == "eKick") &&
+                              enemyStateMachine != null &&
+                              enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack;
+        if (enemyAttacking && !string.IsNullOrEmpty(playerLegTag) && hitTag == playerLegTag)
+        {
+            hitRegistered = true;
+            Debug.Log($"Leg hit on player (+{legHitPostureDamage} posture, no points).");
+            FightSounds.LegHit();
+            if (playerPosture != null) playerPosture.posDmg(legHitPostureDamage);
+            if (playerPosture != null && playerPosture.postureSlider.value >= postureMaxVal)
+            {
+                InputHandler.instance.SetInput(false);
+                Debug.Log("stun");
+                FightSounds.Stun();
+            }
+            StartCoroutine(InputLockWindow());
+            return true;
+        }
+        return false;
+    }
+
     void CheckHit(Collider other)
     {
         if (hitRegistered)
@@ -65,16 +123,19 @@ public class DmgDetection : MonoBehaviour
         {
             return;
         }
+        if (TryResolveLegHit(other)) return;
         if (canDealDamage && other.transform.tag == "Body" && gameObject.tag == "Punch" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                FightSounds.EnemyBlocked();
                 PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
                     InputHandler.instance.SetInput(false);
                     Debug.Log("stun");
+                    FightSounds.Stun();
                 }
                 StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
@@ -90,6 +151,7 @@ public class DmgDetection : MonoBehaviour
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
             Debug.Log("Player hit");
+            FightSounds.EnemyHit();
             PlayEnemyHurt(enemyHurtOnPunchAnim, enemyHurtOnKickAnim);
             hitRegistered = true;
             if (matchScore != null) matchScore.AddPlayerPoint(PlayerMoveForScoring(PlayerStateMachine.AttackTypes.Punch));
@@ -100,11 +162,13 @@ public class DmgDetection : MonoBehaviour
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
                 Debug.Log("blocked by enemy");
+                FightSounds.EnemyBlocked();
                 PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
                     InputHandler.instance.SetInput(false);
                     Debug.Log("stun");
+                    FightSounds.Stun();
                 }
                 StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
@@ -120,6 +184,7 @@ public class DmgDetection : MonoBehaviour
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
             Debug.Log("Player hit");
+            FightSounds.EnemyHit();
             PlayEnemyHurt(enemyHurtOnKickAnim, enemyHurtOnPunchAnim);
             hitRegistered = true;
             if (matchScore != null) matchScore.AddPlayerPoint(PlayerMoveForScoring(PlayerStateMachine.AttackTypes.Kick));
@@ -132,6 +197,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    FightSounds.PlayerBlocked(true);
                     PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(0.5f);
                     // A perfect block always stops the enemy's current attack outright - on
@@ -160,11 +226,13 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.IsNormalBlockActive())
                 {
                     Debug.Log("normal block");
+                    FightSounds.PlayerBlocked(false);
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
                         InputHandler.instance.SetInput(false);
                         Debug.Log("stun");
+                        FightSounds.Stun();
                     }
                     StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
@@ -182,6 +250,7 @@ public class DmgDetection : MonoBehaviour
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
             Debug.Log("Enemy hit");
+            FightSounds.PlayerHit();
             if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
             hitRegistered = true;
             canDealDamage = false;
@@ -195,6 +264,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     Debug.Log("Blocked");
+                    FightSounds.PlayerBlocked(true);
                     PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(0.5f);
                     // Same as the punch branch above - a perfect block always stops the
@@ -220,11 +290,13 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.IsNormalBlockActive())
                 {
                     Debug.Log("normal Block");
+                    FightSounds.PlayerBlocked(false);
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
                         InputHandler.instance.SetInput(false);
                         Debug.Log("stun");
+                        FightSounds.Stun();
                     }
                     StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
@@ -242,6 +314,7 @@ public class DmgDetection : MonoBehaviour
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
             Debug.Log("Enemy hit");
+            FightSounds.PlayerHit();
             if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
             PushBackPlayer(enemyStateMachine.transform, knockbackDist);
             hitRegistered = true;

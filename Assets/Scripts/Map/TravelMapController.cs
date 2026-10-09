@@ -263,6 +263,9 @@ public class TravelMapController : MonoBehaviour
 
         if (player != null) player.movementLocked = false;
 
+        // Ambience follows the location the player just arrived at (area name = location name).
+        RecoverySoundscape.SetArea(location.locationName);
+
         // This is the hook: whatever component was dragged into arrivalHandler gets
         // its OnArrival() called here, as long as it implements ITravelArrivalHandler.
         if (location.arrivalHandler is ITravelArrivalHandler handler)

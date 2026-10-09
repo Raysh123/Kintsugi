@@ -84,12 +84,34 @@ public class StoryManager : MonoBehaviour
 
     private void Awake()
     {
-        if (instance != null && instance != this) { Destroy(gameObject); return; }
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (instance != null && instance != this)
+        {
+            Debug.Log($"[Story] Duplicate StoryManager in scene '{sceneName}' destroyed - keeping the persistent one (phase {instance.CurrentPhase}).");
+            Destroy(gameObject);
+            return;
+        }
         instance = this;
+
+        // DontDestroyOnLoad silently does nothing unless this is a ROOT object - if it sits
+        // under another GameObject it gets destroyed with the scene and a fresh one (reset to
+        // startingPhase) is created on the next load, which looks exactly like "phase not saved".
+        if (transform.parent != null)
+        {
+            Debug.LogWarning($"[Story] StoryManager was parented under '{transform.parent.name}' - un-parenting it so it can persist.");
+            transform.SetParent(null);
+        }
         DontDestroyOnLoad(gameObject);
 
         CurrentPhase = startingPhase;
         currentPhaseStartDate = storyStartDate;
+        Debug.Log($"[Story] StoryManager created in scene '{sceneName}' - phase set to {CurrentPhase} (Starting Phase).");
+    }
+
+    private void OnDestroy()
+    {
+        if (instance == this)
+            Debug.LogWarning($"[Story] The persistent StoryManager was DESTROYED (phase was {CurrentPhase}).");
     }
 
     private void OnEnable()

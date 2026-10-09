@@ -119,6 +119,7 @@ public class PlayerStateMachine : MonoBehaviour
             nextBlockTime = Time.time + blockCooldown;
             lastBlockPressTime = Time.time;
             perfectBlockUsed = false;
+            if (InjuryMeter.instance != null) InjuryMeter.instance.AddBlockInjury();
 
             if (enemy != null && enemy.requiredTag == "ePunch")
             {
@@ -141,6 +142,30 @@ public class PlayerStateMachine : MonoBehaviour
             ChangeState(PlayerStates.Idle);
         }
     }
+    public float PerfectBlockWindow => perfectBlockWindow;
+
+    [Header("Dodge")]
+    [Tooltip("Pause (seconds) after a dodge finishes before he can dodge again. Counted from the " +
+             "END of the dash (Dodge Time on PlayerController), so it's a true gap.")]
+    [SerializeField] private float dodgeCooldown = 0.4f;
+    private float nextDodgeTime;
+    private int dodgeGrantedFrame = -1;
+
+    /// <summary>Single gate for every dodge trigger (this script's state change AND
+    /// PlayerController's dash both ask here). Returns true if a dodge may start now; also
+    /// charges the injury meter once. Both callers in the same frame get the same answer, so
+    /// the animation and the dash can't get out of step.</summary>
+    public bool TryConsumeDodge()
+    {
+        if (dodgeGrantedFrame == Time.frameCount) return true;
+        if (Time.time < nextDodgeTime) return false;
+
+        float dashTime = player != null ? player.dodgeTime : 0f;
+        nextDodgeTime = Time.time + dashTime + dodgeCooldown;
+        dodgeGrantedFrame = Time.frameCount;
+        if (InjuryMeter.instance != null) InjuryMeter.instance.AddDodgeInjury();
+        return true;
+    }
     public bool TryPerfectBlock()
     {
         bool insidePerfectWindow = Time.time - lastBlockPressTime <= perfectBlockWindow;
@@ -148,6 +173,8 @@ public class PlayerStateMachine : MonoBehaviour
             return false;
 
         perfectBlockUsed = true;
+        // A perfect block costs nothing - refund what pressing block just added.
+        if (InjuryMeter.instance != null) InjuryMeter.instance.RefundLastBlock();
         return true;
     }
     public bool IsNormalBlockActive()
@@ -263,6 +290,7 @@ public class PlayerStateMachine : MonoBehaviour
         SetPlayerHitWindow(false);
         yield return new WaitForSeconds(duration * start);
         SetPlayerHitWindow(true);
+        FightSounds.PlayerSwing(currentAttackType == AttackTypes.Kick);
         yield return new WaitForSeconds(duration * (end - start));
         SetPlayerHitWindow(false);
         yield return new WaitForSeconds(duration * (1f - end));
@@ -318,14 +346,9 @@ public class PlayerStateMachine : MonoBehaviour
 
     private void SetInjuryMeter()
     {
-        if (InjuryMeter.instance == null)
-        {
-            return;
-        }
-        else if (!TryPerfectBlock())
-        {
-            InjuryMeter.instance.injuryMeterValue.value += 0.1f;
-        }
+        // Every attack fills the injury meter by an HP-dependent amount (see InjuryMeter).
+        if (InjuryMeter.instance != null)
+            InjuryMeter.instance.AddAttackInjury(currentAttackType == AttackTypes.Kick);
     }
 
     private void HandleMove()
@@ -373,7 +396,7 @@ public class PlayerStateMachine : MonoBehaviour
                 }
 
             }
-            if (InputHandler.instance.dodge)
+            if (InputHandler.instance.dodge && TryConsumeDodge())
             {
                 ChangeState(PlayerStates.Dodge);
                 animator.Play("Dodge_2");

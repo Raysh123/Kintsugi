@@ -134,6 +134,7 @@ public class RecoveryInteraction : MonoBehaviour
         }
 
         meterActive = true;
+        RecoverySoundscape.ActivityStarted(activity);
         StartCoroutine(RunInteraction());
     }
 
@@ -169,6 +170,7 @@ public class RecoveryInteraction : MonoBehaviour
         }
 
         SceneCameraManager.instance.ActivateCamera(activityCamera);
+        RecoverySoundscape.ActivityLoopStart(activity);
 
         // Activating fires Start() the very first time only, so ResetMinigame()
         // is what actually (re)starts it on every attempt, including the
@@ -189,6 +191,7 @@ public class RecoveryInteraction : MonoBehaviour
         if (meter.won)
         {
             Debug.Log("Won");
+            RecoverySoundscape.ActivityWon(activity);
             HealthAndMotivation.instance.ModifyHealth(winHealth);
             HealthAndMotivation.instance.ModifyMotivation(winMotivation);
             outcomeAnimation = winAnimation;
@@ -196,6 +199,7 @@ public class RecoveryInteraction : MonoBehaviour
         else if (meter.lost)
         {
             Debug.Log("Lost");
+            RecoverySoundscape.ActivityLost(activity);
             HealthAndMotivation.instance.ModifyHealth(loseHealth);
             HealthAndMotivation.instance.ModifyMotivation(loseMotivation);
             outcomeAnimation = loseAnimation;
@@ -203,6 +207,7 @@ public class RecoveryInteraction : MonoBehaviour
         else if (meter.injured)
         {
             Debug.Log("Injured");
+            RecoverySoundscape.ActivityInjured(activity);
             HealthAndMotivation.instance.ModifyHealth(injuryHealth);
             HealthAndMotivation.instance.ModifyMotivation(injuryMotivation);
             outcomeAnimation = injuredAnimation;
@@ -217,6 +222,7 @@ public class RecoveryInteraction : MonoBehaviour
         SceneCameraManager.instance.DeactivateCamera(activityCamera);
         CalendarManager.instance.AdvanceTime(activity.quadrantTicks);
         meter.gameObject.SetActive(false);
+        RecoverySoundscape.ActivityLoopStop(activity);
         player.interacting = false;
         meterActive = false;
     }

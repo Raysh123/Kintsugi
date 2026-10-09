@@ -116,10 +116,16 @@ public class PlayerMovement : MonoBehaviour
             Move();
             Interact();
         }
-        else if (!interacting)
+        else
         {
+            // Move() is what feeds the walk blend, so while it isn't being called the Animator
+            // keeps whatever speed it last had - he'd keep walking on the spot (and, with it,
+            // the footsteps) the whole time a menu or activity is open. Zero it here.
+            if (animator != null && animator.gameObject.activeInHierarchy)
+                animator.SetFloat("MoveSpeed", 0f);
+
             // Still allow interactions even when movement is locked (bed exercises)
-            Interact();
+            if (!interacting) Interact();
         }
     }
 

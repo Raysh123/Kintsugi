@@ -21,6 +21,9 @@ public class PostFightHandler : MonoBehaviour
                  "PostFightHandler teleports directly rather than going through " +
                  "TravelMapController/OnArrival, so nothing else would set it.")]
         public string modelId;
+        [Tooltip("Optional - name of the RecoverySoundscape ambience area to switch to when " +
+                 "returning here (e.g. \"Dojo\"). Blank = leave the ambience as it is.")]
+        public string ambienceArea;
     }
 
     [Header("Player")]
@@ -63,6 +66,8 @@ public class PostFightHandler : MonoBehaviour
         if (spawn != null)
         {
             TeleportPlayer(spawn.transform);
+            if (!string.IsNullOrEmpty(spawn.ambienceArea))
+                RecoverySoundscape.SetArea(spawn.ambienceArea);
             if (!string.IsNullOrEmpty(spawn.modelId) && appearance != null)
                 appearance.SetModel(spawn.modelId);
         }

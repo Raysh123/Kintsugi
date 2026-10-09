@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08db8f63cdcad8c41bea9aa42b02be90, type: 3}
   m_Name: Footsteps
   m_EditorClassIdentifier: 
-  id: Steps
+  id: FootStep
   category: 0
   clips:
-  - {fileID: 8300000, guid: b125593f65e341a48b608001ed3b26a3, type: 3}
+  - {fileID: 8300000, guid: 0bc8cae82b5ccd04e883405d3f9bb762, type: 3}
   volume: 1
   pitch: 1
-  pitchVariance: 0
+  pitchVariance: 0.18
   loop: 0
   spatialBlend: 0

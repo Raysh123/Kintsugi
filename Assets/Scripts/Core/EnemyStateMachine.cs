@@ -326,6 +326,7 @@ public class EnemyStateMachine : MonoBehaviour
         // Animator doesn't know or care that the C# side gave up on it.
         if (state == EnemyState.Stun && currentState != EnemyState.Stun)
         {
+            FightSounds.Stun();
             if (anim != null)
             {
                 Debug.Log($"[EnemyStateMachine] Forcing Animator to \"{stunAnimationName}\" (entering Stun from {currentState}).");
@@ -522,6 +523,7 @@ public class EnemyStateMachine : MonoBehaviour
         // real still forces solid red right now regardless.
         if (telegraph != null) telegraph.SetColor(telegraphPerfectColor);
         requiredTag = attackType == 0 ? "ePunch" : "eKick";
+        FightSounds.EnemySwing(attackType != 0);
         foreach (var hitbox in hitBoxes)
         {
             bool isThisAttack = hitbox.CompareTag(requiredTag);

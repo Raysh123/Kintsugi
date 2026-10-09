@@ -120,6 +120,7 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
         }
 
         meterActive = true;
+        RecoverySoundscape.ActivityStarted(activity);
         StartCoroutine(RunInteraction());
     }
 
@@ -155,6 +156,7 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
         }
 
         SceneCameraManager.instance.ActivateCamera(activityCamera);
+        RecoverySoundscape.ActivityLoopStart(activity);
 
         // Activating fires Start() the very first time only, so ResetMinigame()
         // is what actually (re)starts it on every attempt, including the
@@ -173,18 +175,21 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
         if (meter.won)
         {
             Debug.Log("Won");
+            RecoverySoundscape.ActivityWon(activity);
             HealthAndMotivation.instance.ModifyHealth(winHealth);
             HealthAndMotivation.instance.ModifyMotivation(winMotivation);
         }
         else if (meter.lost)
         {
             Debug.Log("Lost");
+            RecoverySoundscape.ActivityLost(activity);
             HealthAndMotivation.instance.ModifyHealth(loseHealth);
             HealthAndMotivation.instance.ModifyMotivation(loseMotivation);
         }
         else if (meter.injured)
         {
             Debug.Log("Injured");
+            RecoverySoundscape.ActivityInjured(activity);
             HealthAndMotivation.instance.ModifyHealth(injuryHealth);
             HealthAndMotivation.instance.ModifyMotivation(injuryMotivation);
         }
@@ -199,6 +204,7 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
         CalendarManager.instance.AdvanceTime(activity.quadrantTicks);
 
         meter.gameObject.SetActive(false);
+        RecoverySoundscape.ActivityLoopStop(activity);
 
         player.interacting = false;
         meterActive = false;

@@ -21,7 +21,7 @@ public class PlayerController : MonoBehaviour
     public CapsuleCollider capCollider;
     public float dodgeTime;
     [Tooltip("How far the backward dash actually travels, over Dodge Time seconds.")]
-    [SerializeField] private float dodgeDistance = 6f;
+    [SerializeField] private float dodgeDistance = 2f;
     public LayerMask excludeMask;
     public LayerMask nothingLayer;
     public bool isHurt;
@@ -74,7 +74,7 @@ public class PlayerController : MonoBehaviour
         bool dodgePressed = InputHandler.instance.dodge && !dodgeWasHeld;
         dodgeWasHeld = InputHandler.instance.dodge;
 
-        if (dodgePressed)
+        if (dodgePressed && (PlayerStateMachine.instance == null || PlayerStateMachine.instance.TryConsumeDodge()))
         {
             controller.excludeLayers = excludeMask;
 
