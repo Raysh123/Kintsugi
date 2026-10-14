@@ -31,6 +31,18 @@ public class DmgDetection : MonoBehaviour
     [SerializeField] private string enemyLegTag = "";
     [Tooltip("Posture damage dealt by a leg hit. (A normal block adds 0.5; a Posture max of 0.8 stuns.)")]
     [SerializeField] private float legHitPostureDamage = 0.3f;
+    [Header("Hit knockback (so the models don't clip into each other)")]
+    [Tooltip("How far the victim is pushed back when a hit LANDS (player hitting the enemy, or the enemy " +
+             "hitting the player). Blocks keep using Knockback Dist above. 0 = off.")]
+    [SerializeField] private float hitKnockbackDist = 0.6f;
+    [Tooltip("The push is a quick slide over this many seconds instead of a teleport.")]
+    [SerializeField] private float hitKnockbackTime = 0.15f;
+    [Header("Debug")]
+    [Tooltip("Logs every scoring hit with the states involved, and warns when both sides score within " +
+             "a fraction of a second of each other.")]
+    [SerializeField] private bool logHits = true;
+    private static float lastPlayerScoreTime = -99f, lastEnemyScoreTime = -99f;
+
     [Header("Enemy hurt reactions (when the player's attack lands)")]
     [Tooltip("Animator state names on the enemy's animator. If a state doesn't exist, it falls " +
              "back to the other one (and logs a warning) instead of playing nothing.")]
@@ -59,10 +71,15 @@ public class DmgDetection : MonoBehaviour
     {
         CheckHit(other);
     }
-    IEnumerator InputLockWindow()
+    /// <summary>Stuns the player (state, animation, input lock, stars). Plays the stun sound once
+    /// per stun - hits that land while he's already stunned don't restart it.</summary>
+    void StunPlayer()
     {
-        yield return new WaitForSeconds(playerStateMachine != null ? playerStateMachine.stunDuration : 2f);
-        InputHandler.instance.SetInput(true);
+        if (playerStateMachine != null && playerStateMachine.EnterStun(playerPosture))
+        {
+            Debug.Log("Player stun");
+            FightSounds.Stun();
+        }
     }
     /// <summary>A hit on a leg collider: posture damage only - no points, no hit pause, no hurt
     /// reaction. Returns true if this collision was a leg hit (so the normal scoring is skipped).</summary>
@@ -101,11 +118,12 @@ public class DmgDetection : MonoBehaviour
             if (playerPosture != null) playerPosture.posDmg(legHitPostureDamage);
             if (playerPosture != null && playerPosture.postureSlider.value >= postureMaxVal)
             {
-                InputHandler.instance.SetInput(false);
-                Debug.Log("stun");
-                FightSounds.Stun();
+                StunPlayer();
             }
-            StartCoroutine(InputLockWindow());
+            else if (playerStateMachine != null)
+            {
+                playerStateMachine.PlayLegHurt();   // a small flinch (the stun, if it just triggered, plays its own animation)
+            }
             return true;
         }
         return false;
@@ -123,6 +141,8 @@ public class DmgDetection : MonoBehaviour
         {
             return;
         }
+        // The swap is an evasion: while it plays, enemy hitboxes can't touch the player.
+        if (PlayerSwap.Swapping && (gameObject.CompareTag("ePunch") || gameObject.CompareTag("eKick"))) return;
         if (TryResolveLegHit(other)) return;
         if (canDealDamage && other.transform.tag == "Body" && gameObject.tag == "Punch" && playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
         {
@@ -133,13 +153,15 @@ public class DmgDetection : MonoBehaviour
                 PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
-                    InputHandler.instance.SetInput(false);
-                    Debug.Log("stun");
-                    FightSounds.Stun();
+                    StunPlayer();
                 }
-                StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
                 hitRegistered = true;
+                return;
+            }
+            if (enemyStateMachine != null && enemyStateMachine.TryCounterDodge(false))
+            {
+                hitRegistered = true;   // this swing is spent - he slipped it
                 return;
             }
             if (enemyStateMachine != null)
@@ -150,8 +172,9 @@ public class DmgDetection : MonoBehaviour
                 if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
-            Debug.Log("Player hit");
+            LogScore(true);
             FightSounds.EnemyHit();
+            KnockbackEnemy();
             PlayEnemyHurt(enemyHurtOnPunchAnim, enemyHurtOnKickAnim);
             hitRegistered = true;
             if (matchScore != null) matchScore.AddPlayerPoint(PlayerMoveForScoring(PlayerStateMachine.AttackTypes.Punch));
@@ -166,13 +189,15 @@ public class DmgDetection : MonoBehaviour
                 PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
-                    InputHandler.instance.SetInput(false);
-                    Debug.Log("stun");
-                    FightSounds.Stun();
+                    StunPlayer();
                 }
-                StartCoroutine(InputLockWindow());
                 playerPosture.posDmg(0.5f);
                 hitRegistered = true;
+                return;
+            }
+            if (enemyStateMachine != null && enemyStateMachine.TryCounterDodge(true))
+            {
+                hitRegistered = true;   // this swing is spent - he slipped it
                 return;
             }
             if (enemyStateMachine != null)
@@ -183,8 +208,9 @@ public class DmgDetection : MonoBehaviour
                 if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
-            Debug.Log("Player hit");
+            LogScore(true);
             FightSounds.EnemyHit();
+            KnockbackEnemy();
             PlayEnemyHurt(enemyHurtOnKickAnim, enemyHurtOnPunchAnim);
             hitRegistered = true;
             if (matchScore != null) matchScore.AddPlayerPoint(PlayerMoveForScoring(PlayerStateMachine.AttackTypes.Kick));
@@ -230,11 +256,8 @@ public class DmgDetection : MonoBehaviour
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
-                        InputHandler.instance.SetInput(false);
-                        Debug.Log("stun");
-                        FightSounds.Stun();
+                        StunPlayer();
                     }
-                    StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
@@ -249,8 +272,9 @@ public class DmgDetection : MonoBehaviour
                 if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
-            Debug.Log("Enemy hit");
+            LogScore(false);
             FightSounds.PlayerHit();
+            KnockbackPlayer();
             if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
             hitRegistered = true;
             canDealDamage = false;
@@ -294,11 +318,8 @@ public class DmgDetection : MonoBehaviour
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
-                        InputHandler.instance.SetInput(false);
-                        Debug.Log("stun");
-                        FightSounds.Stun();
+                        StunPlayer();
                     }
-                    StartCoroutine(InputLockWindow());
                     playerPosture.posDmg(0.5f);
                     hitRegistered = true;
                     canDealDamage = false;
@@ -313,30 +334,80 @@ public class DmgDetection : MonoBehaviour
                 if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
-            Debug.Log("Enemy hit");
+            LogScore(false);
             FightSounds.PlayerHit();
+            KnockbackPlayer();
             if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
-            PushBackPlayer(enemyStateMachine.transform, knockbackDist);
             hitRegistered = true;
             if (matchScore != null) matchScore.AddEnemyPoint(PlayerStateMachine.AttackTypes.Kick);
             matchTimer.RegisterHit();
         }
     }
 
+    private void LogScore(bool playerScored)
+    {
+        float now = Time.time;
+        if (playerScored) lastPlayerScoreTime = now; else lastEnemyScoreTime = now;
+        if (!logHits) return;
+        Debug.Log($"[Hit] {(playerScored ? "PLAYER scores" : "ENEMY scores")} with '{gameObject.name}' ({gameObject.tag}) | " +
+                  $"enemyState={enemyStateMachine.currentState} counterWindow={enemyStateMachine.InCounterWindow} " +
+                  $"playerState={(playerStateMachine != null ? playerStateMachine.currentState.ToString() : "?")} " +
+                  $"playerAttackType={(playerStateMachine != null ? playerStateMachine.currentAttackType.ToString() : "?")}");
+        if (Mathf.Abs(lastPlayerScoreTime - lastEnemyScoreTime) < 0.3f)
+            Debug.LogWarning("[Hit] DOUBLE HIT: both sides scored within 0.3s of each other (see the two [Hit] lines above).");
+    }
+
+    private void KnockbackEnemy()
+    {
+        if (hitKnockbackDist <= 0f || enemyStateMachine == null || player == null) return;
+        StartCoroutine(SlideRoutine(enemyStateMachine.transform, player.transform, false));
+    }
+
+    private void KnockbackPlayer()
+    {
+        if (hitKnockbackDist <= 0f || enemyStateMachine == null || player == null) return;
+        StartCoroutine(SlideRoutine(player.transform, enemyStateMachine.transform, true));
+    }
+
+    /// <summary>Slides 'victim' directly away from 'source' along X over hitKnockbackTime.</summary>
+    private IEnumerator SlideRoutine(Transform victim, Transform source, bool usesController)
+    {
+        float dir = Mathf.Sign(victim.position.x - source.position.x);
+        if (dir == 0f) dir = 1f;
+        float t = 0f, moved = 0f, total = hitKnockbackDist, dur = Mathf.Max(0.02f, hitKnockbackTime);
+        while (t < dur)
+        {
+            t += Time.unscaledDeltaTime;
+            float target = total * Mathf.Clamp01(t / dur);
+            float step = target - moved;
+            moved = target;
+            Vector3 delta = new Vector3(dir * step, 0f, 0f);
+            if (usesController && player != null && player.controller != null && player.controller.enabled)
+                player.controller.Move(delta);
+            else
+                victim.position += delta;
+            yield return null;
+        }
+    }
+
     private void PlayEnemyHurt(string preferred, string fallback)
     {
-        if (anim == null) return;
+        // Always the ENEMY's own animator (his state machine knows it), not whatever this hitbox's own
+        // 'Anim' field happens to point at - if that field was ever assigned to the player's animator,
+        // the player would flinch every time he lands a hit.
+        Animator target = enemyStateMachine != null && enemyStateMachine.anim != null ? enemyStateMachine.anim : anim;
+        if (target == null) return;
+        if (logHits && anim != null && anim != target)
+            Debug.LogWarning($"[Hit] '{gameObject.name}' has its Anim field set to '{anim.gameObject.name}', which is NOT the " +
+                             $"enemy's animator ('{target.gameObject.name}'). Playing the hurt animation on the enemy anyway - " +
+                             $"you can clear or fix that field.");
 
-        if (anim.HasState(0, Animator.StringToHash(preferred)))
-        {
-            anim.Play(preferred);
-        }
-        else
-        {
+        string clip = target.HasState(0, Animator.StringToHash(preferred)) ? preferred : fallback;
+        if (clip != preferred)
             Debug.LogWarning($"[DmgDetection] Enemy animator has no state '{preferred}' - " +
                              $"playing '{fallback}' instead. Add the state, or change the name in the Inspector.");
-            anim.Play(fallback);
-        }
+        if (logHits) Debug.Log($"[Hit] Enemy hurt animation '{clip}' played on '{target.gameObject.name}'.");
+        target.Play(clip);
     }
 
     // Score by the move the player actually performed (set when they pressed punch/kick),

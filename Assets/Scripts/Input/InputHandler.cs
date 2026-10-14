@@ -11,6 +11,7 @@ public class InputHandler : MonoBehaviour
     public float speed;
     public bool dodge;
     public bool block;
+    public bool swap;
 
     private bool inputEnabled = true;
 
@@ -18,6 +19,41 @@ public class InputHandler : MonoBehaviour
     private void Awake()
     {
         instance = this;
+    }
+
+    private float diagTimer;
+    private bool diagReported;
+
+    private void Start()
+    {
+        // Build diagnostics: shows which PlayerInput owns the devices in THIS scene.
+        PlayerInput[] all = FindObjectsByType<PlayerInput>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Debug.Log($"[InputHandler] Scene '{gameObject.scene.name}': {all.Length} PlayerInput component(s) found.");
+        foreach (PlayerInput pi in all)
+        {
+            string devices = "";
+            foreach (var d in pi.devices) devices += d.displayName + ", ";
+            Debug.Log($"[InputHandler]  - '{pi.name}' (scene '{pi.gameObject.scene.name}') enabled={pi.enabled} " +
+                      $"active={pi.gameObject.activeInHierarchy} actions={(pi.actions != null ? pi.actions.name : "NONE")} " +
+                      $"map={(pi.currentActionMap != null ? pi.currentActionMap.name : "NONE")} " +
+                      $"scheme={pi.currentControlScheme} devices=[{devices}] notification={pi.notificationBehavior}");
+        }
+        if (all.Length == 0)
+            Debug.LogWarning("[InputHandler] No PlayerInput in the scene - nothing will ever call onMove/onPunch.");
+    }
+
+    private void Update()
+    {
+        // One-time: report what the keyboard does at the raw level, 3s in.
+        diagTimer += Time.unscaledDeltaTime;
+        if (!diagReported && diagTimer > 3f)
+        {
+            diagReported = true;
+            Debug.Log($"[InputHandler] After 3s: inputEnabled={inputEnabled}, timeScale={Time.timeScale}, " +
+                      $"Keyboard.current={(Keyboard.current != null ? Keyboard.current.displayName : "NULL")}");
+        }
+        if (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame && Time.frameCount % 1 == 0)
+            Debug.Log($"[InputHandler] key pressed. inputEnabled={inputEnabled} move={move} punch={punch} kick={kick} block={block} dodge={dodge}");
     }
     public void SetInput(bool enabled)
     {
@@ -30,7 +66,15 @@ public class InputHandler : MonoBehaviour
             punch = false;
             dodge = false;
             block = false;
+            swap = false;
         }
+    }
+    /// <summary>Wire this to the "Swap" action in the PlayerInput Invoke Unity Events list.</summary>
+    public void onSwap(InputAction.CallbackContext ctx)
+    {
+        if (!inputEnabled) return;
+        if (ctx.performed) swap = true;
+        else if (ctx.canceled) swap = false;
     }
     public void onMove(InputAction.CallbackContext ctx)
     {

@@ -62,6 +62,9 @@ public class PostFightHandler : MonoBehaviour
         // Consume immediately so this doesn't replay if the scene reloads again later.
         FightSessionManager.ClearPendingResult();
 
+        SparringPartner partner = FightSelectionMenu.pendingPartner;
+        FightSelectionMenu.pendingPartner = SparringPartner.None;
+
         SpawnPoint spawn = FindSpawn(spawnId);
         if (spawn != null)
         {
@@ -90,6 +93,16 @@ public class PostFightHandler : MonoBehaviour
         }
 
         if (player != null) player.movementLocked = false;
+
+        // Beat a sparring partner: record it AFTER their win dialogue. If that was the second one,
+        // StoryManager jumps straight to the ending (EndGameController takes it from there).
+        if (won && partner != SparringPartner.None)
+        {
+            if (StoryManager.instance != null)
+                StoryManager.instance.RegisterPartnerDefeated(partner == SparringPartner.PartnerA);
+            else
+                Debug.LogWarning("[PostFightHandler] StoryManager.instance is null - partner win not recorded.");
+        }
 
         if (CalendarManager.instance != null)
             CalendarManager.instance.AdvanceTime(fightTimeCostTicks);

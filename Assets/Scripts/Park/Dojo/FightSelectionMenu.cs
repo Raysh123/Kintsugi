@@ -13,8 +13,15 @@ using UnityEngine.UI;
 ///
 /// Requires an EventSystem in the scene, same as any other Unity UI Button / TravelMapController.
 /// </summary>
+public enum SparringPartner { None, PartnerA, PartnerB }
+
 public class FightSelectionMenu : MonoBehaviour
 {
+    /// <summary>Who the fight that is about to start is against. Read (and cleared) by
+    /// PostFightHandler when the player comes back with a win. Static, so it survives the
+    /// scene change to the fight and back.</summary>
+    public static SparringPartner pendingPartner = SparringPartner.None;
+
     [System.Serializable]
     public class FightOption
     {
@@ -29,6 +36,9 @@ public class FightSelectionMenu : MonoBehaviour
         public string returnSpawnPointId;
         [Tooltip("Whatever identifier your fight scene uses to pick the opponent/difficulty.")]
         public string opponentId;
+        [Tooltip("Is this one of the two sparring partners that count towards the tournament? " +
+                 "Beating BOTH ends the game immediately. None = a normal fight.")]
+        public SparringPartner partner = SparringPartner.None;
     }
 
     [Header("Options")]
@@ -165,6 +175,7 @@ public class FightSelectionMenu : MonoBehaviour
         }
 
         Close();
+        pendingPartner = option.partner;
         FightSessionManager.BeginFight(option.fightSceneName, option.returnSpawnPointId, option.opponentId);
     }
 }

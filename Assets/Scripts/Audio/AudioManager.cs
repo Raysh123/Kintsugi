@@ -366,7 +366,8 @@ public class AudioManager : MonoBehaviour
         if (fadeInTime > 0f)
             StartLoopFade(loopKey, source, source.volume, targetVolume, fadeInTime, stopAtEnd: false);
 
-        Debug.Log($"[AudioManager] Started loop '{loopKey}' ('{soundId}').");
+        Debug.Log($"[AudioManager] Started loop '{loopKey}' ('{soundId}') clip '{clip.name}' length {clip.length:F2}s, " +
+                  $"loadState {clip.loadState}, volume {targetVolume:F2}, pitch {source.pitch:F2}.");
 
         return source;
     }
@@ -434,9 +435,11 @@ public class AudioManager : MonoBehaviour
     /// Crossfades to the music track with this id: the currently playing channel fades out
     /// while the other channel fades in, over fadeTime seconds. Safe to call again mid-fade
     /// (restarts the crossfade toward the new target). Calling with the id that's already
-    /// the active track is a no-op.
+    /// the active track is a no-op. incomingFadeTime (optional): fade-in time for the NEW track on
+    /// its own - 0 starts it at full volume instantly while the old one still fades over fadeTime.
+    /// Default (-1) = same as fadeTime.
     /// </summary>
-    public void PlayMusic(string musicId, float fadeTime = 1.5f)
+    public void PlayMusic(string musicId, float fadeTime = 1.5f, float incomingFadeTime = -1f)
     {
         if (musicId == currentMusicId && activeMusicChannel >= 0 &&
             musicChannels[activeMusicChannel].isPlaying)
@@ -458,7 +461,11 @@ public class AudioManager : MonoBehaviour
             return;
         }
 
-        int nextChannel = activeMusicChannel == 0 ? 1 : 0;
+        // A track that StopMusic is still fading out keeps its channel - don't start on top of it.
+        int busyChannel = activeMusicChannel;
+        if (busyChannel < 0)
+            busyChannel = musicChannels[0].isPlaying ? 0 : (musicChannels[1].isPlaying ? 1 : -1);
+        int nextChannel = busyChannel == 0 ? 1 : 0;
         AudioSource incoming = musicChannels[nextChannel];
         AudioSource outgoing = activeMusicChannel >= 0 ? musicChannels[activeMusicChannel] : null;
 
@@ -470,7 +477,7 @@ public class AudioManager : MonoBehaviour
         incoming.Play();
 
         if (musicFadeRoutine != null) StopCoroutine(musicFadeRoutine);
-        musicFadeRoutine = StartCoroutine(CrossfadeMusic(incoming, outgoing, sound.volume, fadeTime));
+        musicFadeRoutine = StartCoroutine(CrossfadeMusic(incoming, outgoing, sound.volume, fadeTime, incomingFadeTime));
 
         activeMusicChannel = nextChannel;
         currentMusicId = musicId;
@@ -486,13 +493,18 @@ public class AudioManager : MonoBehaviour
         AudioSource outgoing = musicChannels[activeMusicChannel];
 
         if (musicFadeRoutine != null) StopCoroutine(musicFadeRoutine);
-        musicFadeRoutine = StartCoroutine(CrossfadeMusic(null, outgoing, 0f, fadeTime));
+        musicFadeRoutine = null;
+
+        // Its own fade (not the shared crossfade routine) so a PlayMusic right after can't cancel
+        // it and leave this track stuck at half volume.
+        if (fadeTime <= 0f) outgoing.Stop();
+        else StartCoroutine(FadeSource(outgoing, outgoing.volume, 0f, fadeTime, true));
 
         activeMusicChannel = -1;
         currentMusicId = null;
     }
 
-    private IEnumerator CrossfadeMusic(AudioSource incoming, AudioSource outgoing, float targetVolume, float fadeTime)
+    private IEnumerator CrossfadeMusic(AudioSource incoming, AudioSource outgoing, float targetVolume, float fadeTime, float incomingFadeTime = -1f)
     {
         float outgoingStartVolume = outgoing != null ? outgoing.volume : 0f;
 
@@ -507,13 +519,17 @@ public class AudioManager : MonoBehaviour
             yield break;
         }
 
+        if (incomingFadeTime < 0f) incomingFadeTime = fadeTime;
+        if (incoming != null && incomingFadeTime <= 0f) incoming.volume = targetVolume;
+
         float t = 0f;
         while (t < fadeTime)
         {
             t += Time.deltaTime;
             float f = t / fadeTime;
 
-            if (incoming != null) incoming.volume = Mathf.Lerp(0f, targetVolume, f);
+            if (incoming != null && incomingFadeTime > 0f)
+                incoming.volume = Mathf.Lerp(0f, targetVolume, Mathf.Clamp01(t / incomingFadeTime));
             if (outgoing != null) outgoing.volume = Mathf.Lerp(outgoingStartVolume, 0f, f);
 
             yield return null;

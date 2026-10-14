@@ -1,5 +1,4 @@
-﻿using NUnit.Framework;
-using NUnit.Framework.Constraints;
+﻿
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,6 +11,9 @@ public class PlayerController : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private float speed = 5f;
     [SerializeField] private float facingRotationSpeed = 50f;
+    [Range(0.1f, 1f)]
+    [Tooltip("Walking AWAY from the opponent is this fraction of the forward walking speed (0.75 = 75%).")]
+    [SerializeField] private float backwardSpeedMultiplier = 0.75f;
 
     public CharacterController controller;
     private float moveX;
@@ -29,6 +31,16 @@ public class PlayerController : MonoBehaviour
     public bool hurtBody;
     public Vector3 PlayerInitPos;
     public MatchTimer matchTimer;
+
+    /// <summary>Scales walking speed. 1 = normal. PlayerStateMachine lowers it during a moving punch / kick.</summary>
+    [System.NonSerialized] public float moveSpeedMultiplier = 1f;
+
+    [Header("Opponent is solid")]
+    [Tooltip("ON = you can't walk into or through the opponent; you stop at Min Body Gap. (Use the swap to get past.)")]
+    [SerializeField] private bool blockWalkingThroughOpponent = true;
+    [Tooltip("Closest you can walk up to the opponent, measured along X between the two pivots. Raise it if " +
+             "the models still overlap when you stop, lower it if there's a visible gap.")]
+    [SerializeField] private float minBodyGap = 0.8f;
 
     private bool dodgeWasHeld;
     private Coroutine dodgeRoutine;
@@ -60,10 +72,13 @@ public class PlayerController : MonoBehaviour
         {
             return;
         }
-        HandleMovement();
-        HandleFacing();
+        // Stunned: no walking, no dodging (input is also locked in InputHandler, this is the backstop).
+        bool stunned = PlayerStateMachine.instance != null && PlayerStateMachine.instance.IsStunned;
+        bool locked = stunned || PlayerSwap.Swapping;
+        if (!locked) HandleMovement();
+        if (!PlayerSwap.Swapping) HandleFacing();   // the swap turns the player itself
         HandleAttack();
-        HandleDodge();
+        if (!locked) HandleDodge();
     }
 
     private void HandleDodge()
@@ -75,12 +90,16 @@ public class PlayerController : MonoBehaviour
         dodgeWasHeld = InputHandler.instance.dodge;
 
         if (dodgePressed && (PlayerStateMachine.instance == null || PlayerStateMachine.instance.TryConsumeDodge()))
-        {
-            controller.excludeLayers = excludeMask;
+            StartDodgeDash();
+    }
 
-            if (dodgeRoutine != null) StopCoroutine(dodgeRoutine);
-            dodgeRoutine = StartCoroutine(DodgeDashRoutine());
-        }
+    /// <summary>Starts the backward dash. Public so PlayerSwap can release a dodge it held back.</summary>
+    public void StartDodgeDash()
+    {
+        controller.excludeLayers = excludeMask;
+
+        if (dodgeRoutine != null) StopCoroutine(dodgeRoutine);
+        dodgeRoutine = StartCoroutine(DodgeDashRoutine());
     }
 
     /// <summary>Actually moves the player a short distance directly away from the opponent
@@ -130,7 +149,27 @@ public class PlayerController : MonoBehaviour
             { facingRight = false; }
 
             move = new Vector3(InputHandler.instance.move, 0f, 0f);
-            controller.Move(move * speed * Time.deltaTime);
+            Vector3 delta = move * speed * moveSpeedMultiplier * Time.deltaTime;
+
+            // Walking away from the opponent is slower than walking toward him.
+            if (opponent != null)
+            {
+                float toward = Mathf.Sign(opponent.position.x - transform.position.x);
+                if (delta.x * toward < 0f) delta.x *= backwardSpeedMultiplier;
+            }
+
+            // Solid opponent: can't walk into / through him. Walking away is always allowed.
+            if (blockWalkingThroughOpponent && opponent != null)
+            {
+                float towardSign = Mathf.Sign(opponent.position.x - transform.position.x);
+                float gap = Mathf.Abs(opponent.position.x - transform.position.x);
+                if (delta.x * towardSign > 0f)
+                {
+                    float allowed = Mathf.Max(0f, gap - minBodyGap);
+                    if (Mathf.Abs(delta.x) > allowed) delta.x = towardSign * allowed;
+                }
+            }
+            controller.Move(delta);
         }
 
     }

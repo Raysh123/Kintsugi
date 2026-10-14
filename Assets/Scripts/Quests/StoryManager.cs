@@ -69,6 +69,9 @@ public class StoryManager : MonoBehaviour
 
     public event Action<StoryPhase> OnScheduledEventTriggered;
 
+    /// <summary>Fired when the tournament deadline passes without both partners beaten.</summary>
+    public event Action OnGameOver;
+
     // Tracks when the CURRENT phase began, generically — set once at Awake for the
     // starting phase, then re-set on every SetPhase() transition. This is what lets
     // DialogueBlock's "day number since phase started" narrowing work for ANY phase,
@@ -250,7 +253,10 @@ public class StoryManager : MonoBehaviour
         Debug.Log($"[Story] Partner A: {beatenPartnerA}, Partner B: {beatenPartnerB}");
 
         if (BothPartnersBeaten)
-            Debug.Log("[Story] Both partners beaten - player can now talk to Sensei to advance to tournament.");
+        {
+            Debug.Log("[Story] Both partners beaten - ending the game now (no waiting for the tournament date).");
+            TryAdvanceToPhase(StoryPhase.TournamentDay);
+        }
     }
 
     /// <summary>
@@ -272,6 +278,7 @@ public class StoryManager : MonoBehaviour
     private void HandleGameOver()
     {
         Debug.Log("[Story] Game over - tournament deadline passed without beating both partners.");
+        OnGameOver?.Invoke();
         // For the demo: hard reset to start of game
         // UnityEngine.SceneManagement.SceneManager.LoadScene(0);
     }

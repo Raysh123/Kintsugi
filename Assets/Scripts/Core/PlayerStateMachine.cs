@@ -12,7 +12,9 @@ public class PlayerStateMachine : MonoBehaviour
         Attack,
         Dodge,
         Block,
-        Hurt
+        Hurt,
+        Stun,
+        Injured
     };
 
     [Header("Stun")]
@@ -20,6 +22,60 @@ public class PlayerStateMachine : MonoBehaviour
              "attack is blocked). Read by DmgDetection - this used to be hardcoded at 2 seconds " +
              "there, per hitbox.")]
     public float stunDuration = 2f;
+    [Tooltip("Animator state played during a stun. If it doesn't exist, nothing plays (and a " +
+             "warning is logged).")]
+    [SerializeField] private string stunAnim = "Stun";
+    [Range(0f, 1f)]
+    [Tooltip("Posture value he is set to when the stun ends. 0 = empty, so the stun can't " +
+             "immediately trigger again.")]
+    [SerializeField] private float postureAfterStun = 0f;
+
+    public bool IsStunned => currentState == PlayerStates.Stun;
+    private Coroutine stunRoutine;
+
+    /// <summary>Stuns the player for Stun Duration: cancels whatever he was doing, plays the
+    /// stun animation, locks input and shows the stars. Returns false if he's already stunned.
+    /// Pass his Posture so it can be emptied when the stun ends.</summary>
+    public bool EnterStun(Posture posture)
+    {
+        if (currentState == PlayerStates.Stun) return false;
+
+        StopAllCoroutines();   // attack / block / hurt routines must not carry on during a stun
+        isAttacking = false;
+        SetPlayerHitWindow(false);
+        stunRoutine = StartCoroutine(StunRoutine(posture));
+        return true;
+    }
+
+    private IEnumerator StunRoutine(Posture posture)
+    {
+        ChangeState(PlayerStates.Stun);
+        if (InputHandler.instance != null) InputHandler.instance.SetInput(false);
+        StunHalo.Begin(true, stunDuration);
+
+        if (animator != null)
+        {
+            if (animator.HasState(0, Animator.StringToHash(stunAnim))) animator.Play(stunAnim);
+            else Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{stunAnim}' - no stun animation plays.");
+        }
+
+        yield return new WaitForSeconds(stunDuration);
+        EndStun(posture);
+    }
+
+    private void EndStun(Posture posture)
+    {
+        stunRoutine = null;
+        if (posture != null) posture.postureSlider.value = postureAfterStun;
+        if (InputHandler.instance != null) InputHandler.instance.SetInput(true);
+        StunHalo.Stop(true);
+        nextAttackTime = Time.time + attackRecovery;
+        if (currentState == PlayerStates.Stun)
+        {
+            ChangeState(PlayerStates.Idle);
+            if (animator != null) animator.Play("Idle");
+        }
+    }
 
     public enum AttackTypes
     {
@@ -27,6 +83,37 @@ public class PlayerStateMachine : MonoBehaviour
         Punch,
         Kick
     };
+
+    /// <summary>The injury meter filled: cancel whatever the player is doing (attack, block, dodge, hurt, stun) at
+    /// once and play ONE animation. He stays locked in the Injured state - nothing else may change his pose.
+    /// blendTime 0 = snap straight into the animation; &gt;0 = cross-fade from the current pose.</summary>
+    public void EnterInjured(string animName, float blendTime)
+    {
+        bool wasStunned = currentState == PlayerStates.Stun;
+        StopAllCoroutines();   // attack / block / hurt / stun / lunge routines must not carry on
+        stunRoutine = null;
+        hurtRoutine = null;
+        isAttacking = false;
+        SetPlayerHitWindow(false);
+        if (wasStunned) StunHalo.Stop(true);
+        ChangeState(PlayerStates.Injured);   // also resets the walking speed multiplier
+        if (player != null) { player.isHurt = false; player.hurtFace = false; player.hurtBody = false; }
+        if (InputHandler.instance != null) InputHandler.instance.SetInput(false);
+
+        if (animator == null || string.IsNullOrEmpty(animName)) return;
+        int hash = Animator.StringToHash(animName);
+        if (!animator.HasState(0, hash))
+        {
+            Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{animName}' - no injury animation plays.");
+            return;
+        }
+        if (blendTime > 0f) animator.CrossFadeInFixedTime(hash, blendTime, 0, 0f);
+        else animator.Play(hash, 0, 0f);
+    }
+
+    /// <summary>The match is over (win / lose): same as EnterInjured - cancels hurt / attack / stun routines that
+    /// would otherwise overwrite the final animation, then plays it and locks the pose.</summary>
+    public void EnterFinalPose(string animName, float blendTime = 0f) => EnterInjured(animName, blendTime);
 
     public AttackTypes currentAttackType { get; private set; }
     public PlayerStates currentState;
@@ -39,6 +126,69 @@ public class PlayerStateMachine : MonoBehaviour
     private MatchTimer matchTimer;
     [SerializeField] private float perfectBlockWindow = 0.15f;
     [SerializeField] private float normalBlockWindow = 0.50f;
+
+    [Header("Perfect block by DISTANCE")]
+    [Tooltip("ON = a block is PERFECT when, at the moment you press it, the striking hand / foot is within 'Perfect Block Distance' " +
+             "of your body (how far the attack still is from landing). OFF = the old rule: pressed within 'Perfect Block Window' " +
+             "seconds before the hit. Distance doesn't care how fast the attack is, so a slow punch and a fast kick both feel fair.")]
+    [SerializeField] private bool perfectByDistance = true;
+    [Tooltip("World units between his striking hand / foot and your body (collider surface) at the moment you press block. " +
+             "Bigger = more forgiving. Watch the [Block] line in the Console to tune it.")]
+    [SerializeField] private float perfectBlockDistance = 0.9f;
+    [SerializeField] private bool logBlockDistance = true;
+    public bool PerfectByDistance => perfectByDistance;
+    public float PerfectBlockDistance => perfectBlockDistance;
+
+    private bool distancePerfect;
+    private Collider[] bodyColliders;
+    private DmgDetection[] enemyAttackBoxes;
+
+    /// <summary>World-unit gap between the enemy's striking limb (the hitbox of the strike that is coming - hands for a punch,
+    /// feet for a kick) and the player's body. -1 = nothing is incoming (he is not attacking / no hitbox found).</summary>
+    public float IncomingLimbGap()
+    {
+        if (enemy == null || enemy.currentState != EnemyStateMachine.EnemyState.Attack) return -1f;
+
+        if (enemyAttackBoxes == null || enemyAttackBoxes.Length == 0)
+        {
+            var all = enemy.GetComponentsInChildren<DmgDetection>(true);
+            var keep = new List<DmgDetection>();
+            foreach (var d in all) if (d.CompareTag("ePunch") || d.CompareTag("eKick")) keep.Add(d);
+            enemyAttackBoxes = keep.ToArray();
+        }
+        if (bodyColliders == null || bodyColliders.Length == 0)
+        {
+            Transform root = player != null ? player.transform : transform;
+            var all = root.GetComponentsInChildren<Collider>(true);
+            var keep = new List<Collider>();
+            foreach (var c in all) if (c.CompareTag("pBody")) keep.Add(c);
+            bodyColliders = keep.ToArray();
+        }
+        if (enemyAttackBoxes.Length == 0) return -1f;
+
+        string tag = enemy.HitWindowOpen ? enemy.requiredTag : (enemy.IncomingIsPunch() ? "ePunch" : "eKick");
+
+        float best = float.MaxValue;
+        foreach (var box in enemyAttackBoxes)
+        {
+            if (box == null || !box.CompareTag(tag)) continue;
+            Vector3 p = box.transform.position;
+            float gap;
+            if (bodyColliders.Length > 0)
+            {
+                gap = float.MaxValue;
+                foreach (var bc in bodyColliders)
+                {
+                    if (bc == null || !bc.enabled) continue;
+                    gap = Mathf.Min(gap, Vector3.Distance(p, bc.ClosestPoint(p)));
+                }
+                if (gap == float.MaxValue) gap = Mathf.Abs(p.x - (player != null ? player.transform.position.x : transform.position.x));
+            }
+            else gap = Mathf.Abs(p.x - (player != null ? player.transform.position.x : transform.position.x));
+            best = Mathf.Min(best, gap);
+        }
+        return best == float.MaxValue ? -1f : best;
+    }
     [Header("Player Hit Window (fraction of the attack animation's length)")]
     [Tooltip("Your hitboxes only count a hit between these two points of the animation, the same " +
              "way the enemy's do. Before the start there's wind-up and can't score, so pressing " +
@@ -48,6 +198,31 @@ public class PlayerStateMachine : MonoBehaviour
     [Range(0f, 1f)][SerializeField] private float kickHitStart = 0.35f;
     [Range(0f, 1f)][SerializeField] private float kickHitEnd = 0.7f;
 
+    [Header("Moving punch (punch while walking toward the opponent)")]
+    [Tooltip("Press punch while walking FORWARD (toward the opponent) and this animator state plays instead " +
+             "of the standing punch. Leave blank, or if the state doesn't exist, the normal punch is used " +
+             "(still thrown while walking).")]
+    [SerializeField] private string movingPunchAnim = "Moving_Punch";
+    [Range(0f, 1f)]
+    [Tooltip("How fast you keep walking DURING a moving punch / kick, as a fraction of normal walking speed. " +
+             "This was the main reason it felt too fast: you were walking at full speed through the whole " +
+             "animation. 0.3 = a gentle drift forward; 0 = no walking at all, only the lunge below.")]
+    [SerializeField] private float movingAttackWalkSpeed = 0.3f;
+    [Tooltip("Extra step forward during the punch, in units, on top of normal walking. 0 = just keep walking.")]
+    [SerializeField] private float movingPunchLunge = 0.25f;
+    [Tooltip("The lunge never carries you closer than this to the opponent.")]
+    [SerializeField] private float movingPunchMinGap = 0.9f;
+    [Range(0f, 1f)][SerializeField] private float movingPunchHitStart = 0.3f;
+    [Range(0f, 1f)][SerializeField] private float movingPunchHitEnd = 0.65f;
+
+    [Header("Moving kick (kick while walking toward the opponent)")]
+    [Tooltip("Same idea as the moving punch: kick while pushing toward the opponent and this state plays " +
+             "instead of the standing kick. Blank / missing state = the normal kick.")]
+    [SerializeField] private string movingKickAnim = "Moving_Kick";
+    [SerializeField] private float movingKickLunge = 0.25f;
+    [Range(0f, 1f)][SerializeField] private float movingKickHitStart = 0.35f;
+    [Range(0f, 1f)][SerializeField] private float movingKickHitEnd = 0.7f;
+
     [Header("Hurt reactions (which animation plays depends on the incoming attack)")]
     [SerializeField] private string hurtOnPunchAnim = "Hurt_Face";
     [SerializeField] private string hurtOnKickAnim = "Hurt_Balls";
@@ -55,8 +230,24 @@ public class PlayerStateMachine : MonoBehaviour
     [SerializeField] private float hurtDuration = 0.5f;
     private Coroutine hurtRoutine;
 
+    [Header("Leg hit (a small flinch, no point)")]
+    [Tooltip("Animator state played when the enemy lands a leg hit on the player. Blank / missing state = nothing plays.")]
+    [SerializeField] private string legHurtAnim = "Hurt_Leg";
+    [Tooltip("How long (seconds) the flinch holds him before he can act again. Keep it short.")]
+    [SerializeField] private float legHurtDuration = 0.3f;
+
     [Header("Action Limits")]
     [SerializeField] private float attackRecovery = 0.25f;
+    [Tooltip("A punch / kick pressed up to this many seconds BEFORE he is able to attack (still in the previous " +
+             "attack, a block, a hurt...) is remembered and fires the moment he can, instead of being dropped. " +
+             "This is the main fix for punches that 'take a while'. 0 = off.")]
+    [SerializeField] private float inputBufferTime = 0.25f;
+    [Range(0.3f, 1f)]
+    [Tooltip("How much of the attack's follow-through (the part after the hit window) he must wait out before " +
+             "he can act again. 1 = the whole animation (old behaviour), 0.6 = he can punch again 40% sooner.")]
+    [SerializeField] private float attackRecoverFraction = 0.7f;
+    private float punchBufferedUntil = -1f;
+    private float kickBufferedUntil = -1f;
     [SerializeField] private float blockCooldown = 0.6f;
 
     private float lastBlockPressTime = -999f;
@@ -101,37 +292,71 @@ public class PlayerStateMachine : MonoBehaviour
         if (player.isHurt)
         { currentState = PlayerStates.Hurt; }
 
-        if (punchPressed && Time.time >= nextAttackTime && currentState == PlayerStates.Idle)
+        // Remember a press for a moment, so one made slightly too early still fires.
+        if (punchPressed) { punchBufferedUntil = Time.time + inputBufferTime; kickBufferedUntil = -1f; }
+        if (kickPressed) { kickBufferedUntil = Time.time + inputBufferTime; punchBufferedUntil = -1f; }
+        bool wantPunch = punchPressed || Time.time <= punchBufferedUntil;
+        bool wantKick = kickPressed || Time.time <= kickBufferedUntil;
+
+        bool canStartAttack = !PlayerSwap.Swapping && Time.time >= nextAttackTime &&
+                              (currentState == PlayerStates.Idle || currentState == PlayerStates.Move);
+        if (canStartAttack && (wantPunch || wantKick)) { punchBufferedUntil = kickBufferedUntil = -1f; }
+        if (wantPunch && canStartAttack)
         {
             currentAttackType = AttackTypes.Punch;
-            StartCoroutine(PlayerAttackRoutine("Kizami_Tsuki"));
+            bool movingForward = IsMovingForward();
+            string anim = "Kizami_Tsuki";
+            if (movingForward && !string.IsNullOrEmpty(movingPunchAnim) &&
+                animator.HasState(0, Animator.StringToHash(movingPunchAnim)))
+                anim = movingPunchAnim;
+            StartCoroutine(PlayerAttackRoutine(anim, movingForward));
         }
-        else if (kickPressed && Time.time >= nextAttackTime && currentState == PlayerStates.Idle)
+        else if (wantKick && canStartAttack)
         {
             currentAttackType = AttackTypes.Kick;
-            StartCoroutine(PlayerAttackRoutine("YokoGeri"));
+            bool movingForward = IsMovingForward();
+            string anim = "YokoGeri";
+            if (movingForward && !string.IsNullOrEmpty(movingKickAnim) &&
+                animator.HasState(0, Animator.StringToHash(movingKickAnim)))
+                anim = movingKickAnim;
+            StartCoroutine(PlayerAttackRoutine(anim, movingForward));
         }
 
-        if (blockPressed &&
+        if (blockPressed && !PlayerSwap.Swapping &&
             Time.time >= nextBlockTime &&
             (currentState == PlayerStates.Idle || currentState == PlayerStates.Move))
         {
-            nextBlockTime = Time.time + blockCooldown;
-            lastBlockPressTime = Time.time;
-            perfectBlockUsed = false;
-            if (InjuryMeter.instance != null) InjuryMeter.instance.AddBlockInjury();
-
-            if (enemy != null && enemy.requiredTag == "ePunch")
-            {
-                animator.Play("Upper_Block");
-            }
-            else
-            {
-                animator.Play("Lower_Block");
-            }
-
-            StartCoroutine(BlockRoutine());
+            StartBlock();
         }
+    }
+
+    /// <summary>Starts a block right now (perfect-block timing counts from this moment). Also used by
+    /// the swap, so a swap is a block too.</summary>
+    public void StartBlock()
+    {
+        nextBlockTime = Time.time + blockCooldown;
+        lastBlockPressTime = Time.time;
+        perfectBlockUsed = false;
+        if (perfectByDistance)
+        {
+            float gap = IncomingLimbGap();
+            distancePerfect = gap >= 0f && gap <= perfectBlockDistance;
+            if (logBlockDistance)
+                Debug.Log(gap < 0f ? "[Block] pressed with nothing incoming -> normal block."
+                                   : $"[Block] pressed with the strike {gap:F2} away (perfect if <= {perfectBlockDistance:F2}) -> {(distancePerfect ? "PERFECT" : "normal")}.");
+        }
+        if (InjuryMeter.instance != null) InjuryMeter.instance.AddBlockInjury();
+
+        if (enemy != null && enemy.requiredTag == "ePunch")
+        {
+            animator.Play("Upper_Block");
+        }
+        else
+        {
+            animator.Play("Lower_Block");
+        }
+
+        StartCoroutine(BlockRoutine());
     }
     IEnumerator BlockRoutine()
     {
@@ -158,6 +383,14 @@ public class PlayerStateMachine : MonoBehaviour
     public bool TryConsumeDodge()
     {
         if (dodgeGrantedFrame == Time.frameCount) return true;
+        // The swap (block + dodge together) may hold this dodge back for a moment, or take it over.
+        if (swap != null && swap.InterceptDodgeRequest()) return false;
+        return GrantDodge();
+    }
+
+    private bool GrantDodge()
+    {
+        if (dodgeGrantedFrame == Time.frameCount) return true;
         if (Time.time < nextDodgeTime) return false;
 
         float dashTime = player != null ? player.dodgeTime : 0f;
@@ -166,9 +399,30 @@ public class PlayerStateMachine : MonoBehaviour
         if (InjuryMeter.instance != null) InjuryMeter.instance.AddDodgeInjury();
         return true;
     }
+    /// <summary>For PlayerSwap: charges the dodge (cooldown + injury meter) for a swap.</summary>
+    public bool ConsumeDodgeForSwap() => GrantDodge();
+
+    /// <summary>For PlayerSwap: the leeway ran out with no block, so do the normal dodge now.</summary>
+    public void BeginDodgeNow()
+    {
+        if (!GrantDodge()) return;
+        if (player != null) player.StartDodgeDash();
+        if (currentState == PlayerStates.Idle || currentState == PlayerStates.Move)
+        {
+            ChangeState(PlayerStates.Dodge);
+            animator.Play("Dodge_2");
+        }
+    }
+
+    private PlayerSwap swap;
+    public void RegisterSwap(PlayerSwap s) { swap = s; }
+    public float LastBlockPressTime => lastBlockPressTime;
+
     public bool TryPerfectBlock()
     {
-        bool insidePerfectWindow = Time.time - lastBlockPressTime <= perfectBlockWindow;
+        bool insidePerfectWindow = perfectByDistance
+            ? (distancePerfect && Time.time - lastBlockPressTime <= normalBlockWindow)
+            : Time.time - lastBlockPressTime <= perfectBlockWindow;
         if (!insidePerfectWindow || perfectBlockUsed)
             return false;
 
@@ -192,6 +446,7 @@ public class PlayerStateMachine : MonoBehaviour
             }
         }
         currentState = newState;
+        if (newState != PlayerStates.Attack && player != null) player.moveSpeedMultiplier = 1f;
     }
     private void HandleStates()
     {
@@ -273,7 +528,16 @@ public class PlayerStateMachine : MonoBehaviour
         // Attacks begin only from a fresh press in Update.
     }
 
-    IEnumerator PlayerAttackRoutine(string animName)
+    /// <summary>True when the stick is pushed toward the opponent.</summary>
+    private bool IsMovingForward()
+    {
+        if (player == null || player.opponent == null) return false;
+        float toward = Mathf.Sign(player.opponent.position.x - player.transform.position.x);
+        float stick = InputHandler.instance != null ? InputHandler.instance.move : player.move.x;
+        return stick * toward > 0.01f;
+    }
+
+    IEnumerator PlayerAttackRoutine(string animName, bool moving = false)
     {
         isAttacking = true;
         ChangeState(PlayerStates.Attack);
@@ -284,8 +548,15 @@ public class PlayerStateMachine : MonoBehaviour
         float duration = animator.GetCurrentAnimatorStateInfo(0).length;
 
         bool isPunch = currentAttackType == AttackTypes.Punch;
-        float start = Mathf.Clamp01(isPunch ? punchHitStart : kickHitStart);
-        float end = Mathf.Clamp(isPunch ? punchHitEnd : kickHitEnd, start, 1f);
+        float start = Mathf.Clamp01(moving ? (isPunch ? movingPunchHitStart : movingKickHitStart) : isPunch ? punchHitStart : kickHitStart);
+        float end = Mathf.Clamp(moving ? (isPunch ? movingPunchHitEnd : movingKickHitEnd) : isPunch ? punchHitEnd : kickHitEnd, start, 1f);
+
+        if (moving && player != null) player.moveSpeedMultiplier = movingAttackWalkSpeed;
+
+        // Moving attack: step forward over the wind-up, on top of (slowed) walking.
+        float lunge = isPunch ? movingPunchLunge : movingKickLunge;
+        if (moving && lunge > 0f && player != null && player.controller != null && player.opponent != null)
+            StartCoroutine(MovingPunchLunge(duration * Mathf.Max(0.05f, start), lunge));
 
         SetPlayerHitWindow(false);
         yield return new WaitForSeconds(duration * start);
@@ -293,11 +564,26 @@ public class PlayerStateMachine : MonoBehaviour
         FightSounds.PlayerSwing(currentAttackType == AttackTypes.Kick);
         yield return new WaitForSeconds(duration * (end - start));
         SetPlayerHitWindow(false);
-        yield return new WaitForSeconds(duration * (1f - end));
+        yield return new WaitForSeconds(duration * (1f - end) * attackRecoverFraction);
 
         isAttacking = false;
         nextAttackTime = Time.time + attackRecovery;
         ChangeState(PlayerStates.Idle);
+    }
+
+    private IEnumerator MovingPunchLunge(float time, float distance)
+    {
+        float dir = Mathf.Sign(player.opponent.position.x - player.transform.position.x);
+        float perSecond = distance / Mathf.Max(0.05f, time);
+        float t = 0f;
+        while (t < time && currentState == PlayerStates.Attack)
+        {
+            t += Time.deltaTime;
+            float gap = Mathf.Abs(player.opponent.position.x - player.transform.position.x);
+            if (gap <= movingPunchMinGap) break;
+            player.controller.Move(new Vector3(dir * perSecond * Time.deltaTime, 0f, 0f));
+            yield return null;
+        }
     }
 
     /// <summary>Called by DmgDetection when an enemy attack lands unblocked. Plays the hurt
@@ -306,9 +592,17 @@ public class PlayerStateMachine : MonoBehaviour
     /// early while the match is stopped - which is exactly when a point has just landed.</summary>
     public void PlayHurt(bool incomingIsPunch)
     {
+        // A hit that lands during a stun ends it cleanly (unlocks input, removes the stars).
+        if (currentState == PlayerStates.Stun)
+        {
+            if (stunRoutine != null) StopCoroutine(stunRoutine);
+            EndStun(null);
+        }
+
         // Cancel whatever the player was doing (attack/block routines) so it can't overwrite this.
         StopAllCoroutines();
         isAttacking = false;
+        punchBufferedUntil = kickBufferedUntil = -1f;   // a press made before the hit shouldn't fire right after it
         SetPlayerHitWindow(false);
 
         string preferred = incomingIsPunch ? hurtOnPunchAnim : hurtOnKickAnim;
@@ -320,6 +614,38 @@ public class PlayerStateMachine : MonoBehaviour
         }
 
         hurtRoutine = StartCoroutine(HurtRoutine(preferred));
+    }
+
+    /// <summary>A leg hit: plays a small flinch. Only while he is standing or walking - it never cancels an attack,
+    /// block, dodge, stun or a real hurt, and a point or stun that follows simply takes over.</summary>
+    public void PlayLegHurt()
+    {
+        if (animator == null || string.IsNullOrEmpty(legHurtAnim)) return;
+        if (currentState != PlayerStates.Idle && currentState != PlayerStates.Move) return;
+        if (PlayerSwap.Swapping) return;
+        int hash = Animator.StringToHash(legHurtAnim);
+        if (!animator.HasState(0, hash))
+        {
+            Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{legHurtAnim}' - no leg-hit flinch plays.");
+            return;
+        }
+        if (legHurtRoutine != null) StopCoroutine(legHurtRoutine);
+        legHurtRoutine = StartCoroutine(LegHurtRoutine(hash));
+    }
+
+    private Coroutine legHurtRoutine;
+    private IEnumerator LegHurtRoutine(int hash)
+    {
+        ChangeState(PlayerStates.Hurt);
+        animator.Play(hash, 0, 0f);
+        FightSounds.PlayerLegHurt();
+        yield return new WaitForSecondsRealtime(legHurtDuration);
+        legHurtRoutine = null;
+        if (currentState == PlayerStates.Hurt && !player.isHurt)
+        {
+            ChangeState(PlayerStates.Idle);
+            animator.Play("Idle");
+        }
     }
 
     private IEnumerator HurtRoutine(string animName)

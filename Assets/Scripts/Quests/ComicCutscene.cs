@@ -38,6 +38,17 @@ public class ComicCutscene : MonoBehaviour
              "this script activates them the first time they're reached.")]
     [SerializeField] private List<RectTransform> panels = new List<RectTransform>();
 
+    [Header("Audio")]
+    [Tooltip("Music (SoundLibrary id on this scene's AudioManager) that plays during the cutscene. " +
+             "Blank = no music.")]
+    [SerializeField] private string musicId;
+    [SerializeField] private float musicFadeIn = 1f;
+    [Tooltip("Fade-out when the cutscene ends.")]
+    [SerializeField] private float musicFadeOut = 1.5f;
+    [Tooltip("Fade out the scene's ambience (RecoverySoundscape) while the cutscene plays, and " +
+             "bring it back afterwards.")]
+    [SerializeField] private bool silenceAmbience = true;
+
     [Header("Movement")]
     [SerializeField] private float moveDuration = 0.3f;
 
@@ -53,6 +64,7 @@ public class ComicCutscene : MonoBehaviour
     private bool cameraOrbitWasEnabled;
     private Coroutine moveCoroutine;
     private float skipHoldTimer;
+    private bool musicStartedByMe;
 
     public event System.Action OnCutsceneComplete;
 
@@ -83,6 +95,17 @@ public class ComicCutscene : MonoBehaviour
     private IEnumerator RunCutscene()
     {
         isPlaying = true;
+
+        if (silenceAmbience) RecoverySoundscape.SetAmbienceSuppressed(true);
+        if (!string.IsNullOrEmpty(musicId))
+        {
+            if (AudioManager.instance != null)
+            {
+                AudioManager.instance.PlayMusic(musicId, musicFadeIn);
+                musicStartedByMe = true;
+            }
+            else Debug.LogWarning("[Comic] Music Id set but there's no AudioManager in the scene.");
+        }
 
         if (stripContainer != null)
         {
@@ -246,8 +269,19 @@ public class ComicCutscene : MonoBehaviour
         stripContainer.anchoredPosition = finalPos;
     }
 
+    private void OnDisable()
+    {
+        // Safety: never leave the ambience muted if this object is switched off mid-cutscene.
+        if (isPlaying && silenceAmbience) RecoverySoundscape.SetAmbienceSuppressed(false);
+    }
+
     private void EndCutscene()
     {
+        if (silenceAmbience) RecoverySoundscape.SetAmbienceSuppressed(false);
+        if (musicStartedByMe && AudioManager.instance != null)
+            AudioManager.instance.StopMusic(musicFadeOut);
+        musicStartedByMe = false;
+
         if (stripContainer != null) stripContainer.gameObject.SetActive(false);
         if (player != null) player.cutsceneLocked = false;
         if (cameraFollow != null) cameraFollow.enableOrbitRotation = cameraOrbitWasEnabled;

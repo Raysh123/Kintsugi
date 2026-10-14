@@ -95,8 +95,20 @@ public class RecoverySoundscape : MonoBehaviour
     // the area you left from (the dojo) instead of falling back to Starting Area.
     private static string lastAreaName;
 
+    // Set by cutscenes (ComicCutscene): while true, all area ambience is faded out and nothing
+    // new starts. Static so it also holds if a cutscene begins before this component is ready.
+    private static bool ambienceSuppressed;
+
+    /// <summary>Silences (true) or restores (false) the ambience, with the normal fade.</summary>
+    public static void SetAmbienceSuppressed(bool suppressed)
+    {
+        if (ambienceSuppressed == suppressed) return;
+        ambienceSuppressed = suppressed;
+        if (instance != null && instance.ambienceReady) instance.RefreshAmbience();
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetStatics() { lastAreaName = null; }
+    private static void ResetStatics() { lastAreaName = null; ambienceSuppressed = false; }
 
     private int currentArea = -1;      // stays on the last area entered if the player is between zones
     private bool ambienceReady;
@@ -333,6 +345,13 @@ public class RecoverySoundscape : MonoBehaviour
     private void RefreshAmbience()
     {
         var wanted = new Dictionary<string, AmbienceLayer>();
+        if (ambienceSuppressed)
+        {
+            // Cutscene: fade everything out, start nothing.
+            foreach (string key in playingKeys) Sfx.StopLoop(key, ambienceFade);
+            playingKeys.Clear();
+            return;
+        }
 
         for (int j = 0; j < everywhere.Count; j++)
             if (Wanted(everywhere[j])) wanted[$"amb_{GetInstanceID()}_g{j}"] = everywhere[j];

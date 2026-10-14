@@ -14,7 +14,8 @@ public class EnemyStateMachine : MonoBehaviour
         Block,
         Retreat,
         Hurt,
-        Stun
+        Stun,
+        Swap      // being carried across by the player's swap: does nothing at all
     }
     public EnemyState currentState;
     public Transform Player;
@@ -113,6 +114,10 @@ public class EnemyStateMachine : MonoBehaviour
     [SerializeField] private float dodgeAfterStunPercent = 80f;
     [Tooltip("How long a posture-break stun lasts, in seconds. This used to be hardcoded at 10.")]
     [SerializeField] private float stunDuration = 3f;
+    [Range(0f, 1f)]
+    [Tooltip("Posture value he's set to when a stun ends (including dodging out of it). 0 = empty, " +
+             "so he can't be stunned again straight away.")]
+    [SerializeField] private float postureAfterStun = 0f;
     private bool parryRecoveryPending;
     private Coroutine backDashRoutine;
     private bool attackNextOpportunity;
@@ -171,6 +176,66 @@ public class EnemyStateMachine : MonoBehaviour
              "block happens, which reads as him not reacting to it at all.")]
     [SerializeField] private float parryRecoveryDuration = 0.5f;
     private float decisionLockTimer;
+
+    [Header("Counter Window (after YOU perfect-block him)")]
+    [Tooltip("After a perfect block he is defenseless for this many seconds: he won't block, and a PUNCH " +
+             "that lands in this time scores. Tune it against your punch animation: long enough for the " +
+             "punch to connect, shorter than the kick's wind-up so a kick arrives too late. " +
+             "(He also stays frozen at least this long.)")]
+    [SerializeField] private float counterWindowSeconds = 0.8f;
+    [Range(0f, 100f)]
+    [Tooltip("Chance (%) that he slips a punch thrown in the window (back dash, the hit misses). " +
+             "Rolled once per perfect block.")]
+    [SerializeField] private float punchDodgeChancePercent = 12f;
+    [Tooltip("A KICK thrown after a perfect block is always answered: he reacts as it starts and either blocks it or " +
+             "dodges it (see Kick Dodge Chance). Only punches are the counter.")]
+    [SerializeField] private bool alwaysDodgeKickInWindow = true;
+    [Range(0f, 100f)]
+    [Tooltip("When a kick comes in the counter window: chance (%) he dodges it (back dash). Otherwise he blocks it.")]
+    [SerializeField] private float kickDodgeChancePercent = 50f;
+    [Tooltip("Kicks are also ignored for this many seconds AFTER the counter window ends (a kick's wind-up is " +
+             "longer than a punch's, so it lands late). Total kick immunity = Counter Window + this.")]
+    [SerializeField] private float kickImmuneExtraSeconds = 0.7f;
+    private float kickImmuneUntil;
+    private float counterOpenUntil;   // Time.time based, so it works even if Update is gated
+    private float counterWindowStart;
+    private bool counterDodgeRolled;
+
+    /// <summary>True for a short time after the player perfect-blocks him - he's open to a punch.</summary>
+    public bool InCounterWindow => Time.time < counterOpenUntil;
+
+    /// <summary>Called by DmgDetection when a player attack is about to land on him. Returns true if he
+    /// slips it instead (the hit must then be ignored). Only ever true inside the counter window.</summary>
+    public bool TryCounterDodge(bool isKick)
+    {
+        // Safety net only: HandleIdle already makes him block or dodge a kick as it STARTS. If one still reaches him
+        // after a perfect block (he was mid-dash, or in a state that couldn't react), he slips it - it never scores.
+        // (DmgDetection checks his Block state first, so a kick he blocked never gets here.)
+        if (isKick && alwaysDodgeKickInWindow && (InCounterWindow || Time.time < kickImmuneUntil))
+        {
+            Debug.Log($"[Counter] KICK reached him {(Time.time - counterWindowStart):F2}s after the perfect block -> slipped (safety net).");
+            if (currentState == EnemyState.Idle)
+            {
+                counterOpenUntil = 0f;
+                decisionLockTimer = 0f;
+                StartBackDash();
+            }
+            return true;   // the hit is ignored whether or not he could dash
+        }
+
+        if (!InCounterWindow || currentState != EnemyState.Idle) return false;
+
+        float into = Time.time - counterWindowStart;
+        bool dodge = isKick ? alwaysDodgeKickInWindow : counterDodgeRolled;
+        Debug.Log($"[Counter] {(isKick ? "KICK" : "PUNCH")} landed {into:F2}s into the {counterWindowSeconds:F2}s window -> " +
+                  (dodge ? "he DODGES it." : "it connects."));
+        if (!dodge) return false;
+
+        counterOpenUntil = 0f;
+        decisionLockTimer = 0f;
+        StartBackDash();
+        return backDashRoutine != null;
+    }
     public Animator anim;
     float decisionRoll;
     bool isBlocking;
@@ -189,6 +254,39 @@ public class EnemyStateMachine : MonoBehaviour
     private bool hasBlockedCurrentPlayerAttack;
     [SerializeField] private Posture enemyPosture;
     [SerializeField] private float moveSpeedInCombo = 0.5f;
+    // ------------------------------------------------------------------ combos
+    [Header("Combos (he picks one each attack)")]
+    [Tooltip("Type the Animator STATE name of each combo (one per entry). He picks one at random every attack. " +
+             "Empty list = the old single combo 'InPlaceCombo1'. Names that don't exist on the Animator yet are skipped.")]
+    [SerializeField] private List<string> comboAnimations = new List<string>();
+    [Tooltip("Don't pick the same combo twice in a row (when more than one is available).")]
+    [SerializeField] private bool avoidRepeatingCombo = true;
+    [SerializeField] private bool logComboChoice = true;
+    private int lastComboIndex = -1;
+    /// <summary>Name of the combo he is (or last was) performing.</summary>
+    public string CurrentComboName { get; private set; } = "InPlaceCombo1";
+
+    // Random choice among the combos that exist on the Animator. Returns null for the legacy single combo.
+    private string PickCombo()
+    {
+        if (comboAnimations == null || comboAnimations.Count == 0) { lastComboIndex = -1; return null; }
+
+        var candidates = new List<int>();
+        for (int i = 0; i < comboAnimations.Count; i++)
+        {
+            string n = comboAnimations[i];
+            if (string.IsNullOrWhiteSpace(n)) continue;
+            if (anim != null && !anim.HasState(0, Animator.StringToHash(n.Trim()))) continue;   // not set up yet
+            candidates.Add(i);
+        }
+        if (candidates.Count == 0) { lastComboIndex = -1; return null; }
+        if (avoidRepeatingCombo && candidates.Count > 1) candidates.Remove(lastComboIndex);
+
+        int chosen = candidates[Random.Range(0, candidates.Count)];
+        lastComboIndex = chosen;
+        return comboAnimations[chosen].Trim();
+    }
+
     private Coroutine attackRoutine;
     public string requiredTag;
     private float attackLength;
@@ -242,6 +340,13 @@ public class EnemyStateMachine : MonoBehaviour
     [SerializeField] private float telegraphFlashTrailTime = 0.06f;
     [Tooltip("Blink speed (seconds per on/off step) for that flash.")]
     [SerializeField] private float telegraphFlashInterval = 0.04f;
+    [Tooltip("ON = the telegraph appears ONLY for the perfect-block window: it shows up exactly Perfect Block Window " +
+             "seconds before each hit lands (that is when pressing block counts as perfect), shrinking to the instant " +
+             "of the hit, then goes solid Perfect color while the hit is live and disappears. Nothing is shown during " +
+             "the rest of the wind-up. OFF = the old behaviour (blue for the whole wind-up + a flash).")]
+    [SerializeField] private bool telegraphOnlyPerfectWindow = true;
+    [Tooltip("Show it this many seconds earlier than the perfect window starts (reaction cushion). 0 = exactly the window.")]
+    [SerializeField] private float telegraphWindowEarlyBy = 0f;
     private Coroutine flashRoutine;
     private void Awake()
     {
@@ -254,13 +359,44 @@ public class EnemyStateMachine : MonoBehaviour
     /// branch - a stun already freezes him far longer than this). Freezes AI decision-making
     /// for parryRecoveryDuration so he doesn't immediately resume chasing as if nothing
     /// happened.</summary>
+    /// <summary>Used by PlayerSwap: freezes his decisions/movement while he is being carried across.</summary>
+    public void HoldForSwap(float seconds)
+    {
+        shouldApproach = false;
+        shouldRetreat = false;
+        isIdlePausing = false;
+        attackNextOpportunity = false;
+        moveVelX = 0f;
+        currentMovementAnim = null;
+        if (currentState != EnemyState.Stun)
+        {
+            StopCombo();                       // his attack is cancelled outright
+            ChangeState(EnemyState.Swap);      // and he can't do anything until EndSwap
+        }
+    }
+
+    /// <summary>Ends the swap hold: back to Idle, but doing nothing for 'recovery' more seconds.</summary>
+    public void EndSwap(float recovery)
+    {
+        if (currentState != EnemyState.Swap) return;
+        decisionLockTimer = Mathf.Max(decisionLockTimer, recovery);
+        if (anim != null) anim.Play(idleAnimationName);
+        ChangeState(EnemyState.Idle);
+    }
+
     public void OnPerfectBlocked()
     {
         shouldApproach = false;
         shouldRetreat = false;
         isIdlePausing = false;
-        decisionLockTimer = parryRecoveryDuration;
+        decisionLockTimer = Mathf.Max(parryRecoveryDuration, counterWindowSeconds);
         parryRecoveryPending = true;
+
+        counterWindowStart = Time.time;
+        counterOpenUntil = Time.time + counterWindowSeconds;
+        kickImmuneUntil = Time.time + counterWindowSeconds + Mathf.Max(0f, kickImmuneExtraSeconds);
+        counterDodgeRolled = Random.value * 100f < punchDodgeChancePercent;
+        if (debugAI) Debug.Log($"[Counter] Window open for {counterWindowSeconds:F2}s (punch dodge rolled: {counterDodgeRolled}).");
     }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -344,6 +480,7 @@ public class EnemyStateMachine : MonoBehaviour
         if (state == EnemyState.Stun && currentState != EnemyState.Stun)
         {
             FightSounds.Stun();
+            StunHalo.Begin(false, stunDuration);
             if (anim != null)
             {
                 Debug.Log($"[EnemyStateMachine] Forcing Animator to \"{stunAnimationName}\" (entering Stun from {currentState}).");
@@ -357,6 +494,9 @@ public class EnemyStateMachine : MonoBehaviour
 
         if (state != EnemyState.Attack && telegraph != null)
             telegraph.Hide();
+
+        if (currentState == EnemyState.Stun && state != EnemyState.Stun)
+            StunHalo.Stop(false);   // no effect if the stars are already shattering
 
         currentState = state;
     }
@@ -389,6 +529,9 @@ public class EnemyStateMachine : MonoBehaviour
             currentState != EnemyState.Block &&
             currentState != EnemyState.Retreat &&
             currentState != EnemyState.Hurt &&
+            currentState != EnemyState.Swap &&
+            currentState != EnemyState.Stun &&   // no decisions (and no back dash) while stunned;
+                                                 // the only dodge out of a stun is StunRoutine's own roll
             decisionLockTimer <= 0f &&
             decisionTimer <= 0)
         {
@@ -449,6 +592,7 @@ public class EnemyStateMachine : MonoBehaviour
     private void HandleFacing()
     {
         if (opponent == null) return;
+        if (currentState == EnemyState.Swap) return;   // the swap turns him itself
 
         Vector3 dir = opponent.position - transform.position;
         dir.y = 0f;
@@ -502,16 +646,18 @@ public class EnemyStateMachine : MonoBehaviour
             if (dodgeOut && t >= dodgeAt)
             {
                 if (debugAI) Debug.Log("[EnemyAI] BACK DASH out of stun.");
+                StunHalo.Shatter(false);
                 stunRoutine = null;
                 // Otherwise HandleIdle would see posture still over the threshold and re-stun him.
                 if (enemyPosture != null)
-                    enemyPosture.postureSlider.value = Mathf.Min(enemyPosture.postureSlider.value, 0.8f);
+                    enemyPosture.postureSlider.value = postureAfterStun;
                 StartBackDash();
                 yield break;
             }
             yield return null;
         }
         stunRoutine = null;
+        if (enemyPosture != null) enemyPosture.postureSlider.value = postureAfterStun;
         ChangeState(EnemyState.Idle);
         if (Random.value * 100f < dodgeAfterStunPercent)
         {
@@ -530,8 +676,50 @@ public class EnemyStateMachine : MonoBehaviour
             stunRoutine = StartCoroutine(StunRoutine());
     }
     #region ComboTriggers
+    private bool hitWindowOpen;
+    /// <summary>True while one of his hits is live (between DealDamage and CancelDamage).</summary>
+    public bool HitWindowOpen => hitWindowOpen;
+
+    /// <summary>True while he is attacking and the NEXT (or currently live) hit of his attack is a PUNCH.
+    /// Read from the attack clip's own OpenEnemyHitWindow events, so it is correct before the hit goes live.
+    /// Used by PlayerSwap: you can only swap against an incoming punch.</summary>
+    public bool IncomingIsPunch() => IncomingIsPunch(out _);
+
+    public bool IncomingIsPunch(out string info)
+    {
+        info = "";
+        if (currentState != EnemyState.Attack) { info = $"state is {currentState}"; return false; }
+        if (hitWindowOpen)
+        {
+            info = $"hit window is open, requiredTag={requiredTag}";
+            return requiredTag == "ePunch";
+        }
+        if (anim == null) { info = "enemy Anim is not assigned"; return false; }
+
+        AnimatorClipInfo[] infos = anim.GetCurrentAnimatorClipInfo(0);
+        if (infos == null || infos.Length == 0 || infos[0].clip == null) { info = "no current clip on his animator"; return false; }
+        AnimationClip clip = infos[0].clip;
+        AnimatorStateInfo st = anim.GetCurrentAnimatorStateInfo(0);
+        float nt = st.loop ? Mathf.Repeat(st.normalizedTime, 1f) : Mathf.Clamp01(st.normalizedTime);
+        float now = nt * clip.length;
+
+        float bestTime = float.MaxValue;
+        int bestType = -1;
+        string all = "";
+        foreach (AnimationEvent evt in clip.events)
+        {
+            all += $"{evt.functionName}@{evt.time:F2}(int {evt.intParameter}) ";
+            // Your clips call the hit-open event "DealDamage" (and close it with "CancelDamage").
+            if ((evt.functionName != "OpenEnemyHitWindow" && evt.functionName != "DealDamage") || evt.time <= now) continue;
+            if (evt.time < bestTime) { bestTime = evt.time; bestType = evt.intParameter; }
+        }
+        info = $"clip '{clip.name}' at {now:F2}s of {clip.length:F2}s, next hit type={bestType}, events: {all}";
+        return bestType == 0;
+    }
+
     public void OpenEnemyHitWindow(int attackType)
     {
+        hitWindowOpen = true;
         // The flash around this exact instant is scheduled ahead of time by
         // ScheduleParryFlash (started in AttackRoutine/CloseEnemyHitWindow) using the real
         // time read straight from the clip's own Animation Event - so there's nothing to
@@ -555,6 +743,7 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void CloseEnemyHitWindow()
     {
+        hitWindowOpen = false;
         // Back to blue (full size again) rather than hiding - this fires between EVERY hit
         // in a combo, not just the last one, and there's no way to know from here whether
         // another hit is still coming. Reusing attackLength as the shrink duration here is
@@ -562,7 +751,12 @@ public class EnemyStateMachine : MonoBehaviour
         // gap than the whole clip's length) - good enough for a consistent visual, but if a
         // later hit's shrink feels too slow/fast, this is the number to adjust. The true
         // hide only happens once AttackRoutine fully finishes.
-        if (telegraph != null)
+        if (telegraph != null && telegraphOnlyPerfectWindow)
+        {
+            telegraph.Hide();              // between hits nothing is shown
+            ScheduleNextPerfectWindow();   // ...until the next hit's perfect window
+        }
+        else if (telegraph != null)
         {
             telegraph.Show(telegraphSafeColor, attackLength);
             // Re-schedule the flash for the NEXT hit's OpenEnemyHitWindow too - without this,
@@ -635,7 +829,11 @@ public class EnemyStateMachine : MonoBehaviour
     #endregion
     private void HandleIdle()
     {
-        if (playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack)
+        // Counter window: he's open after a perfect block, so he does NOT react to a PUNCH. A KICK is different -
+        // he always answers it (block or dodge), right as it starts, so it can never connect.
+        bool playerAttackingNow = playerStateMachine.currentState == PlayerStateMachine.PlayerStates.Attack;
+        bool kickIncoming = playerAttackingNow && playerStateMachine.currentAttackType == PlayerStateMachine.AttackTypes.Kick;
+        if (playerAttackingNow && (!InCounterWindow || (kickIncoming && alwaysDodgeKickInWindow)))
         {
             if (!hasBlockedCurrentPlayerAttack)
             {
@@ -643,6 +841,20 @@ public class EnemyStateMachine : MonoBehaviour
                 incomingAttackTypes = playerStateMachine.currentAttackType;
                 shouldApproach = false;
                 shouldRetreat = false;
+
+                // A kick during the perfect-block aftermath: dodge it (back dash) or block it - his choice, never neither.
+                if (kickIncoming && InCounterWindow && Random.value * 100f < kickDodgeChancePercent)
+                {
+                    StartBackDash();
+                    if (backDashRoutine != null)
+                    {
+                        counterOpenUntil = 0f;
+                        decisionLockTimer = 0f;
+                        if (debugAI) Debug.Log("[Counter] Kick incoming in the counter window -> he DODGES.");
+                        return;
+                    }
+                }
+                if (debugAI && kickIncoming && InCounterWindow) Debug.Log("[Counter] Kick incoming in the counter window -> he BLOCKS.");
                 ChangeState(EnemyState.Block);
             }
             return;
@@ -767,6 +979,8 @@ public class EnemyStateMachine : MonoBehaviour
         }
 
         CloseEnemyHitWindow();
+        // CloseEnemyHitWindow just scheduled a window for a hit that will never come - cancel it.
+        if (flashRoutine != null) { StopCoroutine(flashRoutine); flashRoutine = null; }
         isAttacking = false;
 
         // Stopping the coroutine only stops the C# side - the Animator has no idea and just
@@ -799,7 +1013,11 @@ public class EnemyStateMachine : MonoBehaviour
             hitbox.canDealDamage = false;
         }
         isAttacking = true;
-        anim.Play("InPlaceCombo1");
+        string picked = PickCombo();
+        string comboState = picked ?? "InPlaceCombo1";
+        CurrentComboName = comboState;
+        if (logComboChoice) Debug.Log($"[EnemyAI] Combo chosen: '{comboState}'.");
+        anim.Play(comboState);
         yield return null; // one frame so GetCurrentAnimatorStateInfo reflects the new clip, not the previous one
         attackLength = anim.GetCurrentAnimatorStateInfo(0).length;
 
@@ -813,8 +1031,12 @@ public class EnemyStateMachine : MonoBehaviour
         }
         if (telegraph != null)
         {
-            telegraph.Show(telegraphSafeColor, attackLength);
-            flashRoutine = StartCoroutine(ScheduleParryFlash(GetNextOpenHitWindowTime(attackLength)));
+            if (telegraphOnlyPerfectWindow) ScheduleNextPerfectWindow();
+            else
+            {
+                telegraph.Show(telegraphSafeColor, attackLength);
+                flashRoutine = StartCoroutine(ScheduleParryFlash(GetNextOpenHitWindowTime(attackLength)));
+            }
         }
 
         yield return new WaitForSeconds(attackLength);
@@ -857,7 +1079,7 @@ public class EnemyStateMachine : MonoBehaviour
             float best = -1f;
             foreach (AnimationEvent evt in clip.events)
             {
-                if (evt.functionName != "OpenEnemyHitWindow" || evt.time <= currentTime)
+                if ((evt.functionName != "OpenEnemyHitWindow" && evt.functionName != "DealDamage") || evt.time <= currentTime)
                     continue;
                 if (best < 0f || evt.time < best)
                     best = evt.time;
@@ -865,6 +1087,59 @@ public class EnemyStateMachine : MonoBehaviour
             if (best >= 0f) return best;
         }
         return fallbackTime;
+    }
+
+    // ---- perfect-window-only telegraph -------------------------------------------------
+    /// <summary>Seconds from NOW until the next hit-open event in the playing clip (DealDamage / OpenEnemyHitWindow).</summary>
+    private bool TryGetSecondsUntilNextHit(out float seconds)
+    {
+        seconds = 0f;
+        if (anim == null) return false;
+        AnimatorClipInfo[] infos = anim.GetCurrentAnimatorClipInfo(0);
+        if (infos == null || infos.Length == 0 || infos[0].clip == null) return false;
+        AnimationClip clip = infos[0].clip;
+        AnimatorStateInfo st = anim.GetCurrentAnimatorStateInfo(0);
+        float now = (st.loop ? Mathf.Repeat(st.normalizedTime, 1f) : Mathf.Clamp01(st.normalizedTime)) * clip.length;
+        float speed = Mathf.Max(0.01f, anim.speed * st.speedMultiplier);
+        float best = -1f;
+        foreach (AnimationEvent evt in clip.events)
+        {
+            if ((evt.functionName != "OpenEnemyHitWindow" && evt.functionName != "DealDamage") || evt.time <= now) continue;
+            if (best < 0f || evt.time < best) best = evt.time;
+        }
+        if (best < 0f) return false;
+        seconds = (best - now) / speed;
+        return true;
+    }
+
+    [SerializeField] private bool logTelegraph = true;
+
+    private void ScheduleNextPerfectWindow()
+    {
+        if (flashRoutine != null) { StopCoroutine(flashRoutine); flashRoutine = null; }
+        if (telegraph == null) { if (logTelegraph) Debug.LogWarning("[Telegraph] No AttackTelegraph assigned on the enemy."); return; }
+        if (TryGetSecondsUntilNextHit(out float secs))
+        {
+            if (logTelegraph) Debug.Log($"[Telegraph] next hit in {secs:F2}s -> window scheduled (window {(playerStateMachine != null ? playerStateMachine.PerfectBlockWindow : 0.15f):F2}s).");
+            flashRoutine = StartCoroutine(PerfectWindowRoutine(secs));
+        }
+        else if (logTelegraph) Debug.Log("[Telegraph] no hit event (DealDamage / OpenEnemyHitWindow) ahead in the playing clip - no window to show.");
+    }
+
+    // Shows the telegraph for exactly the perfect-block window before the hit lands.
+    private IEnumerator PerfectWindowRoutine(float secondsUntilHit)
+    {
+        float window = playerStateMachine != null ? playerStateMachine.PerfectBlockWindow : 0.15f;
+        float showFor = window + Mathf.Max(0f, telegraphWindowEarlyBy);
+        float wait = Mathf.Max(0f, secondsUntilHit - showFor);
+        yield return new WaitForSeconds(wait);
+        if (telegraph != null)
+        {
+            if (logTelegraph) Debug.Log($"[Telegraph] SHOW window now ({telegraphWarningColor}, {Mathf.Min(showFor, secondsUntilHit):F2}s).");
+            telegraph.Show(telegraphWarningColor, Mathf.Min(showFor, secondsUntilHit));
+        }
+        // The hit opening (OpenEnemyHitWindow) turns it solid Perfect; CloseEnemyHitWindow hides it.
+        flashRoutine = null;
     }
 
     /// <summary>
@@ -1055,6 +1330,7 @@ public class EnemyStateMachine : MonoBehaviour
         currentState == EnemyState.Block ||
         currentState == EnemyState.Hurt ||
         currentState == EnemyState.Retreat ||
+        currentState == EnemyState.Swap ||
         currentState == EnemyState.Stun)
         {
             currentMovementAnim = null; // so the clip restarts cleanly next time he moves, instead of HandleMovement thinking it's still mid-loop from before

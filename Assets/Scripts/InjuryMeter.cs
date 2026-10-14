@@ -68,6 +68,8 @@ public class InjuryMeter : MonoBehaviour
     [Tooltip("Fired the moment the meter fills (play an injured animation, show text, etc.). " +
              "The match is already frozen when this fires.")]
     public UnityEvent onInjuryKnockout;
+    /// <summary>Same moment as onInjuryKnockout, as a C# event. Used by FighterReactions for the injury animations.</summary>
+    public event System.Action OnInjured;
 
     [Header("Debug")]
     [SerializeField] private bool debugLog = true;
@@ -209,6 +211,7 @@ public class InjuryMeter : MonoBehaviour
 
         if (matchTimer != null) matchTimer.matchStopped = true;
         onInjuryKnockout?.Invoke();
+        OnInjured?.Invoke();
 
         if (HealthAndMotivation.instance != null)
             HealthAndMotivation.instance.ModifyHealth(-healthLossOnInjury);
@@ -225,6 +228,8 @@ public class InjuryMeter : MonoBehaviour
         }
 
         // Counts as a loss for the RPG scene (PostFightHandler plays the lose dialogue).
-        FightSessionManager.ReportResult(false);
+        MatchScore score = FindFirstObjectByType<MatchScore>();
+        if (score != null) score.EndFight(false, applyStatChanges: false);   // injury = health loss only (done above)   // referee call + lose stinger + music fade
+        else FightSessionManager.ReportResult(false);
     }
 }

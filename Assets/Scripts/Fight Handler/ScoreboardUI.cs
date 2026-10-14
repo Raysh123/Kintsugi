@@ -1,6 +1,7 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// On-screen points (and optionally the clock). Listens to MatchScore.OnScoreChanged in code,
@@ -17,9 +18,23 @@ public class ScoreboardUI : MonoBehaviour
     [SerializeField] private TMP_Text playerScoreText;
     [SerializeField] private TMP_Text enemyScoreText;
 
+    [Header("Score bars (optional) - fill toward the winning score")]
+    [Tooltip("Either a Slider...")]
+    [SerializeField] private Slider playerSlider;
+    [SerializeField] private Slider enemySlider;
+    [Tooltip("...or an Image with Image Type = Filled. Use whichever you built; empty is skipped.")]
+    [SerializeField] private Image playerFillImage;
+    [SerializeField] private Image enemyFillImage;
+    [Tooltip("Used as the bar's full value only if MatchScore's Points To Win is 0 (rule off).")]
+    [SerializeField] private int fallbackMaxScore = 10;
+    [Tooltip("How fast the bars catch up (fraction of the bar per second). 0 = snap.")]
+    [SerializeField] private float barSmoothSpeed = 2f;
+
     [Header("Clock (optional)")]
     [SerializeField] private MatchTimer matchTimer;
     [SerializeField] private TMP_Text timerText;
+    [Tooltip("ON = show just the seconds left (e.g. 87) instead of minutes:seconds (01:27).")]
+    [SerializeField] private bool secondsOnly = true;
 
     [Header("Score pop")]
     [Tooltip("Scale a score number briefly pops to when it increases. 1 = no pop.")]
@@ -27,6 +42,7 @@ public class ScoreboardUI : MonoBehaviour
     [SerializeField] private float popDuration = 0.35f;
 
     private int lastPlayer, lastEnemy;
+    private float shownPlayer, shownEnemy;   // 0-1, what the bars currently show
 
     private void OnEnable()
     {
@@ -35,6 +51,9 @@ public class ScoreboardUI : MonoBehaviour
         lastPlayer = matchScore.PlayerScore;
         lastEnemy = matchScore.EnemyScore;
         SetTexts(lastPlayer, lastEnemy);
+        shownPlayer = Fraction(lastPlayer);
+        shownEnemy = Fraction(lastEnemy);
+        ApplyBars();
     }
 
     private void OnDisable()
@@ -42,10 +61,31 @@ public class ScoreboardUI : MonoBehaviour
         if (matchScore != null) matchScore.OnScoreChanged.RemoveListener(Refresh);
     }
 
+    private float Fraction(int score)
+    {
+        int max = matchScore != null && matchScore.PointsToWin > 0 ? matchScore.PointsToWin : fallbackMaxScore;
+        return max <= 0 ? 0f : Mathf.Clamp01((float)score / max);
+    }
+
+    private void ApplyBars()
+    {
+        if (playerSlider != null) playerSlider.value = Mathf.Lerp(playerSlider.minValue, playerSlider.maxValue, shownPlayer);
+        if (enemySlider != null) enemySlider.value = Mathf.Lerp(enemySlider.minValue, enemySlider.maxValue, shownEnemy);
+        if (playerFillImage != null) playerFillImage.fillAmount = shownPlayer;
+        if (enemyFillImage != null) enemyFillImage.fillAmount = shownEnemy;
+    }
+
     private void Update()
     {
+        float step = barSmoothSpeed <= 0f ? 1f : barSmoothSpeed * Time.unscaledDeltaTime;
+        shownPlayer = barSmoothSpeed <= 0f ? Fraction(lastPlayer) : Mathf.MoveTowards(shownPlayer, Fraction(lastPlayer), step);
+        shownEnemy = barSmoothSpeed <= 0f ? Fraction(lastEnemy) : Mathf.MoveTowards(shownEnemy, Fraction(lastEnemy), step);
+        ApplyBars();
+
         if (timerText != null && matchTimer != null)
-            timerText.text = matchTimer.GetFormattedTime();
+            timerText.text = secondsOnly
+                ? Mathf.CeilToInt(matchTimer.TimeRemaining).ToString()
+                : matchTimer.GetFormattedTime();
     }
 
     private void Refresh(int player, int enemy)
@@ -63,22 +103,37 @@ public class ScoreboardUI : MonoBehaviour
         if (enemyScoreText != null) enemyScoreText.text = enemy.ToString();
     }
 
+    // Remember each text's own scale so the pop returns to it (not to 1) - otherwise a score
+    // enlarged via its Transform scale snaps back to 1 on the first point.
+    private readonly System.Collections.Generic.Dictionary<RectTransform, Vector3> baseScales =
+        new System.Collections.Generic.Dictionary<RectTransform, Vector3>();
+    private readonly System.Collections.Generic.Dictionary<RectTransform, Coroutine> popRoutines =
+        new System.Collections.Generic.Dictionary<RectTransform, Coroutine>();
+
     private void Pop(TMP_Text text)
     {
         if (text == null || popScale <= 1f || !isActiveAndEnabled) return;
-        StartCoroutine(PopRoutine(text.rectTransform));
+        RectTransform rt = text.rectTransform;
+        if (!baseScales.ContainsKey(rt)) baseScales[rt] = rt.localScale;
+        if (popRoutines.TryGetValue(rt, out Coroutine running) && running != null)
+        {
+            StopCoroutine(running);
+            rt.localScale = baseScales[rt];
+        }
+        popRoutines[rt] = StartCoroutine(PopRoutine(rt, baseScales[rt]));
     }
 
-    private IEnumerator PopRoutine(RectTransform rt)
+    private IEnumerator PopRoutine(RectTransform rt, Vector3 baseScale)
     {
         float t = 0f;
         while (t < popDuration)
         {
             t += Time.unscaledDeltaTime;
             float k = Mathf.Clamp01(t / popDuration);
-            rt.localScale = Vector3.one * Mathf.Lerp(popScale, 1f, k);
+            rt.localScale = baseScale * Mathf.Lerp(popScale, 1f, k);
             yield return null;
         }
-        rt.localScale = Vector3.one;
+        rt.localScale = baseScale;
+        popRoutines[rt] = null;
     }
 }

@@ -34,8 +34,24 @@ public class FightSounds : MonoBehaviour
     [Header("Optional extras (blank = silent)")]
     [Tooltip("Played instead of the player's normal block sound when it's a PERFECT block.")]
     [SerializeField] private string perfectBlock = "";
-    [Tooltip("Played when an attack lands on a leg collider (posture damage only).")]
+    [Tooltip("Played when an attack lands on a leg collider (posture damage only). Used for either fighter unless " +
+             "the player / enemy ones below are filled in.")]
     [SerializeField] private string legHit = "";
+    [Tooltip("Leg hit ON THE PLAYER (the flinch). Blank = the shared Leg Hit sound above.")]
+    [SerializeField] private string playerLegHit = "";
+    [Tooltip("Leg hit ON THE ENEMY. Blank = the shared Leg Hit sound above.")]
+    [SerializeField] private string enemyLegHit = "";
+
+    [Tooltip("The player's flinch / grunt when the leg-hit hurt animation plays (separate from the impact sound above). Blank = silent.")]
+    [SerializeField] private string playerLegHurt = "";
+
+    [Header("Swap (one sound per phase, in order)")]
+    [Tooltip("Phase 1 - SWAP READY: the grab, as the ready animation starts. Blank = silent.")]
+    [SerializeField] private string swapReady = "";
+    [Tooltip("Phase 2 - SWAP: the two fighters trading places (a whoosh), as the swap phase starts. Blank = silent.")]
+    [SerializeField] private string swap = "";
+    [Tooltip("Phase 3 - PUSH: played when the hands connect (after Push Impact Delay). Blank = silent.")]
+    [SerializeField] private string swapPush = "";
 
     private void Awake() => instance = this;
 
@@ -63,6 +79,12 @@ public class FightSounds : MonoBehaviour
     public static void EnemyBlocked() { if (Ready()) Sfx.Play(instance.enemyBlock); }
     public static void Stun() { if (Ready()) Sfx.Play(instance.stun); }
     public static void LegHit() { if (Ready()) Sfx.Play(instance.legHit); }
+    public static void PlayerLegHit() { if (Ready()) Sfx.Play(string.IsNullOrEmpty(instance.playerLegHit) ? instance.legHit : instance.playerLegHit); }
+    public static void EnemyLegHit() { if (Ready()) Sfx.Play(string.IsNullOrEmpty(instance.enemyLegHit) ? instance.legHit : instance.enemyLegHit); }
+    public static void PlayerLegHurt() { if (Ready()) Sfx.Play(instance.playerLegHurt); }
+    public static void SwapReady() { if (Ready()) Sfx.Play(instance.swapReady); }
+    public static void Swap() { if (Ready()) Sfx.Play(instance.swap); }
+    public static void SwapPush() { if (Ready()) Sfx.Play(instance.swapPush); }
 
     public static void PlayerBlocked(bool perfect)
     {
