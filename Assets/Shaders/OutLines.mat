@@ -91,7 +91,7 @@ Material:
     - _BumpScale: 1
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
-    - _Color_Threshold: 1.03
+    - _Color_Threshold: 2.85
     - _Cull: 2
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
@@ -103,7 +103,7 @@ Material:
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _Metallic: 0
-    - _Normal_Threshold: 1.27
+    - _Normal_Threshold: 1.78
     - _OVERLAY: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.005
@@ -115,7 +115,7 @@ Material:
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _Surface: 0
-    - _Thickness: 0.4
+    - _Thickness: 0.7
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:

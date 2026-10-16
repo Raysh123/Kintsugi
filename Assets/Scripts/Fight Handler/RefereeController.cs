@@ -138,6 +138,10 @@ public class RefereeController : MonoBehaviour
     [Tooltip("Optional referee Animator triggers for the result (blank = skipped).")]
     [SerializeField] private string refereeWinTrigger = "PlayerWins";
     [SerializeField] private string refereeLoseTrigger = "EnemyWins";
+    [Tooltip("Alternative to the triggers: the referee Animator STATE to play for the result (played directly, so no transition or " +
+             "parameter is needed). Type the exact state name; blank = use only the trigger.")]
+    [SerializeField] private string refereeWinState = "";
+    [SerializeField] private string refereeLoseState = "";
     [SerializeField] private float pointTextDuration = 2.5f;
     [SerializeField] private float resumeTextDuration = 1f;
     [Header("After a point: let the hit play out, call Yame, then reset")]
@@ -167,6 +171,18 @@ public class RefereeController : MonoBehaviour
              "The call text still shows straight away.")]
     [SerializeField] private float callAnimDelayAfterReset = 0.8f;
     private bool resetFired;
+    private bool positionsReset = true;   // false from every Hajime until the fighters have been walked back
+
+    /// <summary>For the end of the match: puts the fighters back on their start spots (fires On Ready To Reset, the same
+    /// event the point sequence uses) unless that already happened since play last resumed. Returns true if it fired.</summary>
+    public bool ResetFightersNow()
+    {
+        if (positionsReset) return false;
+        positionsReset = true;
+        resetFired = true;
+        onReadyToReset?.Invoke();
+        return true;
+    }
     [Tooltip("Optional AudioManager SFX ids (inert until sounds exist).")]
     [SerializeField] private string pointSfxId;
     [SerializeField] private string resumeSfxId;
@@ -266,14 +282,12 @@ public class RefereeController : MonoBehaviour
     public void CallPenalty(string text, string animatorTrigger)
     {
         if (!fightStarted) return;
-        Debug.Log($"[Referee] Penalty call: {text}");
         if (pointSequenceRoutine != null) StopCoroutine(pointSequenceRoutine);
         pointSequenceRoutine = StartCoroutine(PostPointSequence(text ?? "", animatorTrigger));
     }
 
     private void CallPoint(string template, int points, string trigger)
     {
-        Debug.Log($"[Referee] Point awarded ({points}).");
         if (pointSequenceRoutine != null) StopCoroutine(pointSequenceRoutine);
         pointSequenceRoutine = StartCoroutine(PostPointSequence(
             (template ?? "").Replace("{points}", points.ToString()), trigger));
@@ -282,20 +296,16 @@ public class RefereeController : MonoBehaviour
     // hit anims play -> "Yame!" -> reset fires -> "Point!" call (while fighters walk back).
     private IEnumerator PostPointSequence(string pointText, string pointTrigger)
     {
-        Debug.Log($"[Referee] Point sequence started - waiting {hitAnimDelay}s for hit anims.");
         yield return new WaitForSecondsRealtime(hitAnimDelay);
 
         resetFired = false;
-        Debug.Log("[Referee] Yame!");
         Trigger(refereeAnimator, refereeYameTrigger);
         if (!string.IsNullOrEmpty(yameSfxId) && AudioManager.instance != null)
             AudioManager.instance.PlaySFX(yameSfxId);
         ShowTimed(yameText, yameDuration);
         yield return new WaitForSecondsRealtime(yameDuration);
-
-        Debug.Log($"[Referee] Firing On Ready To Reset ({onReadyToReset.GetPersistentEventCount()} " +
-                  "Inspector listeners) - if that's 0, nothing is bound to it, so no reset will happen.");
         onReadyToReset?.Invoke();
+        positionsReset = true;
 
         resetFired = true;
         ShowTimed(pointText, pointTextDuration);
@@ -312,17 +322,11 @@ public class RefereeController : MonoBehaviour
     // sequence handles that itself) and after every post-point pause (a "Hajime!" resume).
     private void OnMatchResumed()
     {
+        positionsReset = false;
         if (!fightStarted) return;
         // Play resumed - drop any part of the post-point sequence that hasn't happened yet.
         if (pointSequenceRoutine != null)
         {
-            if (!resetFired)
-                Debug.LogWarning("[Referee] Play resumed BEFORE the point sequence finished - the reset " +
-                                 "was skipped. Shorten Hit Anim Delay / Yame Duration, or raise MatchTimer's " +
-                                 "Hit Pause Duration.");
-            else
-                Debug.LogWarning("[Referee] Play resumed before the referee's point/warning animation started - " +
-                                 "lower Call Anim Delay After Reset or raise MatchTimer's Hit Pause Duration.");
             StopCoroutine(pointSequenceRoutine);
             pointSequenceRoutine = null;
         }
@@ -334,13 +338,68 @@ public class RefereeController : MonoBehaviour
 
     private void OnTimeUp() => ShowTimed(timeUpText, 3f);
 
-    /// <summary>Called by MatchScore when the match is decided: shows the result text for
-    /// `seconds` and fires the referee's win/lose trigger.</summary>
-    public void AnnounceResult(bool playerWon, float seconds)
+    [Header("Result")]
+    [Tooltip("Time-up: real seconds the fighters get to walk back to their start spots (GameManager Reset Duration + a little) " +
+             "before the result is called.")]
+    [SerializeField] private float resultResetSettle = 1f;
+    [Tooltip("After the final point has been fully called (hit anims, Yame, reset, the point animation): real seconds of calm " +
+             "before the referee announces who won and the win / lose animations play.")]
+    [SerializeField] private float pauseBeforeResult = 1f;
+
+    /// <summary>Starts the result sequence (see AnnounceResultRoutine). resetFirst is false for an injury knockout.</summary>
+    public void AnnounceResult(bool playerWon, float seconds, bool resetFirst = true)
     {
-        if (pointSequenceRoutine != null) { StopCoroutine(pointSequenceRoutine); pointSequenceRoutine = null; }
+        StartCoroutine(AnnounceResultRoutine(playerWon, seconds, resetFirst));
+    }
+
+    /// <summary>The order at the end of a match: the last point plays out as usual (hit anims, Yame, reset, the point call) -
+    /// or, on time-up, the fighters are walked back - then a short pause, THEN the result text, the referee's win / lose
+    /// animation and the fighters' win / lose animations. Finishes the moment those have been started, so the caller can
+    /// wait the animations' time after it.</summary>
+    public IEnumerator AnnounceResultRoutine(bool playerWon, float seconds, bool resetFirst = true)
+    {
+        if (resetFirst)
+        {
+            // let the final point's own sequence finish (it is NOT cut off any more)
+            float waited = 0f;
+            while (pointSequenceRoutine != null && waited < 8f) { waited += Time.unscaledDeltaTime; yield return null; }
+            // time-up (no point sequence): walk the fighters back; after a point they are already back
+            float pause = ResetFightersNow() ? resultResetSettle : pauseBeforeResult;
+            if (pause > 0f) yield return new WaitForSecondsRealtime(pause);
+        }
+        else if (pointSequenceRoutine != null) { StopCoroutine(pointSequenceRoutine); pointSequenceRoutine = null; }
+
         OnResultAnnounced?.Invoke(playerWon);   // FighterReactions plays the fighters' win / lose animations
-        Trigger(refereeAnimator, playerWon ? refereeWinTrigger : refereeLoseTrigger);
+        // Clear every pending referee trigger (an unused point / Yame / Hajime one would otherwise be taken first), make sure the
+        // Animator can run, then set the result trigger a frame later.
+        if (refereeAnimator != null)
+        {
+            if (!refereeAnimator.enabled) refereeAnimator.enabled = true;
+            if (refereeAnimator.speed <= 0f) refereeAnimator.speed = 1f;
+            refereeAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;   // an off-screen referee would otherwise not run its state machine
+            foreach (AnimatorControllerParameter prm in refereeAnimator.parameters)
+                if (prm.type == AnimatorControllerParameterType.Trigger) refereeAnimator.ResetTrigger(prm.name);
+            yield return null;
+        }
+        string wantedTrigger = playerWon ? refereeWinTrigger : refereeLoseTrigger;
+        Trigger(refereeAnimator, wantedTrigger);
+        if (refereeAnimator != null && !string.IsNullOrEmpty(wantedTrigger))
+        {
+            // One warning, only when the result trigger can't be found: shows what the script looked for and what the Animator really has.
+            bool found = false;
+            string have = "";
+            foreach (AnimatorControllerParameter prm in refereeAnimator.parameters)
+            {
+                if (prm.type != AnimatorControllerParameterType.Trigger) continue;
+                have += "'" + prm.name + "' ";
+                if (prm.name == wantedTrigger) found = true;
+            }
+            if (!found)
+                Debug.LogWarning("[Referee] Result trigger '" + wantedTrigger + "' (RefereeController > Result call) is not a Trigger parameter on '" +
+                                 refereeAnimator.gameObject.name + "'. Its Trigger parameters: " + (have.Length > 0 ? have : "(none)"), refereeAnimator);
+        }
+        string resultState = playerWon ? refereeWinState : refereeLoseState;
+        if (!string.IsNullOrEmpty(resultState)) PlayState(refereeAnimator, resultState, "referee");
         ShowTimed(playerWon ? playerWinText : playerLoseText, seconds);
     }
 
@@ -364,7 +423,6 @@ public class RefereeController : MonoBehaviour
     {
         if (matchTimer == null)
         {
-            Debug.LogWarning("[Referee] No Match Timer assigned - can't start the fight.");
             return;
         }
 
@@ -376,10 +434,6 @@ public class RefereeController : MonoBehaviour
              promptImage.GetComponentInChildren<ScoreboardUI>(true) != null ||
              (displayText != null && displayText.transform.IsChildOf(promptImage.transform))))
         {
-            Debug.LogError("[Referee] 'Prompt Image' is set to '" + promptImage.name + "', which is a " +
-                           "Canvas / contains the scoreboard or the referee text. It gets switched off " +
-                           "after every bow, which would hide all of that. Ignoring it - assign ONLY " +
-                           "the bow button icon object instead.", promptImage);
             promptImage = null;
         }
         SetPrompt(false);
@@ -402,8 +456,6 @@ public class RefereeController : MonoBehaviour
 
         SetText("");
         IsRunning = false;
-
-        Debug.Log("[Referee] Begin - starting match.");
         matchTimer.StartTimer();
         fightStarted = true; // after StartTimer, so its OnMatchStart isn't treated as a resume
 
@@ -414,7 +466,6 @@ public class RefereeController : MonoBehaviour
 
     private IEnumerator RunStep(Step step)
     {
-        Debug.Log($"[Referee] Step: {step.name}");
         if (displayText != null)
             displayText.fontSize = step.fontSize > 0f ? step.fontSize : baseFontSize;
         SetText(step.displayText);
@@ -439,9 +490,6 @@ public class RefereeController : MonoBehaviour
             PlayStates(step);
             statesPlayed = true;
         }
-
-        Debug.Log($"[Referee] Step '{step.name}': waitForPlayerInput={step.waitForPlayerInput}, playBeforeInput={step.playBeforeInput} -> " +
-                  (deferToInput ? "bow waits for the button." : "anims/triggers fire NOW at step start."));
         if (!deferToInput) FireStepTriggers(step);
 
         if (!string.IsNullOrEmpty(step.sfxId) && AudioManager.instance != null)
@@ -484,8 +532,6 @@ public class RefereeController : MonoBehaviour
 
     private void FireStepTriggers(Step step)
     {
-        if (!string.IsNullOrEmpty(step.playerTrigger) || !string.IsNullOrEmpty(step.opponentTrigger) || !string.IsNullOrEmpty(step.refereeTrigger))
-            Debug.Log($"[Referee] Step '{step.name}': firing triggers (player '{step.playerTrigger}', opponent '{step.opponentTrigger}', referee '{step.refereeTrigger}').");
         Trigger(playerAnimator, step.playerTrigger);
         Trigger(opponentAnimator, step.opponentTrigger);
         Trigger(refereeAnimator, step.refereeTrigger);
@@ -503,18 +549,13 @@ public class RefereeController : MonoBehaviour
         if (string.IsNullOrEmpty(state)) return;
         if (animator == null)
         {
-            Debug.LogWarning($"[Referee] Step state '{state}' for the {who}: that Animator is NOT assigned on the RefereeController " +
-                             "(References > Player/Opponent/Referee Animator).");
             return;
         }
         int hash = Animator.StringToHash(state);
         if (animator.HasState(0, hash))
         {
             animator.Play(hash, 0, 0f);
-            Debug.Log($"[Referee] {who} ({animator.gameObject.name}): playing state '{state}'.");
         }
-        else
-            Debug.LogWarning($"[Referee] {who} ({animator.gameObject.name}): Animator has no state named '{state}' on layer 0 - skipped.");
     }
 
     /// <summary>Smoothly turns `who` around Y only to face `target`.</summary>
@@ -561,8 +602,6 @@ public class RefereeController : MonoBehaviour
         StopIntroMusic(); // safety: if the ritual ended before the Nth bow, don't leave it playing
         if (AudioManager.instance != null)
             AudioManager.instance.PlayMusic(musicId, musicFadeIn, string.IsNullOrEmpty(introMusicId) ? -1f : 0f);
-        else
-            Debug.LogWarning("[Referee] Music Id set but no AudioManager in the scene.");
     }
 
     private void SetPrompt(bool visible)

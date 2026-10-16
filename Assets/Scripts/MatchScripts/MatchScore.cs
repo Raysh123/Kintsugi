@@ -32,9 +32,9 @@ public class MatchScore : MonoBehaviour
     [SerializeField] private string winStingerId;
     [Tooltip("SoundLibrary id of the stinger played when the player loses. Blank = none.")]
     [SerializeField] private string loseStingerId;
-    [Tooltip("Real seconds the result is held (referee call + stinger) before the scene changes. " +
-             "The fight music fades out slowly over exactly this time.")]
-    [SerializeField] private float resultHold = 4f;
+    [Tooltip("Real seconds the win / lose animations (referee call, stinger, fighters) get to play, counted from when the referee " +
+             "announces the winner, before the scene changes. The fight music fades out over exactly this time.")]
+    [SerializeField] private float resultHold = 3f;
     [Tooltip("Referee that announces 'Player wins / loses'. Auto-found if left empty.")]
     [SerializeField] private RefereeController referee;
 
@@ -84,7 +84,6 @@ public class MatchScore : MonoBehaviour
     {
         int points = attackPointValues != null ? attackPointValues.GetPoints(moveType) : 1;
         PlayerScore += points;
-        Debug.Log($"[MatchScore] Player +{points} ({moveType}) -> {PlayerScore}");
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
         CheckPointsToWin();
     }
@@ -93,7 +92,6 @@ public class MatchScore : MonoBehaviour
     {
         int points = attackPointValues != null ? attackPointValues.GetPoints(moveType) : 1;
         EnemyScore += points;
-        Debug.Log($"[MatchScore] Enemy +{points} ({moveType}) -> {EnemyScore}");
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
         CheckPointsToWin();
     }
@@ -102,7 +100,6 @@ public class MatchScore : MonoBehaviour
     public void DeductPoints(bool fromPlayer, int points)
     {
         if (fromPlayer) PlayerScore -= points; else EnemyScore -= points;
-        Debug.Log($"[MatchScore] {(fromPlayer ? "Player" : "Enemy")} -{points} (penalty) -> {(fromPlayer ? PlayerScore : EnemyScore)}");
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
     }
 
@@ -118,7 +115,6 @@ public class MatchScore : MonoBehaviour
 
     private System.Collections.IEnumerator EndByPoints()
     {
-        Debug.Log($"[MatchScore] {pointsToWin} points reached ({PlayerScore}-{EnemyScore}) - match over.");
         if (matchTimer != null) matchTimer.EndMatch();
         onPointsToWinReached?.Invoke();
         yield return new WaitForSecondsRealtime(winDelay);
@@ -136,9 +132,6 @@ public class MatchScore : MonoBehaviour
         bool playerWon = PlayerScore > EnemyScore ||
                           (PlayerScore == EnemyScore && tieGoesToPlayer);
 
-        Debug.Log($"[MatchScore] Final score - Player: {PlayerScore}, Enemy: {EnemyScore}. " +
-                  $"Winner: {(playerWon ? "Player" : "Enemy")}" +
-                  (PlayerScore == EnemyScore ? " (tie, decided by Tie Goes To Player)" : "") + ".");
 
         StartCoroutine(ResultSequence(playerWon));
     }
@@ -149,7 +142,6 @@ public class MatchScore : MonoBehaviour
     {
         if (winnerDeclared) return;
         winnerDeclared = true;
-        Debug.Log($"[MatchScore] Fight ended outside scoring. Player {(playerWon ? "won" : "lost")}.");
         StartCoroutine(ResultSequence(playerWon, applyStatChanges));
     }
 
@@ -158,19 +150,16 @@ public class MatchScore : MonoBehaviour
         HealthAndMotivation hm = HealthAndMotivation.instance;
         if (hm == null)
         {
-            Debug.LogWarning("[MatchScore] No HealthAndMotivation in the scene - health/motivation not changed.");
             return;
         }
         if (playerWon)
         {
             hm.ModifyHealth(healthGainOnWin);
             hm.ModifyMotivation(motivationGainOnWin);
-            Debug.Log($"[MatchScore] Win: +{healthGainOnWin} health, +{motivationGainOnWin} motivation.");
         }
         else
         {
             hm.ModifyMotivation(-motivationLossOnDefeat);
-            Debug.Log($"[MatchScore] Defeat: -{motivationLossOnDefeat} motivation.");
         }
     }
 
@@ -181,7 +170,9 @@ public class MatchScore : MonoBehaviour
         if (matchTimer != null) matchTimer.EndMatch();
         if (referee == null) referee = FindFirstObjectByType<RefereeController>();
 
-        if (referee != null) referee.AnnounceResult(playerWon, resultHold);
+        // The referee lets the last point play out, pauses, then announces the result and starts the win / lose animations;
+        // an injury knockout (no stat change) skips all that.
+        if (referee != null) yield return referee.AnnounceResultRoutine(playerWon, resultHold, applyStatChanges);
 
         if (AudioManager.instance != null)
         {

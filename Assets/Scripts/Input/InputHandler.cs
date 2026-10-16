@@ -12,6 +12,8 @@ public class InputHandler : MonoBehaviour
     public bool dodge;
     public bool block;
     public bool swap;
+    /// <summary>Set by the Upper Kick action (Up + B). The tutorial's special-move prompt reads and clears it.</summary>
+    public bool upperKick;
 
     private bool inputEnabled = true;
 
@@ -67,6 +69,7 @@ public class InputHandler : MonoBehaviour
             dodge = false;
             block = false;
             swap = false;
+            upperKick = false;
         }
     }
     /// <summary>Wire this to the "Swap" action in the PlayerInput Invoke Unity Events list.</summary>
@@ -186,6 +189,7 @@ public class InputHandler : MonoBehaviour
         if (ctx.performed)
         {
             //kick = true;
+            upperKick = true;
             Debug.Log("UK");
         }
         else if (ctx.canceled)

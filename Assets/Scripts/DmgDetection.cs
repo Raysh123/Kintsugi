@@ -20,6 +20,13 @@ public class DmgDetection : MonoBehaviour
     [SerializeField] private PlayerController player;
     [SerializeField] private float knockbackDist = 0.15f;
     [SerializeField] private MatchScore matchScore;
+    [Header("Posture damage from blocks (1.0 = full bar; stun happens at Posture Max Val)")]
+    [Tooltip("Posture the PLAYER takes when HIS attack is blocked by the enemy.")]
+    [SerializeField] private float playerAttackBlockedPostureDamage = 0.25f;
+    [Tooltip("Posture the PLAYER takes when he NORMAL-blocks an enemy strike (a perfect block costs him nothing).")]
+    [SerializeField] private float playerNormalBlockPostureDamage = 0.5f;
+    [Tooltip("Posture the ENEMY takes from a perfect block.")]
+    [SerializeField] private float enemyPerfectBlockedPostureDamage = 0.5f;
     [Header("Leg hits (posture damage only, no points)")]
     [Tooltip("Tag on the PLAYER's leg collider(s). An enemy punch/kick that lands on it adds " +
              "posture damage to the player and scores NOTHING. Create this tag in Project " +
@@ -95,7 +102,7 @@ public class DmgDetection : MonoBehaviour
         {
             hitRegistered = true;
             Debug.Log($"Leg hit on enemy (+{legHitPostureDamage} posture, no points).");
-            FightSounds.LegHit();
+            FightSounds.EnemyLegHit();
             if (enemyPosture != null) enemyPosture.posDmg(legHitPostureDamage);
             if (enemyStateMachine != null && enemyPosture != null &&
                 enemyPosture.postureSlider.value >= postureMaxVal &&
@@ -114,7 +121,7 @@ public class DmgDetection : MonoBehaviour
         {
             hitRegistered = true;
             Debug.Log($"Leg hit on player (+{legHitPostureDamage} posture, no points).");
-            FightSounds.LegHit();
+            FightSounds.PlayerLegHit();
             if (playerPosture != null) playerPosture.posDmg(legHitPostureDamage);
             if (playerPosture != null && playerPosture.postureSlider.value >= postureMaxVal)
             {
@@ -155,7 +162,7 @@ public class DmgDetection : MonoBehaviour
                 {
                     StunPlayer();
                 }
-                playerPosture.posDmg(0.5f);
+                playerPosture.posDmg(playerAttackBlockedPostureDamage);
                 hitRegistered = true;
                 return;
             }
@@ -191,7 +198,7 @@ public class DmgDetection : MonoBehaviour
                 {
                     StunPlayer();
                 }
-                playerPosture.posDmg(0.5f);
+                playerPosture.posDmg(playerAttackBlockedPostureDamage);
                 hitRegistered = true;
                 return;
             }
@@ -225,7 +232,7 @@ public class DmgDetection : MonoBehaviour
                     Debug.Log("Blocked");
                     FightSounds.PlayerBlocked(true);
                     PushBackEnemy(player.transform, knockbackDist);
-                    enemyPosture.posDmg(0.5f);
+                    enemyPosture.posDmg(enemyPerfectBlockedPostureDamage);
                     // A perfect block always stops the enemy's current attack outright - on
                     // top of that, if posture is maxed, it stuns rather than just interrupting.
                     // ChangeState handles actually cancelling the attack coroutine itself.
@@ -258,7 +265,7 @@ public class DmgDetection : MonoBehaviour
                     {
                         StunPlayer();
                     }
-                    playerPosture.posDmg(0.5f);
+                    playerPosture.posDmg(playerNormalBlockPostureDamage);
                     hitRegistered = true;
                     canDealDamage = false;
                     return;
@@ -290,7 +297,7 @@ public class DmgDetection : MonoBehaviour
                     Debug.Log("Blocked");
                     FightSounds.PlayerBlocked(true);
                     PushBackEnemy(player.transform, knockbackDist);
-                    enemyPosture.posDmg(0.5f);
+                    enemyPosture.posDmg(enemyPerfectBlockedPostureDamage);
                     // Same as the punch branch above - a perfect block always stops the
                     // enemy's current attack outright, and stuns instead if posture is maxed.
                     if (enemyStateMachine != null)
@@ -320,7 +327,7 @@ public class DmgDetection : MonoBehaviour
                     {
                         StunPlayer();
                     }
-                    playerPosture.posDmg(0.5f);
+                    playerPosture.posDmg(playerNormalBlockPostureDamage);
                     hitRegistered = true;
                     canDealDamage = false;
                     return;

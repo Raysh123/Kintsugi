@@ -56,7 +56,6 @@ public class PlayerStateMachine : MonoBehaviour
         if (animator != null)
         {
             if (animator.HasState(0, Animator.StringToHash(stunAnim))) animator.Play(stunAnim);
-            else Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{stunAnim}' - no stun animation plays.");
         }
 
         yield return new WaitForSeconds(stunDuration);
@@ -104,7 +103,6 @@ public class PlayerStateMachine : MonoBehaviour
         int hash = Animator.StringToHash(animName);
         if (!animator.HasState(0, hash))
         {
-            Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{animName}' - no injury animation plays.");
             return;
         }
         if (blendTime > 0f) animator.CrossFadeInFixedTime(hash, blendTime, 0, 0f);
@@ -135,7 +133,6 @@ public class PlayerStateMachine : MonoBehaviour
     [Tooltip("World units between his striking hand / foot and your body (collider surface) at the moment you press block. " +
              "Bigger = more forgiving. Watch the [Block] line in the Console to tune it.")]
     [SerializeField] private float perfectBlockDistance = 0.9f;
-    [SerializeField] private bool logBlockDistance = true;
     public bool PerfectByDistance => perfectByDistance;
     public float PerfectBlockDistance => perfectBlockDistance;
 
@@ -246,6 +243,14 @@ public class PlayerStateMachine : MonoBehaviour
     [Tooltip("How much of the attack's follow-through (the part after the hit window) he must wait out before " +
              "he can act again. 1 = the whole animation (old behaviour), 0.6 = he can punch again 40% sooner.")]
     [SerializeField] private float attackRecoverFraction = 0.7f;
+    [Header("Action cancels (act from almost any state)")]
+    [Tooltip("Block can interrupt an attack at ANY point, including the wind-up and the swing. Off = only once the hit window has closed (recovery).")]
+    [SerializeField] private bool blockCancelsWindup = true;
+    [Tooltip("A block press made up to this many seconds early is remembered and fires the moment a block is possible.")]
+    [SerializeField] private float blockBufferTime = 0.2f;
+    private float blockBufferedUntil = -1f;
+    private Coroutine attackCo, blockCo, lungeCo;
+    private bool attackRecoveryPhase;   // the hit window of the current attack has closed
     private float punchBufferedUntil = -1f;
     private float kickBufferedUntil = -1f;
     [SerializeField] private float blockCooldown = 0.6f;
@@ -298,9 +303,19 @@ public class PlayerStateMachine : MonoBehaviour
         bool wantPunch = punchPressed || Time.time <= punchBufferedUntil;
         bool wantKick = kickPressed || Time.time <= kickBufferedUntil;
 
+        // Actions cancel into each other: attack / block can start from Idle, Move, a Block, or an Attack
+        // (attack-from-attack once its hit window has closed). Dodge, hurt and stun still lock you out.
+        bool inFreeState = currentState == PlayerStates.Idle || currentState == PlayerStates.Move;
         bool canStartAttack = !PlayerSwap.Swapping && Time.time >= nextAttackTime &&
-                              (currentState == PlayerStates.Idle || currentState == PlayerStates.Move);
+                              (inFreeState || currentState == PlayerStates.Block ||
+                               (currentState == PlayerStates.Attack && attackRecoveryPhase));
         if (canStartAttack && (wantPunch || wantKick)) { punchBufferedUntil = kickBufferedUntil = -1f; }
+        if ((wantPunch || wantKick) && canStartAttack)
+        {
+            CancelBlock();
+            CancelAttack();
+            foreach (var hitbox in pHitBoxes) if (hitbox != null) hitbox.ResetHit();
+        }
         if (wantPunch && canStartAttack)
         {
             currentAttackType = AttackTypes.Punch;
@@ -309,7 +324,7 @@ public class PlayerStateMachine : MonoBehaviour
             if (movingForward && !string.IsNullOrEmpty(movingPunchAnim) &&
                 animator.HasState(0, Animator.StringToHash(movingPunchAnim)))
                 anim = movingPunchAnim;
-            StartCoroutine(PlayerAttackRoutine(anim, movingForward));
+            attackCo = StartCoroutine(PlayerAttackRoutine(anim, movingForward));
         }
         else if (wantKick && canStartAttack)
         {
@@ -319,21 +334,44 @@ public class PlayerStateMachine : MonoBehaviour
             if (movingForward && !string.IsNullOrEmpty(movingKickAnim) &&
                 animator.HasState(0, Animator.StringToHash(movingKickAnim)))
                 anim = movingKickAnim;
-            StartCoroutine(PlayerAttackRoutine(anim, movingForward));
+            attackCo = StartCoroutine(PlayerAttackRoutine(anim, movingForward));
         }
 
-        if (blockPressed && !PlayerSwap.Swapping &&
-            Time.time >= nextBlockTime &&
-            (currentState == PlayerStates.Idle || currentState == PlayerStates.Move))
+        if (blockPressed) blockBufferedUntil = Time.time + blockBufferTime;
+        bool canBlock = !PlayerSwap.Swapping && Time.time >= nextBlockTime &&
+                        (inFreeState || currentState == PlayerStates.Block ||
+                         (currentState == PlayerStates.Attack && (blockCancelsWindup || attackRecoveryPhase)));
+        if (canBlock && Time.time <= blockBufferedUntil)
         {
+            blockBufferedUntil = -1f;
             StartBlock();
         }
+    }
+
+    /// <summary>Stops the running attack (hit window shut, walking speed restored) without changing state.</summary>
+    private void CancelAttack()
+    {
+        if (attackCo != null) { StopCoroutine(attackCo); attackCo = null; }
+        if (lungeCo != null) { StopCoroutine(lungeCo); lungeCo = null; }
+        isAttacking = false;
+        attackRecoveryPhase = false;
+        SetPlayerHitWindow(false);
+        if (player != null) player.moveSpeedMultiplier = 1f;
+    }
+
+    /// <summary>Ends a block early (an attack or a new block takes over). Its protection ends with it.</summary>
+    private void CancelBlock()
+    {
+        if (blockCo != null) { StopCoroutine(blockCo); blockCo = null; }
+        if (currentState == PlayerStates.Block) lastBlockPressTime = -999f;
     }
 
     /// <summary>Starts a block right now (perfect-block timing counts from this moment). Also used by
     /// the swap, so a swap is a block too.</summary>
     public void StartBlock()
     {
+        if (currentState == PlayerStates.Attack) CancelAttack();
+        if (blockCo != null) { StopCoroutine(blockCo); blockCo = null; }
         nextBlockTime = Time.time + blockCooldown;
         lastBlockPressTime = Time.time;
         perfectBlockUsed = false;
@@ -341,9 +379,6 @@ public class PlayerStateMachine : MonoBehaviour
         {
             float gap = IncomingLimbGap();
             distancePerfect = gap >= 0f && gap <= perfectBlockDistance;
-            if (logBlockDistance)
-                Debug.Log(gap < 0f ? "[Block] pressed with nothing incoming -> normal block."
-                                   : $"[Block] pressed with the strike {gap:F2} away (perfect if <= {perfectBlockDistance:F2}) -> {(distancePerfect ? "PERFECT" : "normal")}.");
         }
         if (InjuryMeter.instance != null) InjuryMeter.instance.AddBlockInjury();
 
@@ -356,12 +391,13 @@ public class PlayerStateMachine : MonoBehaviour
             animator.Play("Lower_Block");
         }
 
-        StartCoroutine(BlockRoutine());
+        blockCo = StartCoroutine(BlockRoutine());
     }
     IEnumerator BlockRoutine()
     {
         ChangeState(PlayerStates.Block);
         yield return new WaitForSeconds(normalBlockWindow);
+        blockCo = null;
         if (currentState == PlayerStates.Block)
         {
             ChangeState(PlayerStates.Idle);
@@ -540,6 +576,7 @@ public class PlayerStateMachine : MonoBehaviour
     IEnumerator PlayerAttackRoutine(string animName, bool moving = false)
     {
         isAttacking = true;
+        attackRecoveryPhase = false;
         ChangeState(PlayerStates.Attack);
         SetInjuryMeter();
         animator.Play(animName);
@@ -556,7 +593,7 @@ public class PlayerStateMachine : MonoBehaviour
         // Moving attack: step forward over the wind-up, on top of (slowed) walking.
         float lunge = isPunch ? movingPunchLunge : movingKickLunge;
         if (moving && lunge > 0f && player != null && player.controller != null && player.opponent != null)
-            StartCoroutine(MovingPunchLunge(duration * Mathf.Max(0.05f, start), lunge));
+            lungeCo = StartCoroutine(MovingPunchLunge(duration * Mathf.Max(0.05f, start), lunge));
 
         SetPlayerHitWindow(false);
         yield return new WaitForSeconds(duration * start);
@@ -564,8 +601,11 @@ public class PlayerStateMachine : MonoBehaviour
         FightSounds.PlayerSwing(currentAttackType == AttackTypes.Kick);
         yield return new WaitForSeconds(duration * (end - start));
         SetPlayerHitWindow(false);
+        attackRecoveryPhase = true;   // from here an attack or block may cancel the follow-through
         yield return new WaitForSeconds(duration * (1f - end) * attackRecoverFraction);
 
+        attackCo = null;
+        attackRecoveryPhase = false;
         isAttacking = false;
         nextAttackTime = Time.time + attackRecovery;
         ChangeState(PlayerStates.Idle);
@@ -609,7 +649,6 @@ public class PlayerStateMachine : MonoBehaviour
         string other = incomingIsPunch ? hurtOnKickAnim : hurtOnPunchAnim;
         if (animator != null && !animator.HasState(0, Animator.StringToHash(preferred)))
         {
-            Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{preferred}' - playing '{other}' instead.");
             preferred = other;
         }
 
@@ -626,7 +665,6 @@ public class PlayerStateMachine : MonoBehaviour
         int hash = Animator.StringToHash(legHurtAnim);
         if (!animator.HasState(0, hash))
         {
-            Debug.LogWarning($"[PlayerStateMachine] Player animator has no state '{legHurtAnim}' - no leg-hit flinch plays.");
             return;
         }
         if (legHurtRoutine != null) StopCoroutine(legHurtRoutine);
