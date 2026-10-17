@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8835dfddad7d4ee41a303e58bc774c6d, type: 3}
+  m_Name: ParkConversation
+  m_EditorClassIdentifier: 
+  blocks:
+  - phase: 1
+    anyTimeOfDay: 0
+    timeOfDay: 0
+    anyDay: 1
+    dayNumber: 0
+    lines:
+    - speakerIndex: 0
+      subtitle: So....
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: So?
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: I heard about your dojo, what an ass
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: 'Hey, He''s still my Sensei man
+
+'
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: Hell Nah! Man you are good, and he benifitted from that. How many
+        new students did he get cuz you won tournaments
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: ....
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: 'So what now ?
+
+'
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: I dont know, Recover, focus on work, maybe?
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: There are other dojos out there you know?
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: 'Yeah?Name 1 that would take in a cripple like me '
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: Shut up da. You're not a cripple, First of all thats rude to people
+        with actual disabilities.
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: Secondly, My sensei would take you in.
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: But your dojo is more about Karate and self help than about tournaments,
+        You know thats not my style
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: Thats BS. Listen, you cant give up, this is an option . You need
+        to learn to fight again...
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: Bro I know how to figh...
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: 'Thats not what I mean. You have to change it, You need to fight
+        different, Like it or not, your injury is a part of you.  '
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 0
+      subtitle: My sensei knows his shit. he can help. Join us. I haven't ever seen
+        you give up on anything yet, I wont let you start now.
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 1
+      subtitle: 'Alright, fine! seems like its my only option for now anyway. '
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 0
+      subtitle: Thats ma boy. Alright Lemon tea before we head back? My treat!!
+      audioClip: {fileID: 0}
+      waitForInput: 0

@@ -32,7 +32,7 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
     [SerializeField] private GameObject benchActivityModel;
 
     [Header("First Visit Only")]
-    [SerializeField] private DialogueRunner friendDialogue;
+    [SerializeField] private ConversationRunner friendDialogue;
 
     [Header("Leaving the Park")]
     [SerializeField] private GameObject openMapPrompt;
