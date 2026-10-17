@@ -10999,7 +10999,7 @@ MonoBehaviour:
   resumeText: Hajime!
   timeUpText: Time!
   playerWinText: Dastaan wins!
-  playerLoseText: Sami loses!
+  playerLoseText: Sami Wins!
   refereeWinTrigger: 
   refereeLoseTrigger: 
   refereeWinState: WinPlayer

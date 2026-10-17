@@ -10906,11 +10906,11 @@ MonoBehaviour:
         m_Calls: []
   matchScore: {fileID: 1086321186}
   playerPointText: Point! Dastaan (+{points})
-  enemyPointText: Point! Sami (+{points})
+  enemyPointText: Point! Jat (+{points})
   resumeText: Hajime!
   timeUpText: Time!
   playerWinText: Dastaan wins!
-  playerLoseText: Sami loses!
+  playerLoseText: Jat Wins!
   refereeWinTrigger: 
   refereeLoseTrigger: 
   refereeWinState: WinPlayer
