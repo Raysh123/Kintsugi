@@ -19,6 +19,13 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
     [SerializeField] private GameObject runningActivityModel;
     [SerializeField] private Transform runStartPosition;
 
+    [Header("Run Intro (first time only)")]
+    [Tooltip("Panel explaining that park activities only restore the motivation meter. Shown once, before the run can start. " +
+             "Leave empty to skip it.")]
+    [SerializeField] private GameObject runIntroPanel;
+    [Tooltip("Flag id remembered in PersistentGameFlags so the intro only ever shows the first time.")]
+    [SerializeField] private string runIntroFlagId = "ParkRunIntroShown";
+
     [Header("Bench / Serene Area Phase")]
     [SerializeField] private Transform benchDestination;
     [SerializeField] private GameObject benchCamera;
@@ -41,78 +48,69 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
     [SerializeField] private string firstVisitFlagId = "ParkFriendDialogueShown";
 
     private bool isRunning;
+    private bool runIntroShownThisSession;
 
     private bool HasVisitedBefore =>
         PersistentGameFlags.instance != null && PersistentGameFlags.instance.HasFlag(firstVisitFlagId);
+
+    private bool HasSeenRunIntro =>
+        runIntroShownThisSession ||
+        (PersistentGameFlags.instance != null && PersistentGameFlags.instance.HasFlag(runIntroFlagId));
 
     private void MarkVisited()
     {
         if (PersistentGameFlags.instance != null)
             PersistentGameFlags.instance.SetFlag(firstVisitFlagId);
-        else
-            Debug.LogWarning("[ParkActivity] PersistentGameFlags.instance is null — first-visit " +
-                              "state won't survive a scene reload. Make sure a PersistentGameFlags " +
-                              "object exists in your startup scene.");
+    }
+
+    private void MarkRunIntroSeen()
+    {
+        runIntroShownThisSession = true;
+        if (PersistentGameFlags.instance != null)
+            PersistentGameFlags.instance.SetFlag(runIntroFlagId);
     }
 
     public void OnArrival()
     {
-        Debug.Log("[ParkActivity] OnArrival called.");
-        if (isRunning)
-        {
-            Debug.LogWarning("[ParkActivity] OnArrival called again while already running — ignored.");
-            return;
-        }
+        if (isRunning) return;
         StartCoroutine(RunSequence());
     }
 
     private IEnumerator RunSequence()
     {
-        Debug.Log("[ParkActivity] RunSequence started.");
         isRunning = true;
 
-        // Lock normal movement, hide the regular player mesh — the running/bench
+        // Lock normal movement, hide the regular player mesh - the running/bench
         // models are separate pre-built objects, same pattern as every other activity.
         if (player != null) player.movementLocked = true;
-        else Debug.LogWarning("[ParkActivity] Player reference not assigned.");
-
         if (playerMeshChild != null) playerMeshChild.SetActive(false);
-        else Debug.LogWarning("[ParkActivity] Player Mesh Child not assigned.");
-
-        if (defaultCamera != null)
-        {
-            defaultCamera.SetActive(false);
-            Debug.Log("[ParkActivity] Default Camera deactivated.");
-        }
-        else Debug.LogWarning("[ParkActivity] Default Camera not assigned — the normal gameplay " +
-                               "camera will keep rendering alongside the park cameras.");
+        if (defaultCamera != null) defaultCamera.SetActive(false);
 
         // --- Running phase ---
         if (runnerMover != null) runnerMover.ResetPosition(runStartPosition);
-        else Debug.LogWarning("[ParkActivity] Runner Mover not assigned.");
 
-        if (minigame != null) minigame.ResetMinigame();
-        else Debug.LogWarning("[ParkActivity] Minigame not assigned.");
+        if (runningCamera != null) runningCamera.SetActive(true);
+        if (runningActivityModel != null) runningActivityModel.SetActive(true);
 
-        if (runningCamera != null)
+        // First time only: explain that park activities only restore motivation. The minigame hasn't been
+        // started yet, so mashing can't begin (or the timer run) until the panel is dismissed.
+        if (runIntroPanel != null && !HasSeenRunIntro)
         {
-            runningCamera.SetActive(true);
-            Debug.Log("[ParkActivity] Running Camera activated.");
+            runIntroPanel.SetActive(true);
+            yield return null; // let the key press that opened the activity pass
+            yield return new WaitUntil(() =>
+                Input.GetKeyDown(KeyCode.E) ||
+                Input.GetKeyDown(KeyCode.JoystickButton0) ||
+                Input.GetButtonDown("Submit"));
+            runIntroPanel.SetActive(false);
+            MarkRunIntroSeen();
+            yield return null; // don't let the dismiss press count as the first mash
         }
-        else Debug.LogWarning("[ParkActivity] Running Camera not assigned.");
-
-        if (runningActivityModel != null)
-        {
-            runningActivityModel.SetActive(true);
-            Debug.Log("[ParkActivity] Running Activity Model activated.");
-        }
-        else Debug.LogWarning("[ParkActivity] Running Activity Model not assigned.");
 
         if (minigame != null)
         {
-            Debug.Log("[ParkActivity] Waiting for minigame.finished...");
+            minigame.ResetMinigame();
             yield return new WaitUntil(() => minigame.finished);
-            Debug.Log("[ParkActivity] minigame.finished is true — running phase complete.");
         }
 
         if (minigame != null && HealthAndMotivation.instance != null)
@@ -127,12 +125,9 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
         if (benchCamera != null)
         {
             benchCamera.SetActive(true);
-            Debug.Log("[ParkActivity] Bench Camera activated.");
         }
-        else Debug.LogWarning("[ParkActivity] Bench Camera not assigned.");
 
         if (benchActivityModel != null) benchActivityModel.SetActive(true);
-        else Debug.LogWarning("[ParkActivity] Bench Activity Model not assigned.");
 
         if (!HasVisitedBefore && friendDialogue != null)
         {
@@ -160,7 +155,6 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
         if (defaultCamera != null)
         {
             defaultCamera.SetActive(true);
-            Debug.Log("[ParkActivity] Default Camera reactivated.");
         }
 
         // Time only advances NOW, after the player has actually chosen to leave - not while

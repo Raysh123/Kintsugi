@@ -383,21 +383,6 @@ public class RefereeController : MonoBehaviour
         }
         string wantedTrigger = playerWon ? refereeWinTrigger : refereeLoseTrigger;
         Trigger(refereeAnimator, wantedTrigger);
-        if (refereeAnimator != null && !string.IsNullOrEmpty(wantedTrigger))
-        {
-            // One warning, only when the result trigger can't be found: shows what the script looked for and what the Animator really has.
-            bool found = false;
-            string have = "";
-            foreach (AnimatorControllerParameter prm in refereeAnimator.parameters)
-            {
-                if (prm.type != AnimatorControllerParameterType.Trigger) continue;
-                have += "'" + prm.name + "' ";
-                if (prm.name == wantedTrigger) found = true;
-            }
-            if (!found)
-                Debug.LogWarning("[Referee] Result trigger '" + wantedTrigger + "' (RefereeController > Result call) is not a Trigger parameter on '" +
-                                 refereeAnimator.gameObject.name + "'. Its Trigger parameters: " + (have.Length > 0 ? have : "(none)"), refereeAnimator);
-        }
         string resultState = playerWon ? refereeWinState : refereeLoseState;
         if (!string.IsNullOrEmpty(resultState)) PlayState(refereeAnimator, resultState, "referee");
         ShowTimed(playerWon ? playerWinText : playerLoseText, seconds);
