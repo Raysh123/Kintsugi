@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Plays spoken dialogue and shows subtitles at the bottom of the screen.
@@ -26,6 +27,17 @@ public class DialogueRunner : MonoBehaviour
     [Tooltip("Optional: name card that shows the speaking character's name.")]
     [SerializeField] private TMP_Text speakerNameText;
 
+    [Header("UI - Dialogue Box")]
+    [Tooltip("Optional: the whole dialogue box (background image, name, icon, subtitle...). Switched on while a " +
+             "dialogue plays and off when it ends, so keep it INACTIVE in the scene.")]
+    [SerializeField] private GameObject dialoguePanel;
+    [Tooltip("Optional: Image that shows the speaker's icon beside their name. Hidden when there is no icon.")]
+    [SerializeField] private Image speakerIconImage;
+    [Tooltip("Optional: the background box behind the speaker's name. Shown only while there is a name to show.")]
+    [SerializeField] private GameObject speakerNameBox;
+    [Tooltip("This character's icon, shown in the Speaker Icon Image while they talk. Leave empty for none.")]
+    [SerializeField] private Sprite speakerIcon;
+
     [Header("Audio")]
     [SerializeField] private AudioSource audioSource;
 
@@ -36,6 +48,14 @@ public class DialogueRunner : MonoBehaviour
 
     /// Fired when all lines in the block have played.
     public event System.Action OnDialogueComplete;
+
+    private void Awake()
+    {
+        // Start with the whole dialogue box hidden, so nothing shows until a dialogue actually plays.
+        SetIcon(null);
+        SetNameBox(false);
+        SetPanel(false);
+    }
 
     public void Show()
     {
@@ -48,8 +68,6 @@ public class DialogueRunner : MonoBehaviour
         DialogueBlock block = dialogue?.GetBlock(phase, timeOfDay, dayNumber);
         if (block == null || block.lines.Length == 0)
         {
-            Debug.Log($"[Dialogue] No lines for {dialogue?.characterName} " +
-                      $"in phase {phase} (time of day: {timeOfDay}, day {dayNumber})");
             return;
         }
 
@@ -71,7 +89,8 @@ public class DialogueRunner : MonoBehaviour
     private IEnumerator RunDialogue(DialogueBlock block)
     {
         IsRunning = true;
-        ActiveDialogueTracker.Begin();
+        ActiveDialogueTracker.Begin(this);
+        SetPanel(true);
 
         // Wait one frame before any input checking begins — otherwise the same
         // button press that triggered Show() (still "down" for this whole frame)
@@ -80,6 +99,8 @@ public class DialogueRunner : MonoBehaviour
 
         if (speakerNameText != null)
             speakerNameText.text = dialogue.characterName;
+        SetIcon(speakerIcon);
+        SetNameBox(!string.IsNullOrEmpty(dialogue.characterName));
 
         foreach (DialogueLine line in block.lines)
         {
@@ -123,9 +144,41 @@ public class DialogueRunner : MonoBehaviour
         // Clear subtitles
         if (subtitleText != null) subtitleText.text = string.Empty;
         if (speakerNameText != null) speakerNameText.text = string.Empty;
+        SetIcon(null);
+        SetNameBox(false);
+        SetPanel(false);
 
         IsRunning = false;
-        ActiveDialogueTracker.End();
+        ActiveDialogueTracker.End(this);
         OnDialogueComplete?.Invoke();
+    }
+
+    private void OnDisable()
+    {
+        // If this object is switched off mid-dialogue the coroutine dies without ever releasing the
+        // player's lock - release it here so movement can't stay frozen.
+        if (IsRunning)
+        {
+            IsRunning = false;
+            ActiveDialogueTracker.End(this);
+        }
+    }
+
+    private void SetNameBox(bool on)
+    {
+        if (speakerNameBox != null) speakerNameBox.SetActive(on);
+    }
+
+    private void SetPanel(bool on)
+    {
+        if (dialoguePanel != null) dialoguePanel.SetActive(on);
+    }
+
+    private void SetIcon(Sprite sprite)
+    {
+        if (speakerIconImage == null) return;
+
+        speakerIconImage.sprite = sprite;
+        speakerIconImage.gameObject.SetActive(sprite != null);
     }
 }

@@ -99,6 +99,8 @@ public class RecoverySoundscape : MonoBehaviour
     // new starts. Static so it also holds if a cutscene begins before this component is ready.
     private static bool ambienceSuppressed;
 
+    public static void ClearStatics() { lastAreaName = null; ambienceSuppressed = false; }
+
     /// <summary>Silences (true) or restores (false) the ambience, with the normal fade.</summary>
     public static void SetAmbienceSuppressed(bool suppressed)
     {

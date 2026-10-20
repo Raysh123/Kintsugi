@@ -88,6 +88,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
 
     [Header("Optional Animation Hooks")]
     [Tooltip("If assigned, this script plays Up/Down/mistake/injured anim states itself. " +
+             "Up/Down only play when the player presses the correct button, never when the prompt appears. " +
              "Leave blank if the wrapper script is driving animation instead.")]
     [SerializeField] private Animator activityAnimator;
     [SerializeField] private string upAnimState;
@@ -162,11 +163,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
     {
         yield return new WaitForSeconds(startDelay);
 
-        if (beats.Count == 0)
-        {
-            Debug.LogWarning($"{name}: RhythmSequenceMinigame has no beats to play.");
-            yield break;
-        }
+        if (beats.Count == 0) yield break;
 
         waitingForStart = false;
         sequenceActive = true;
@@ -199,7 +196,6 @@ public class RhythmSequenceMinigame : MonoBehaviour
     {
         RhythmBeat beat = beats[index];
         beatTimer = GetTimingWindowForBeat(beat);
-        PlayMovementAnim(beat);
         OnBeatStarted?.Invoke(beat);
     }
 
@@ -209,6 +205,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
 
         if (pressed == beat.expectedButton)
         {
+            PlayMovementAnim(beat);
             successCount++;
             OnBeatResolved?.Invoke(true);
             OnProgressChanged?.Invoke(successCount, failCount, riskyMissCount);
@@ -336,11 +333,7 @@ public class RhythmSequenceMinigame : MonoBehaviour
     {
         if (string.IsNullOrEmpty(state)) return;
 
-        if (activityAnimator == null)
-        {
-            Debug.LogWarning($"{name}: tried to play anim state '{state}' but activityAnimator is not assigned.");
-            return;
-        }
+        if (activityAnimator == null) return;
 
         activityAnimator.Play(state);
     }

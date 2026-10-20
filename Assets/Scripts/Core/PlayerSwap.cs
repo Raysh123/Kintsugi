@@ -276,12 +276,14 @@ public class PlayerSwap : MonoBehaviour
 
         // ---- 1) SWAP READY: the grab. Nobody moves or turns.
         FightSounds.SwapReady();
+        FightVFX.Play(FightVFX.Kind.SwapReady, (pt.position + et.position) * 0.5f);
         PlayIfExists(psm.animator, playerReadyAnim);
         PlayIfExists(enemy.anim, enemyReadyAnim);
         for (float t = 0f; t < ready; t += Time.deltaTime) yield return null;
 
         // ---- 2) SWAP: trade places and turn, over this phase.
         FightSounds.Swap();
+        FightVFX.Play(FightVFX.Kind.Swap, (pt.position + et.position) * 0.5f);
         PlayIfExists(psm.animator, playerSwapAnim);
         PlayIfExists(enemy.anim, enemySwapAnim);
         for (float t = 0f; t < swapT;)
@@ -321,14 +323,14 @@ public class PlayerSwap : MonoBehaviour
         for (float t = 0f; t < push;)
         {
             t += Time.deltaTime;
-            if (!pushSfxPlayed && t >= delay) { pushSfxPlayed = true; FightSounds.SwapPush(); }   // the hands connect
+            if (!pushSfxPlayed && t >= delay) { pushSfxPlayed = true; FightSounds.SwapPush(); FightVFX.Play(FightVFX.Kind.SwapPush, et.position); }   // the hands connect
             // Anims are already playing; the body only starts moving once the hands have connected.
             float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - delay) / slide));
             et.position = Vector3.Lerp(pushFrom, eEnd, k);
             yield return null;
         }
         et.position = eEnd;
-        if (!pushSfxPlayed) FightSounds.SwapPush();   // very short push: still play it once
+        if (!pushSfxPlayed) { FightSounds.SwapPush(); FightVFX.Play(FightVFX.Kind.SwapPush, et.position); }   // very short push: still play it once
 
         if (pc.controller != null) pc.controller.enabled = ctrlWas;
 

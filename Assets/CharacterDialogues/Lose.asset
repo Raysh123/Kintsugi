@@ -12,16 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3fe0b8adda465ae45b6b1acbb9ca92bd, type: 3}
   m_Name: Lose
   m_EditorClassIdentifier: 
-  characterName: SenSei
+  characterName: Yang Sensei
   dialogueBlocks:
-  - phase: 2
+  - phase: 3
     anyTimeOfDay: 1
     timeOfDay: 0
     anyDay: 1
     dayNumber: 0
     lines:
     - audioClip: {fileID: 0}
-      subtitle: 'You Lose
+      subtitle: 'You Win
 
 
 '

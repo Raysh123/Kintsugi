@@ -48,6 +48,8 @@ public class TutorialDirector : MonoBehaviour
     [Header("3. The injury (at this score)")]
     [Tooltip("When either fighter reaches this many points, the injury cutscene starts.")]
     [SerializeField] private int pointsToEnd = 7;
+    [Tooltip("If nobody has reached the score by the time the clock shows this many seconds left, the injury cutscene starts anyway. 0 = off.")]
+    [SerializeField] private float endAtSecondsLeft = 10f;
     [Tooltip("The cutscene prefab, placed in the scene and switched OFF. Its root needs an Animator whose default state is the clip.")]
     [SerializeField] private GameObject cutsceneRoot;
     [Tooltip("Leave empty to find the Animator on the Cutscene Root.")]
@@ -194,7 +196,9 @@ public class TutorialDirector : MonoBehaviour
     private void CheckScore()
     {
         if (matchScore == null) return;
-        if (matchScore.PlayerScore >= pointsToEnd || matchScore.EnemyScore >= pointsToEnd)
+        bool timeIsUp = endAtSecondsLeft > 0f && matchTimer != null && !matchTimer.matchOver &&
+                        matchTimer.TimeRemaining <= endAtSecondsLeft;
+        if (matchScore.PlayerScore >= pointsToEnd || matchScore.EnemyScore >= pointsToEnd || timeIsUp)
         {
             injuryStarted = true;
             StartCoroutine(Injury());

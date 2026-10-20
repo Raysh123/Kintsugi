@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   activityId: Squats
   displayName: Squats
-  timeCostMinutes: 60
-  onceLimitPerDay: 0
+  quadrantTicks: 4
+  onceLimitPerDay: 1
   minMotivationRequired: 0
   isCrossScene: 0

@@ -6,9 +6,8 @@ using UnityEngine;
 /// Handles the dojo location end-to-end: on the player's very first arrival here (via the
 /// travel map, through ITravelArrivalHandler.OnArrival - see TravelMapController), it locks
 /// player movement, plays the one-time join dialogue, then unlocks whatever represents the
-/// day-to-day training loop (e.g. FightTrigger). On every arrival after that, it's a no-op
-/// (OnArrival just logs the return visit) - the sensei's own SenseiInteraction component
-/// handles Talk/Ask-to-Fight from then on.
+/// day-to-day training loop (e.g. FightTrigger). On every arrival after that, it does nothing
+/// extra - the sensei's own SenseiInteraction component handles talking to him, and the fight mat handles fights.
 ///
 /// This is fully automatic and requires no player collider: TravelMapController calls
 /// OnArrival() itself right after teleporting the player in, the same way it already does
@@ -26,6 +25,9 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
 {
     private const string JoinedFlag = "DojoJoined";
 
+    /// <summary>Set once the player has talked to the sensei at night on the join day (SenseiInteraction).</summary>
+    public const string SenseiNightTalkFlag = "DojoSenseiNightTalkDone";
+
     [Header("First Arrival (automatic, fires once)")]
     [Tooltip("Advanced to (if not already reached) once the join dialogue finishes. Purely " +
              "for keeping StoryPhase's own bookkeeping consistent - actual join tracking uses " +
@@ -37,6 +39,11 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
     [Tooltip("Locked for the duration of the join dialogue, then restored. Not needed for " +
              "return visits.")]
     [SerializeField] private PlayerMovement player;
+
+    [Header("Join Day Map Lock")]
+    [Tooltip("Locked from the end of the join conversation until the player has talked to the sensei at night " +
+             "(SenseiInteraction unlocks it), so the whole join day is spent at the dojo.")]
+    [SerializeField] private TravelMapController travelMap;
 
     [Header("Day-To-Day Loop Unlock")]
     [Tooltip("Objects activated once the player has joined - e.g. FightTrigger for " +
@@ -54,6 +61,8 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
 
     private bool joinSequenceRunning;
 
+    private static bool HasFlag(string id) => PersistentGameFlags.instance != null && PersistentGameFlags.instance.HasFlag(id);
+
     private void Start()
     {
         // If already joined, this Start() is happening because the RPG scene just reloaded
@@ -63,21 +72,28 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
         // persisted through the reload with whatever model it last had active.
         if (AlreadyJoined())
         {
-            Debug.Log("[DojoArrivalHandler] Scene (re)loaded with dojo already joined - re-activating day-to-day loop.");
+            if (MapShouldBeLocked() && travelMap != null) travelMap.SetLocked(true);
             ActivateUnlockList();
             if (appearance != null) appearance.SetModel(dojoModelId);
         }
     }
 
+    private static bool MapShouldBeLocked()
+    {
+        return !HasFlag(SenseiNightTalkFlag) &&
+               StoryManager.instance != null &&
+               StoryManager.instance.CurrentPhase == StoryPhase.NewDojoJoin;
+    }
+
     private bool AlreadyJoined()
     {
-        return PersistentGameFlags.instance != null && PersistentGameFlags.instance.HasFlag(JoinedFlag);
+        return HasFlag(JoinedFlag);
     }
 
     /// <summary>
     /// Called automatically by TravelMapController right after the player is teleported here
     /// (see ITravelArrivalHandler). On a genuine first arrival, runs the join dialogue and
-    /// completes the join. On any later arrival, does nothing beyond logging.
+    /// completes the join. On any later arrival, does nothing beyond the outfit swap.
     /// </summary>
     public void OnArrival()
     {
@@ -85,18 +101,10 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
         // dojo outfit, it just skips the one-time join dialogue below.
         if (appearance != null) appearance.SetModel(dojoModelId);
 
-        if (AlreadyJoined())
-        {
-            Debug.Log("[DojoArrivalHandler] Returning visit - day-to-day loop already unlocked.");
-            return;
-        }
+        QuestLog.Complete("GoToDojo");
 
-        if (joinSequenceRunning)
-        {
-            Debug.LogWarning("[DojoArrivalHandler] OnArrival fired again while the join sequence " +
-                              "was already running - ignoring the duplicate call.");
-            return;
-        }
+        if (AlreadyJoined()) return;
+        if (joinSequenceRunning) return;
 
         StartCoroutine(RunJoinSequence());
     }
@@ -111,20 +119,9 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
             joinDialogue.Show();
             yield return new WaitUntil(() => !joinDialogue.IsRunning);
         }
-        else
-        {
-            Debug.LogWarning("[DojoArrivalHandler] Join Dialogue not assigned - skipping straight to completing the join.");
-        }
 
-        Debug.Log("[DojoArrivalHandler] Join dialogue finished - marking dojo as joined.");
         if (PersistentGameFlags.instance != null)
-        {
             PersistentGameFlags.instance.SetFlag(JoinedFlag);
-        }
-        else
-        {
-            Debug.LogWarning("[DojoArrivalHandler] PersistentGameFlags.instance is null - join state won't persist across a scene reload!");
-        }
 
         // Keeps StoryPhase in sync in case anything else still reads it directly - harmless
         // no-op via TryAdvanceToPhase's own guard if the calendar already advanced it.
@@ -132,6 +129,8 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
             StoryManager.instance.TryAdvanceToPhase(targetPhase);
 
         ActivateUnlockList();
+        if (travelMap != null) travelMap.SetLocked(true);
+        QuestLog.Show("FinishTraining");
 
         if (player != null) player.movementLocked = false;
         joinSequenceRunning = false;
@@ -143,7 +142,5 @@ public class DojoArrivalHandler : MonoBehaviour, ITravelArrivalHandler
         {
             if (obj != null) obj.SetActive(true);
         }
-
-        Debug.Log($"[DojoArrivalHandler] Day-to-day loop active ({unlockOnFirstArrival.Count} object(s)).");
     }
 }

@@ -177,12 +177,28 @@ public class PlayerMovement : MonoBehaviour
 
     private void Interact()
     {
-        bool pressedInteract = Input.GetKey(KeyCode.E) || Input.GetButtonDown("Submit");
+        // Never while a dialogue is on screen: the press that advances / skips a line must not also start an interaction.
+        if (ActiveDialogueTracker.AnyActive) return;
 
-        if (canInteract && pressedInteract && (typeA || typeB || typeC))
-        {
-            interacting = true;
-            Debug.Log("Begin interaction");
-        }
+        bool pressedInteract = Input.GetKeyDown(KeyCode.E) || Input.GetButtonDown("Submit");
+        if (!canInteract || !pressedInteract) return;
+
+        // Only start an interaction if the thing in front of us really has an interaction script that is ready
+        // to run it - otherwise 'interacting' would be set and nothing would ever clear it (stuck player).
+        bool target =
+            (typeA && interact != null && interact.isActiveAndEnabled) ||
+            (typeB && interactTypeB != null && interactTypeB.isActiveAndEnabled) ||
+            (typeC && interactTypeC != null && interactTypeC.isActiveAndEnabled) ||
+            CatReady();
+
+        if (target) interacting = true;
+    }
+
+    // The cat is tagged "Interact" too but has its own script instead of a Recovery one.
+    private bool CatReady()
+    {
+        if (interactable == null) return false;
+        CatPlayInteraction cat = interactable.GetComponent<CatPlayInteraction>();
+        return cat != null && cat.isActiveAndEnabled;
     }
 }

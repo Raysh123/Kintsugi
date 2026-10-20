@@ -34,6 +34,11 @@ public class BedInteraction : MonoBehaviour
     [SerializeField] private Image fadeImage;
     [SerializeField] private float fadeDuration = 1f;
 
+    [Header("Prompt")]
+    [Tooltip("A prompt (e.g. \"Space / B: Sleep\") shown only while the player is at the bed and it is actually " +
+             "possible to sleep - at Night, and not during the BedRest phase. Keep it INACTIVE in the scene. Optional.")]
+    [SerializeField] private GameObject interactPrompt;
+
     private bool canInteract;
     private bool isSleeping;
 
@@ -79,8 +84,28 @@ public class BedInteraction : MonoBehaviour
         if (fadeImage != null) SetFadeAlpha(0f);
     }
 
+    private void OnDisable()
+    {
+        if (interactPrompt != null) interactPrompt.SetActive(false);
+    }
+
+    /// <summary>True when pressing the sleep button right now would actually put the player to sleep.</summary>
+    private bool CanSleepNow()
+    {
+        if (!canInteract || isSleeping || player == null || player.interacting) return false;
+        if (ActiveDialogueTracker.AnyActive) return false;
+        if (StoryManager.instance != null && StoryManager.instance.CurrentPhase == StoryPhase.BedRest) return false;
+        return CalendarManager.instance != null && CalendarManager.instance.CurrentPhase == DayPhase.Night;
+    }
+
     private void Update()
     {
+        if (interactPrompt != null)
+        {
+            bool show = CanSleepNow();
+            if (interactPrompt.activeSelf != show) interactPrompt.SetActive(show);
+        }
+
         if (!canInteract || isSleeping || player == null || player.interacting) return;
 
         // Defer entirely during BedRest — BedRestPhaseController owns sleep for that phase.
@@ -90,10 +115,7 @@ public class BedInteraction : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space) || Input.GetButtonDown("Cancel"))
         {
             if (CalendarManager.instance == null || CalendarManager.instance.CurrentPhase != DayPhase.Night)
-            {
-                Debug.Log("Can only sleep at Night.");
                 return;
-            }
 
             StartCoroutine(SleepSequence());
         }

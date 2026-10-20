@@ -30,6 +30,10 @@ public class TravelMapController : MonoBehaviour
         public Transform destination;
         [Tooltip("This location becomes selectable once the story reaches this phase (or later).")]
         public StoryPhase unlockPhase = StoryPhase.BedRest;
+        [Tooltip("Tick to make this location unavailable for the whole of one story phase (e.g. Park during " +
+                 "NewDojoJoin). It is selectable again as soon as the story moves past that phase.")]
+        public bool lockDuringPhase;
+        public StoryPhase lockedPhase = StoryPhase.NewDojoJoin;
         [Tooltip("Which times of day this location can be traveled to. Leave EMPTY for no " +
                  "restriction (selectable any time, once unlocked) - e.g. Park: Morning + " +
                  "Evening only, Dojo: Morning + Afternoon + Evening (no Night).")]
@@ -67,16 +71,53 @@ public class TravelMapController : MonoBehaviour
     [SerializeField] private int startingLocationIndex = -1;
     private int currentLocationIndex;
 
+    /// <summary>True while the map is locked by the story - OpenMap does nothing, so doors can't open it.</summary>
+    public bool IsLocked { get; private set; }
+
+    /// <summary>Locks or unlocks the whole map. Locking while it's open closes it.</summary>
+    public void SetLocked(bool locked)
+    {
+        IsLocked = locked;
+        if (locked && isOpen) CloseMap();
+    }
+
     private void Start()
     {
         currentLocationIndex = startingLocationIndex;
+        RestoreCurrentLocation();
         if (mapPanel != null) mapPanel.SetActive(false);
         RefreshIconVisibility();
     }
 
+    private static string LocationFlag(int index) => "MapLocation_" + index;
+
+    /// <summary>This scene object is rebuilt on every scene load (e.g. coming back from a fight), so where the
+    /// player last travelled to is remembered in PersistentGameFlags.</summary>
+    private void SaveCurrentLocation()
+    {
+        if (PersistentGameFlags.instance == null) return;
+
+        for (int i = 0; i < locations.Count; i++)
+            PersistentGameFlags.instance.ClearFlag(LocationFlag(i));
+
+        PersistentGameFlags.instance.SetFlag(LocationFlag(currentLocationIndex));
+    }
+
+    private void RestoreCurrentLocation()
+    {
+        if (PersistentGameFlags.instance == null) return;
+
+        for (int i = 0; i < locations.Count; i++)
+        {
+            if (!PersistentGameFlags.instance.HasFlag(LocationFlag(i))) continue;
+            currentLocationIndex = i;
+            return;
+        }
+    }
+
     public void OpenMap()
     {
-        if (isOpen) return;
+        if (isOpen || IsLocked) return;
 
         RefreshIconVisibility();
         currentIndex = FindNextUnlockedIndex(0, 1);
@@ -89,7 +130,6 @@ public class TravelMapController : MonoBehaviour
             // the player can see that for themselves, rather than the map silently refusing
             // to open with no feedback at all.
             if (locationNameText != null) locationNameText.text = "Nowhere to go right now";
-            Debug.Log("[Travel] Map opened, but nothing is currently selectable.");
         }
         else
         {
@@ -183,7 +223,10 @@ public class TravelMapController : MonoBehaviour
 
     private bool IsUnlocked(TravelLocation location)
     {
-        return StoryManager.instance != null && StoryManager.instance.CurrentPhase >= location.unlockPhase;
+        if (StoryManager.instance == null) return false;
+        StoryPhase current = StoryManager.instance.CurrentPhase;
+        if (location.lockDuringPhase && current == location.lockedPhase) return false;
+        return current >= location.unlockPhase;
     }
 
     /// <summary>Empty allowedTimesOfDay means "no restriction" - always allowed, once unlocked.</summary>
@@ -251,6 +294,7 @@ public class TravelMapController : MonoBehaviour
     {
         TeleportPlayer(location.destination);
         currentLocationIndex = currentIndex;
+        SaveCurrentLocation();
 
         // CloseMap() unconditionally unlocks movement (it's also the normal Cancel/close
         // path, where that's exactly what should happen) - immediately re-lock right after
@@ -284,6 +328,8 @@ public class TravelMapController : MonoBehaviour
         player.transform.position = destination.position;
         player.transform.rotation = destination.rotation;
 
+        Physics.SyncTransforms();
         if (controller != null) controller.enabled = true;
+        PlayerFallSafety.MarkSafe(destination.position, destination.rotation);
     }
 }

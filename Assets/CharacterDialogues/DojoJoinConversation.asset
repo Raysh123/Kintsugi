@@ -20,36 +20,56 @@ MonoBehaviour:
     dayNumber: 0
     lines:
     - speakerIndex: 0
-      subtitle: Good Evening, Sensei Frank
+      subtitle: Uhm Hello!
       audioClip: {fileID: 0}
       waitForInput: 0
     - speakerIndex: 1
-      subtitle: "Good evening? Is this Dastaan? How are you doing my boy?\t\t"
+      subtitle: Ah, Sami told me you would be coming in today. I am Yang, youmay
+        call me Sensei.
       audioClip: {fileID: 0}
       waitForInput: 1
-    - speakerIndex: 2
-      subtitle: I'm getting better sensei. I'm finished with my physio and mostly
-        up and about. I was wondering if I could start training again tomorrow
+    - speakerIndex: 0
+      subtitle: Sensei Yang. I would like to join this dojo. I uhm... recently suffered
+        a back..
       audioClip: {fileID: 0}
       waitForInput: 1
-    - speakerIndex: 4
-      subtitle: 'What? Why not Sensei, you know me, I''m the best in class, and i
-        really need to keep up my training. '
+    - speakerIndex: 1
+      subtitle: 'I know about your injury. Herniated discs in the lower vertibrae
+        right. I had that too a few years back. '
       audioClip: {fileID: 0}
       waitForInput: 1
-    - speakerIndex: 5
-      subtitle: "It's not right for you to push yourself Dastaan. \nYou must take
-        care of your injury"
+    - speakerIndex: 1
+      subtitle: I must say you have done well getting back on your feet. Good work
+        on getting through your physio.
       audioClip: {fileID: 0}
       waitForInput: 1
-    - speakerIndex: 6
-      subtitle: But Sensei, I am gettig better and I will keep getting better, and
-        I...
+    - speakerIndex: 0
+      subtitle: Thank you Sensei. Sami told me you could help me get back to fighting
+        tournaments.
       audioClip: {fileID: 0}
       waitForInput: 1
-    - speakerIndex: 7
-      subtitle: Look boy, I have no interest in taking you in when you can be a liability.
-        One wrong move from you and i could lose my instructor license. It just wont
-        do. Good Luck Dastaan
+    - speakerIndex: 1
+      subtitle: You are not ready for tournaments, so I can not allow you to join
+        them,, but if you wish to train, heal and strengthen yourself, You're welcome
+        to join.
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: But Sensei, I want to fight
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: That will come a little later, today, show me where you are at physically,
+        train with me for the day, then we can go on to sparring and beating each
+        other up.
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: But..
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: No more arguments. Come! Join our training. Let me see what level
+        you are at!
       audioClip: {fileID: 0}
       waitForInput: 1

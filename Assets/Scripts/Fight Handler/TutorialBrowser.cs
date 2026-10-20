@@ -68,6 +68,7 @@ public class TutorialBrowser : MonoBehaviour
     [SerializeField] private string hintString = "Left / Right: browse      A: next      B: close";
     [SerializeField] private VideoPlayer videoPlayer;
     [SerializeField] private RawImage videoImage;
+    private RenderTexture createdTexture;
     [SerializeField] private Image stillImage;
 
     [Header("Behaviour")]
@@ -153,14 +154,16 @@ public class TutorialBrowser : MonoBehaviour
 
         yield return Fade(panelGroup, 0f, fadeTime);
         if (videoPlayer != null) videoPlayer.Stop();
-        if (panelGroup != null) panelGroup.gameObject.SetActive(false);
-
         yield return null;   // let the closing press pass before anything else reads input
         if (es != null) es.sendNavigationEvents = prevNav;
         if (lockOtherInput) InputHandler.instance?.SetInput(true);
         if (pauseGame) Time.timeScale = prevScale > 0f ? prevScale : 1f;
         IsOpen = false;
         OnClosed?.Invoke();
+
+        // Hidden LAST: if this script sits on the panel's own object, hiding it ends this coroutine, so everything
+        // above has to be finished first.
+        if (panelGroup != null) panelGroup.gameObject.SetActive(false);
     }
 
     // ------------------------------------------------------------------ pages
@@ -228,12 +231,40 @@ public class TutorialBrowser : MonoBehaviour
             if (hasClip)
             {
                 videoPlayer.Stop();
+                EnsureVideoTexture(p.clip);
                 videoPlayer.clip = p.clip;
                 videoPlayer.isLooping = true;
                 videoPlayer.Play();
             }
             else videoPlayer.Stop();
         }
+    }
+
+    /// <summary>Makes sure the Video Player renders into a texture the Video Image shows. If no Target Texture was
+    /// assigned (or the Raw Image has none, which draws as a white box), one is created to match the clip.</summary>
+    private void EnsureVideoTexture(VideoClip clip)
+    {
+        videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+
+        RenderTexture target = videoPlayer.targetTexture;
+        bool ownsTarget = target != null && target == createdTexture;
+
+        if (target == null || (ownsTarget && (target.width != (int)clip.width || target.height != (int)clip.height)))
+        {
+            if (createdTexture != null) createdTexture.Release();
+
+            createdTexture = new RenderTexture(Mathf.Max(2, (int)clip.width), Mathf.Max(2, (int)clip.height), 0);
+            createdTexture.Create();
+            videoPlayer.targetTexture = createdTexture;
+            target = createdTexture;
+        }
+
+        if (videoImage != null && videoImage.texture != target) videoImage.texture = target;
+    }
+
+    private void OnDestroy()
+    {
+        if (createdTexture != null) createdTexture.Release();
     }
 
     // ------------------------------------------------------------------ input (works while the game is paused)

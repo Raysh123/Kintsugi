@@ -34,7 +34,22 @@ public class PostFightHandler : MonoBehaviour
     [Tooltip("Match the 'id' here against the returnSpawnPointId set on each FightTrigger.")]
     [SerializeField] private List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
 
-    [Header("Post-Fight Dialogue")]
+    [Header("Post-Fight Image Panels")]
+    [Tooltip("Shown after a win INSTEAD of the win dialogue. Keep it inactive in the scene - it is switched on and " +
+             "off here. Leave empty to use the win dialogue below.")]
+    [SerializeField] private GameObject winPanel;
+    [Tooltip("Shown after a loss INSTEAD of the lose dialogue. Keep it inactive in the scene. Leave empty to use the " +
+             "lose dialogue below.")]
+    [SerializeField] private GameObject losePanel;
+    [Tooltip("Shown INSTEAD of the loss panel when the fight ended because the injury meter filled. Keep it inactive in " +
+             "the scene. Leave empty to show the normal loss panel / dialogue for injuries too.")]
+    [SerializeField] private GameObject injuredPanel;
+    [Tooltip("The panel can't be dismissed for this long, so a button still held from the fight doesn't skip it.")]
+    [SerializeField] private float panelMinTime = 0.8f;
+    [Tooltip("Seconds before the panel closes by itself. 0 = wait for the player to press E / A / Submit.")]
+    [SerializeField] private float panelAutoCloseSeconds = 0f;
+
+    [Header("Post-Fight Dialogue (used only when no panel is assigned)")]
     [SerializeField] private DialogueRunner winDialogue;
     [SerializeField] private DialogueRunner loseDialogue;
 
@@ -45,7 +60,6 @@ public class PostFightHandler : MonoBehaviour
     {
         if (!FightSessionManager.hasPendingResult)
         {
-            Debug.Log("[PostFightHandler] No pending fight result — normal scene load.");
             return;
         }
 
@@ -57,7 +71,6 @@ public class PostFightHandler : MonoBehaviour
         bool won = FightSessionManager.wonLastFight;
         string spawnId = FightSessionManager.returnSpawnPointId;
 
-        Debug.Log($"[PostFightHandler] Returned from fight. Result: {(won ? "WIN" : "LOSS")}. Spawn id: '{spawnId}'.");
 
         // Consume immediately so this doesn't replay if the scene reloads again later.
         FightSessionManager.ClearPendingResult();
@@ -74,22 +87,19 @@ public class PostFightHandler : MonoBehaviour
             if (!string.IsNullOrEmpty(spawn.modelId) && appearance != null)
                 appearance.SetModel(spawn.modelId);
         }
-        else
-        {
-            Debug.LogWarning($"[PostFightHandler] No spawn point found matching id '{spawnId}'.");
-        }
 
         if (player != null) player.movementLocked = true;
 
+        GameObject panel = won ? winPanel : (FightSessionManager.injuredLastFight && injuredPanel != null ? injuredPanel : losePanel);
         DialogueRunner runner = won ? winDialogue : loseDialogue;
-        if (runner != null)
+        if (panel != null)
+        {
+            yield return ShowPanel(panel);
+        }
+        else if (runner != null)
         {
             runner.Show();
             yield return new WaitUntil(() => !runner.IsRunning);
-        }
-        else
-        {
-            Debug.LogWarning($"[PostFightHandler] No {(won ? "win" : "lose")} dialogue assigned.");
         }
 
         if (player != null) player.movementLocked = false;
@@ -100,14 +110,34 @@ public class PostFightHandler : MonoBehaviour
         {
             if (StoryManager.instance != null)
                 StoryManager.instance.RegisterPartnerDefeated(partner == SparringPartner.PartnerA);
-            else
-                Debug.LogWarning("[PostFightHandler] StoryManager.instance is null - partner win not recorded.");
         }
 
         if (CalendarManager.instance != null)
             CalendarManager.instance.AdvanceTime(fightTimeCostTicks);
-        else
-            Debug.LogWarning("[PostFightHandler] CalendarManager.instance is null — time not advanced.");
+    }
+
+    /// <summary>Shows an image panel, then closes it on the interact button (or after the auto-close time).</summary>
+    private IEnumerator ShowPanel(GameObject panel)
+    {
+        ActiveDialogueTracker.Begin();
+        panel.SetActive(true);
+
+        float elapsed = 0f;
+        while (true)
+        {
+            elapsed += Time.deltaTime;
+
+            if (panelAutoCloseSeconds > 0f && elapsed >= panelAutoCloseSeconds) break;
+
+            if (elapsed >= panelMinTime &&
+                (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetButtonDown("Submit")))
+                break;
+
+            yield return null;
+        }
+
+        panel.SetActive(false);
+        ActiveDialogueTracker.End();
     }
 
     private SpawnPoint FindSpawn(string id)
@@ -127,6 +157,8 @@ public class PostFightHandler : MonoBehaviour
         player.transform.position = destination.position;
         player.transform.rotation = destination.rotation;
 
+        Physics.SyncTransforms();
         if (controller != null) controller.enabled = true;
+        PlayerFallSafety.MarkSafe(destination.position, destination.rotation);
     }
 }

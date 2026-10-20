@@ -20,6 +20,26 @@ public static class FightSessionManager
     public static bool hasPendingResult { get; private set; }
     public static bool wonLastFight { get; private set; }
 
+    /// <summary>True when the last fight ended because the injury meter filled (PostFightHandler shows the injured
+    /// panel instead of the normal loss).</summary>
+    public static bool injuredLastFight { get; private set; }
+
+    public static void ClearAll()
+    {
+        returnSceneName = null;
+        returnSpawnPointId = null;
+        opponentId = null;
+        hasPendingResult = false;
+        wonLastFight = false;
+        injuredLastFight = false;
+    }
+
+    /// <summary>Call just before reporting the result of a fight that ended in injury.</summary>
+    public static void MarkInjured()
+    {
+        injuredLastFight = true;
+    }
+
     /// <summary>
     /// Call this from the RPG scene (FightTrigger) to hand off into the fight scene.
     /// </summary>
@@ -29,9 +49,7 @@ public static class FightSessionManager
         returnSpawnPointId = returnSpawnId;
         opponentId = opponent;
         hasPendingResult = false;
-
-        Debug.Log($"[FightSessionManager] Beginning fight '{opponent}' in scene '{fightSceneName}'. " +
-                  $"Will return to '{returnSceneName}' at spawn '{returnSpawnId}'.");
+        injuredLastFight = false;
 
         SceneManager.LoadScene(fightSceneName);
     }
@@ -47,8 +65,7 @@ public static class FightSessionManager
     {
         wonLastFight = won;
         hasPendingResult = true;
-
-        Debug.Log($"[FightSessionManager] Fight result reported: {(won ? "WIN" : "LOSS")}. Returning to '{returnSceneName}'.");
+        if (won) injuredLastFight = false;
 
         SceneManager.LoadScene(returnSceneName);
     }

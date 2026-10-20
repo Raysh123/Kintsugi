@@ -57,6 +57,9 @@ public class InjuryMeter : MonoBehaviour
     [SerializeField] private MatchTimer matchTimer;
 
     [Header("When the meter fills")]
+    [Tooltip("OFF in the TUTORIAL scene: the meter can fill without ending the fight (the tutorial's own finale " +
+             "does the injury at the planned moment). Leave ON in real fights.")]
+    [SerializeField] private bool endFightWhenFull = true;
     [Range(0.5f, 1f)]
     [Tooltip("Meter value (0-1) that counts as full.")]
     [SerializeField] private float fullThreshold = 0.98f;
@@ -90,7 +93,7 @@ public class InjuryMeter : MonoBehaviour
     {
         if (injuryMeterValue == null || ending) return;
 
-        if (injuryMeterValue.value >= fullThreshold)
+        if (endFightWhenFull && injuryMeterValue.value >= fullThreshold)
         {
             ending = true;
             StartCoroutine(EndFightInjured());
@@ -206,6 +209,8 @@ public class InjuryMeter : MonoBehaviour
 
     private IEnumerator EndFightInjured()
     {
+        FightSessionManager.MarkInjured();
+
         if (debugLog)
             Debug.Log($"[Injury] Meter full - ending the fight. HP {CurrentHealth():F0} -> {Mathf.Max(0f, CurrentHealth() - healthLossOnInjury):F0}.");
 

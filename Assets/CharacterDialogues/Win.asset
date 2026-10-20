@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3fe0b8adda465ae45b6b1acbb9ca92bd, type: 3}
   m_Name: Win
   m_EditorClassIdentifier: 
-  characterName: Sensei
+  characterName: Yang Sensei
   dialogueBlocks:
   - phase: 2
     anyTimeOfDay: 1

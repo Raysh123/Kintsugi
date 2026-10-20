@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// A non-interactive comic-book-style cutscene, laid out as one tall strip of
@@ -110,11 +111,6 @@ public class ComicCutscene : MonoBehaviour
         if (stripContainer != null)
         {
             stripContainer.gameObject.SetActive(true);
-            Debug.Log($"[Comic] stripContainer activated: {stripContainer.gameObject.name} - " +
-                      $"activeSelf={stripContainer.gameObject.activeSelf}, " +
-                      $"activeInHierarchy={stripContainer.gameObject.activeInHierarchy} " +
-                      "(if activeInHierarchy is false, a PARENT object above this one is inactive - " +
-                      "that parent is what needs to be turned on, not this object).");
         }
         // cutsceneLocked, NOT movementLocked - StoryEnvironmentController owns movementLocked
         // and unconditionally sets it to (phase == BedRest) whenever its own phase-changed
@@ -140,7 +136,6 @@ public class ComicCutscene : MonoBehaviour
         // triggered this (or the wake-up moment itself) could immediately register.
         yield return null;
 
-        Debug.Log($"[Comic] Entering navigation loop - panels.Count={panels.Count}, currentIndex={currentIndex}.");
 
         RevealAndFocus(0);
 
@@ -149,7 +144,6 @@ public class ComicCutscene : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                Debug.Log("[Comic] Ending: Escape pressed.");
                 finished = true;
                 break;
             }
@@ -161,7 +155,6 @@ public class ComicCutscene : MonoBehaviour
                 skipHoldTimer += Time.deltaTime;
                 if (skipHoldTimer >= holdToSkipDuration)
                 {
-                    Debug.Log("[Comic] Ending: JoystickButton1 held for holdToSkipDuration.");
                     finished = true;
                     break;
                 }
@@ -171,13 +164,7 @@ public class ComicCutscene : MonoBehaviour
                 skipHoldTimer = 0f;
             }
 
-            // Back to the analog stick/raw axis read (reverted - stick drift turned out not
-            // to be the actual cause here, and the stick genuinely feels better for this).
-            // Manually debounced raw axis read - NOT Input.GetButtonDown, which turned out
-            // to miss its single-frame "just pressed" edge with some controllers, even
-            // though the underlying GetAxisRaw value itself is fine (same fix as
-            // TravelMapController/FightSelectionMenu's cycling).
-            float h = Input.GetAxisRaw("Horizontal");
+            float h = ReadHorizontal();
             if (Mathf.Abs(h) < cycleThreshold)
             {
                 horizontalArmed = true;
@@ -185,14 +172,10 @@ public class ComicCutscene : MonoBehaviour
             else if (horizontalArmed)
             {
                 horizontalArmed = false;
-                Debug.Log($"[Comic] Horizontal axis triggered a cycle - h={h:F2}, currentIndex={currentIndex}, " +
-                          $"panels.Count={panels.Count}.");
                 if (h > 0f)
                 {
                     if (currentIndex >= panels.Count - 1)
                     {
-                        Debug.Log($"[Comic] Ending: moved past the last panel (currentIndex={currentIndex}, " +
-                                  $"panels.Count={panels.Count}).");
                         finished = true; // moved past the last panel - done
                     }
                     else
@@ -207,8 +190,37 @@ public class ComicCutscene : MonoBehaviour
             yield return null;
         }
 
-        Debug.Log("[Comic] EndCutscene() called.");
         EndCutscene();
+    }
+
+    // Reads every plausible left/right source and returns the strongest one.
+    private static float ReadHorizontal()
+    {
+        float h = 0f;
+        try { h = Input.GetAxisRaw("Horizontal"); } catch (System.Exception) { }
+        try
+        {
+            if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) h = 1f;
+            else if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) h = -1f;
+        }
+        catch (System.Exception) { }
+#if ENABLE_INPUT_SYSTEM
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        if (pad != null)
+        {
+            float x = pad.leftStick.x.ReadValue();
+            if (pad.dpad.right.isPressed) x = 1f;
+            else if (pad.dpad.left.isPressed) x = -1f;
+            if (Mathf.Abs(x) > Mathf.Abs(h)) h = x;
+        }
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.rightArrowKey.isPressed || kb.dKey.isPressed) h = 1f;
+            else if (kb.leftArrowKey.isPressed || kb.aKey.isPressed) h = -1f;
+        }
+#endif
+        return h;
     }
 
     private void RevealAndFocus(int index)
@@ -223,9 +235,6 @@ public class ComicCutscene : MonoBehaviour
             if (panels[index] != null) panels[index].gameObject.SetActive(true);
         }
 
-        Debug.Log($"[Comic] RevealAndFocus({index}) — panel Y = " +
-                  $"{(panels[index] != null ? panels[index].anchoredPosition.y.ToString("F1") : "NULL PANEL")}, " +
-                  $"stripContainer = {(stripContainer != null ? "assigned" : "NULL")}");
 
         if (moveCoroutine != null) StopCoroutine(moveCoroutine);
         moveCoroutine = StartCoroutine(MoveStripToCenter(panels[index]));
@@ -245,10 +254,16 @@ public class ComicCutscene : MonoBehaviour
             yield break;
         }
 
-        float targetY = -target.anchoredPosition.y;
-        float startY = stripContainer.anchoredPosition.y;
+        // Work out where the panel really is, whatever its anchors / layout - not just its anchoredPosition,
+        // which is only comparable between panels that share the same anchors.
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(stripContainer);
 
-        Debug.Log($"[Comic] Moving strip from Y={startY:F1} to Y={targetY:F1}");
+        float startY = stripContainer.anchoredPosition.y;
+        Transform space = stripContainer.parent != null ? stripContainer.parent : stripContainer;
+        float panelY = space.InverseTransformPoint(target.position).y;
+        float targetY = startY - panelY;
+
 
         float elapsed = 0f;
 

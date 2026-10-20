@@ -7,7 +7,7 @@ public enum DayPhase { Morning, Afternoon, Evening, Night }
 /// <summary>
 /// Persona-style calendar, now driven entirely by quadrant-ticks rather than
 /// continuous minutes. A day is 4 quadrants (Morning/Afternoon/Evening/Night),
-/// each made of TicksPerQuadrant ticks — default 4, giving quarter-quadrant
+/// each made of TicksPerQuadrant ticks - default 4, giving quarter-quadrant
 /// granularity, so an activity can cost as little as 1 tick (a quarter) or as
 /// much as several quadrants at once. There's no clock-time concept anymore;
 /// CurrentPhase (and CurrentTick within it, if you need finer UI feedback) is
@@ -28,10 +28,6 @@ public class CalendarManager : MonoBehaviour
     [SerializeField] private int startMonth = 1;
     [SerializeField] private int startDay = 1;
     [SerializeField] private DayPhase startPhase = DayPhase.Morning;
-
-    [Header("Debug")]
-    [SerializeField] private bool debugLog = true;
-    [SerializeField] private bool showDebugOverlay = true;
 
     public GameDate CurrentDate { get; private set; }
     public DayPhase CurrentPhase { get; private set; }
@@ -60,7 +56,7 @@ public class CalendarManager : MonoBehaviour
         CurrentPhase = startPhase;
     }
 
-    /// <summary>Advances time by the given number of ticks — see ActivityDefinition.quadrantTicks.</summary>
+    /// <summary>Advances time by the given number of ticks - see ActivityDefinition.quadrantTicks.</summary>
     public void AdvanceTime(int ticks)
     {
         if (ticks <= 0) return;
@@ -76,20 +72,16 @@ public class CalendarManager : MonoBehaviour
         UpdatePhase();
         OnTimeAdvanced?.Invoke(_currentTick);
 
-        if (debugLog)
-            Debug.Log($"[Calendar] +{ticks} ticks -> {CurrentDate}, {CurrentPhase}");
     }
 
     public bool TryConsumeActivity(ActivityDefinition activity)
     {
         if (activity.onceLimitPerDay && _activitiesDoneToday.Contains(activity.activityId))
         {
-            if (debugLog) Debug.Log($"[Calendar] Blocked '{activity.activityId}' — already done today.");
             return false;
         }
 
         _activitiesDoneToday.Add(activity.activityId);
-        if (debugLog) Debug.Log($"[Calendar] Started '{activity.activityId}' during {CurrentPhase}");
         return true;
     }
 
@@ -105,14 +97,12 @@ public class CalendarManager : MonoBehaviour
         if (ticksUntilNextMorning <= 0) ticksUntilNextMorning = TicksPerDay;
 
         AdvanceTime(ticksUntilNextMorning);
-        if (debugLog) Debug.Log($"[Calendar] Slept -> {CurrentDate}, {CurrentPhase}");
     }
 
     private void AdvanceDay()
     {
         CurrentDate = CurrentDate.AddDays(1);
         _activitiesDoneToday.Clear();
-        if (debugLog) Debug.Log($"[Calendar] === New day: {CurrentDate} ===");
         OnDayChanged?.Invoke(CurrentDate);
     }
 
@@ -122,19 +112,17 @@ public class CalendarManager : MonoBehaviour
         if (newPhase != CurrentPhase)
         {
             CurrentPhase = newPhase;
-            if (debugLog) Debug.Log($"[Calendar] Phase -> {CurrentPhase}");
             OnPhaseChanged?.Invoke(CurrentPhase);
         }
     }
 
-    public void LogCurrentState() =>
-        Debug.Log($"[Calendar] {CurrentDate}, {CurrentPhase} (tick {_currentTick}/{TicksPerDay})");
+    public void LogCurrentState() { }
 
-    private void OnGUI()
-    {
-        if (!showDebugOverlay) return;
-        string storyPhase = StoryManager.instance != null ? StoryManager.instance.CurrentPhase.ToString() : "N/A";
-        string text = $"{CurrentDate}\nStory: {storyPhase}\nTime of Day: {CurrentPhase}\ntick {_currentTick}/{TicksPerDay}";
-        GUI.Box(new Rect(10, 10, 220, 90), text);
-    }
+    //    private void OnGUI()
+    //    {
+    //        if (!showDebugOverlay) return;
+    //        string storyPhase = StoryManager.instance != null ? StoryManager.instance.CurrentPhase.ToString() : "N/A";
+    //        string text = $"{CurrentDate}\nStory: {storyPhase}\nTime of Day: {CurrentPhase}\ntick {_currentTick}/{TicksPerDay}";
+    //        GUI.Box(new Rect(10, 10, 220, 90), text);
+    //    }
 }

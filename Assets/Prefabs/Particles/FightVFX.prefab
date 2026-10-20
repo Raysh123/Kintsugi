@@ -1,0 +1,155 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8778309301557848254
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4235774093313500554}
+  - component: {fileID: 7742559050806760615}
+  m_Layer: 0
+  m_Name: FightVFX
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4235774093313500554
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778309301557848254}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.04747331, y: 0.0000021755695, z: -0.09733057}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7742559050806760615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778309301557848254}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab4eb54611d28924583bf1d0f9cee634, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effects:
+  - kind: 0
+    prefab: {fileID: 107418, guid: ea6edc3a0a047a243a9ec62ca1655977, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 1
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 1
+    prefab: {fileID: 1399272208883120, guid: e624e1dfeaae3814a9bd36f515a6f79b, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 1
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 2
+    prefab: {fileID: 195466, guid: 56c3274d2f9ec214ab584a80b5ce2d6d, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 0.2
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 3
+    prefab: {fileID: 195466, guid: 56c3274d2f9ec214ab584a80b5ce2d6d, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 0.2
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 4
+    prefab: {fileID: 127072, guid: 7f45705f5f30d8a45af0fc2eb8c8998a, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 0.6
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 5
+    prefab: {fileID: 123722, guid: 0e953c794d5f3f74da4bc1bc07249ea6, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 0.6
+    lifetime: 3
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 1
+  - kind: 6
+    prefab: {fileID: 0}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 1
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 7
+    prefab: {fileID: 163420, guid: acee4f4e191fea8479aad0b4b8e1dc18, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 0.5
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 1
+  - kind: 8
+    prefab: {fileID: 111486, guid: f6ac01c8c44430d46815af0e77bdcfdd, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 0.5
+    lifetime: 2
+    dissipate: 0
+    dissipateSeconds: 0.5
+    followTarget: 1
+  - kind: 9
+    prefab: {fileID: 195466, guid: 56c3274d2f9ec214ab584a80b5ce2d6d, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 0.5
+    lifetime: 2
+    dissipate: 1
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 10
+    prefab: {fileID: 1342876954156012, guid: 8243470e37cffc541978addf2dccb436, type: 3}
+    offset: {x: 0, y: 0.2, z: 0}
+    rotation: {x: 90, y: 0, z: 0}
+    scale: 0.7
+    lifetime: 0.4
+    dissipate: 1
+    dissipateSeconds: 0.5
+    followTarget: 0
+  - kind: 11
+    prefab: {fileID: 101470, guid: cf92a1fe287dea2408d8eaac7ac27c2f, type: 3}
+    offset: {x: 0, y: 0, z: 0}
+    rotation: {x: 0, y: 0, z: 0}
+    scale: 1
+    lifetime: 2
+    dissipate: 1
+    dissipateSeconds: 0.5
+    followTarget: 0

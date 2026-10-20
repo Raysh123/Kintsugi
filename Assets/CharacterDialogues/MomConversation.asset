@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8835dfddad7d4ee41a303e58bc774c6d, type: 3}
+  m_Name: MomConversation
+  m_EditorClassIdentifier: 
+  blocks:
+  - phase: 1
+    anyTimeOfDay: 1
+    timeOfDay: 2
+    anyDay: 1
+    dayNumber: 0
+    lines:
+    - speakerIndex: 0
+      subtitle: 'Mom?
+
+'
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: Oh hi Sweety. You know its so nice to see you up and about again.
+        I was really worried for a bit.
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: Yeah, its nice to be off that bed. So listen, Sami told me about
+        this new Dojo and..
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: No! No more fighting, no more Karate. You have a whole life ahead
+        of you. Take care of your back, dont find ways to break it again
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: 'That''s not fair Mom! I need to do this. '
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: But Dastaan..
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: Mom please. This was one thing  I was good at, And I need this. I
+        need to get better and prove to myself that I cant be beaten.
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: .....
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: I promice I'll be careful. Sami said I need to learn to fight again
+        differently, and I agree.
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: ....
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: 'Oh and, THis new sensei, he said he focuses on safety first, and
+        I wont get into fights until he says I''m ready, I promise. '
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 1
+      subtitle: Oh alright, fine. Just promise me youll be safe. I dont know if 
+        Icould handle another call from the hospital like that
+      audioClip: {fileID: 0}
+      waitForInput: 1
+    - speakerIndex: 0
+      subtitle: Thanks Mom. I promise I'll be careful.
+      audioClip: {fileID: 0}
+      waitForInput: 1

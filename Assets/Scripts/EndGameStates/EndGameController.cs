@@ -34,6 +34,13 @@ public class EndGameController : MonoBehaviour
     [Tooltip("The ending comic cutscene (its own panels + Music Id). This is the ending. " +
              "Empty = straight to the credits.")]
     [SerializeField] private ComicCutscene endingCutscene;
+    [Tooltip("A win panel (an image) shown INSTEAD of the comic cutscene. Keep it inactive in the scene. " +
+             "Leave empty to use the comic cutscene.")]
+    [SerializeField] private GameObject endingPanel;
+    [Tooltip("Minimum seconds the win panel is shown before a press (E / gamepad A) is accepted.")]
+    [SerializeField] private float endingPanelMinShow = 2f;
+    [Tooltip("Goes on to the credits by itself after this long. 0 = waits for a press forever.")]
+    [SerializeField] private float endingPanelAutoSeconds = 0f;
     [Tooltip("Seconds of black between the cutscene and the credits.")]
     [SerializeField] private float blackBeforeCredits = 0.8f;
 
@@ -75,6 +82,7 @@ public class EndGameController : MonoBehaviour
 
         if (fadeOverlay != null) fadeOverlay.alpha = 0f;
         if (gameOverScreen != null) gameOverScreen.SetActive(false);
+        if (endingPanel != null) endingPanel.SetActive(false);
 
         // Loaded straight into the final phase (e.g. testing) - run the ending.
         if (StoryManager.instance.CurrentPhase == StoryPhase.TournamentDay) OnPhaseChanged(StoryPhase.TournamentDay, StoryPhase.TournamentDay);
@@ -97,7 +105,6 @@ public class EndGameController : MonoBehaviour
     // ------------------------------------------------------------ tournament
     private IEnumerator TournamentEnding()
     {
-        Debug.Log("[EndGame] Tournament day - starting the ending.");
         yield return WaitForDialogue();
 
         if (endingDialogue != null)
@@ -107,12 +114,26 @@ public class EndGameController : MonoBehaviour
             while (endingDialogue.IsRunning) yield return null;
         }
 
-        if (endingDialogue == null && endingCutscene == null)
-            Debug.LogWarning("[EndGame] No ending cutscene or dialogue assigned - going straight to the credits.");
-
         yield return Fade(1f);
 
-        if (endingCutscene != null)
+        if (endingPanel != null)
+        {
+            endingPanel.SetActive(true);
+            yield return Fade(0f);
+
+            float shown = 0f;
+            while (true)
+            {
+                shown += Time.unscaledDeltaTime;
+                if (shown >= endingPanelMinShow && SkipInput.Pressed()) break;
+                if (endingPanelAutoSeconds > 0f && shown >= endingPanelAutoSeconds) break;
+                yield return null;
+            }
+
+            yield return Fade(1f);
+            endingPanel.SetActive(false);
+        }
+        else if (endingCutscene != null)
         {
             bool done = false;
             void OnDone() => done = true;
@@ -132,7 +153,6 @@ public class EndGameController : MonoBehaviour
     // ------------------------------------------------------------ game over
     private IEnumerator GameOverSequence()
     {
-        Debug.Log("[EndGame] Game over - deadline missed.");
         yield return WaitForDialogue();
         yield return Fade(1f);
 

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   activityId: LegRaises
   displayName: Leg Raises
-  timeCostMinutes: 60
-  onceLimitPerDay: 0
+  quadrantTicks: 4
+  onceLimitPerDay: 1
   minMotivationRequired: 0
   isCrossScene: 0

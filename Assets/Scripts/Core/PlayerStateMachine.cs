@@ -55,7 +55,7 @@ public class PlayerStateMachine : MonoBehaviour
 
         if (animator != null)
         {
-            if (animator.HasState(0, Animator.StringToHash(stunAnim))) animator.Play(stunAnim);
+            if (animator.HasState(0, Animator.StringToHash(stunAnim))) animator.PlayBlend(stunAnim);
         }
 
         yield return new WaitForSeconds(stunDuration);
@@ -72,7 +72,7 @@ public class PlayerStateMachine : MonoBehaviour
         if (currentState == PlayerStates.Stun)
         {
             ChangeState(PlayerStates.Idle);
-            if (animator != null) animator.Play("Idle");
+            if (animator != null) animator.PlayBlend("Idle");
         }
     }
 
@@ -384,11 +384,11 @@ public class PlayerStateMachine : MonoBehaviour
 
         if (enemy != null && enemy.requiredTag == "ePunch")
         {
-            animator.Play("Upper_Block");
+            animator.PlayBlend("Upper_Block");
         }
         else
         {
-            animator.Play("Lower_Block");
+            animator.PlayBlend("Lower_Block");
         }
 
         blockCo = StartCoroutine(BlockRoutine());
@@ -446,7 +446,7 @@ public class PlayerStateMachine : MonoBehaviour
         if (currentState == PlayerStates.Idle || currentState == PlayerStates.Move)
         {
             ChangeState(PlayerStates.Dodge);
-            animator.Play("Dodge_2");
+            animator.PlayBlend("Dodge_2");
         }
     }
 
@@ -484,6 +484,7 @@ public class PlayerStateMachine : MonoBehaviour
         currentState = newState;
         if (newState != PlayerStates.Attack && player != null) player.moveSpeedMultiplier = 1f;
     }
+
     private void HandleStates()
     {
         switch (currentState)
@@ -522,7 +523,7 @@ public class PlayerStateMachine : MonoBehaviour
     }
     IEnumerator FaceHurt()
     {
-        animator.Play("Hurt_Face");
+        animator.PlayBlend("Hurt_Face");
         player.hurtFace = false;
         yield return new WaitForSeconds(.5f);
         player.isHurt = false;
@@ -530,7 +531,7 @@ public class PlayerStateMachine : MonoBehaviour
     }
     IEnumerator BodyHurt()
     {
-        animator.Play("Hurt_Balls");
+        animator.PlayBlend("Hurt_Balls");
         player.hurtBody = false;
         yield return new WaitForSeconds(.5f);
         player.isHurt = false;
@@ -599,6 +600,13 @@ public class PlayerStateMachine : MonoBehaviour
         yield return new WaitForSeconds(duration * start);
         SetPlayerHitWindow(true);
         FightSounds.PlayerSwing(currentAttackType == AttackTypes.Kick);
+        {
+            bool kick = currentAttackType == AttackTypes.Kick;
+            Vector3 at = transform.position;
+            foreach (var hb in pHitBoxes)
+                if (hb != null && hb.CompareTag(kick ? "Kick" : "Punch")) { at = hb.transform.position; break; }
+            FightVFX.Play(kick ? FightVFX.Kind.PlayerKick : FightVFX.Kind.PlayerPunch, at, transform);
+        }
         yield return new WaitForSeconds(duration * (end - start));
         SetPlayerHitWindow(false);
         attackRecoveryPhase = true;   // from here an attack or block may cancel the follow-through
@@ -682,14 +690,14 @@ public class PlayerStateMachine : MonoBehaviour
         if (currentState == PlayerStates.Hurt && !player.isHurt)
         {
             ChangeState(PlayerStates.Idle);
-            animator.Play("Idle");
+            animator.PlayBlend("Idle");
         }
     }
 
     private IEnumerator HurtRoutine(string animName)
     {
         ChangeState(PlayerStates.Hurt);
-        if (animator != null) animator.Play(animName);
+        if (animator != null) animator.PlayBlend(animName);
 
         yield return new WaitForSecondsRealtime(hurtDuration);
 
@@ -698,7 +706,7 @@ public class PlayerStateMachine : MonoBehaviour
         {
             nextAttackTime = Time.time + attackRecovery;
             ChangeState(PlayerStates.Idle);
-            if (animator != null) animator.Play("Idle");
+            if (animator != null) animator.PlayBlend("Idle");
         }
     }
 
@@ -722,7 +730,7 @@ public class PlayerStateMachine : MonoBehaviour
             if (player.move.magnitude == 0)
             {
                 ChangeState(PlayerStates.Idle);
-                animator.Play("Idle");
+                animator.PlayBlend("Idle");
             }
         }
 
@@ -740,22 +748,22 @@ public class PlayerStateMachine : MonoBehaviour
                 {
                     if (player.move.x > 0)
                     {
-                        animator.Play("Walk_Forward");
+                        animator.PlayBlend("Walk_Forward");
                     }
                     else if (player.move.x < 0)
                     {
-                        animator.Play("Walk_Backward");
+                        animator.PlayBlend("Walk_Backward");
                     }
                 }
                 else if (!player.facingRight)
                 {
                     if (player.move.x > 0)
                     {
-                        animator.Play("Walk_Backward");
+                        animator.PlayBlend("Walk_Backward");
                     }
                     else if (player.move.x < 0)
                     {
-                        animator.Play("Walk_Forward");
+                        animator.PlayBlend("Walk_Forward");
                     }
                 }
 
@@ -763,7 +771,7 @@ public class PlayerStateMachine : MonoBehaviour
             if (InputHandler.instance.dodge && TryConsumeDodge())
             {
                 ChangeState(PlayerStates.Dodge);
-                animator.Play("Dodge_2");
+                animator.PlayBlend("Dodge_2");
             }
 
         }

@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8835dfddad7d4ee41a303e58bc774c6d, type: 3}
+  m_Name: Tournament Prep Convo
+  m_EditorClassIdentifier: 
+  blocks:
+  - phase: 3
+    anyTimeOfDay: 1
+    timeOfDay: 0
+    anyDay: 1
+    dayNumber: 0
+    lines:
+    - speakerIndex: 0
+      subtitle: Good Morning Sensei
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 1
+      subtitle: Hello Dastaan, You're here early, very good!
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 0
+      subtitle: 'Sensei  I know you said I wasn''t ready, but please let me spar,
+        I need to get back to the tournaments. I only have a couple years left, once
+        I get into college, I wont have the time. '
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 0
+      subtitle: I want to go as far as I can in this art, please help me
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 1
+      subtitle: 'Hmm. Your injury must not be ignored. It is a part of you, and must
+        be treated as such, but you have not yet learnt to fight like it is. '
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 0
+      subtitle: Then teach me sensei
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 1
+      subtitle: Oh alright, Theres a tournament in 10 days, if you can beat two of
+        my students in that time, I shall see about letting you sign up.
+      audioClip: {fileID: 0}
+      waitForInput: 0
+    - speakerIndex: 0
+      subtitle: Oh thank you Sensei. I wont disappoint you.
+      audioClip: {fileID: 0}
+      waitForInput: 0
+  - phase: 2
+    anyTimeOfDay: 0
+    timeOfDay: 0
+    anyDay: 1
+    dayNumber: 0
+    lines:
+    - speakerIndex: 0
+      subtitle: Uhm Hello!
+      audioClip: {fileID: 0}
+      waitForInput: 0

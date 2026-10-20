@@ -72,6 +72,7 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
 
     public void OnArrival()
     {
+        QuestLog.Complete("GoToPark");
         if (isRunning) return;
         StartCoroutine(RunSequence());
     }
@@ -182,6 +183,8 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
         player.transform.position = destination.position;
         player.transform.rotation = destination.rotation;
 
+        Physics.SyncTransforms();
         if (controller != null) controller.enabled = true;
+        PlayerFallSafety.MarkSafe(destination.position, destination.rotation);
     }
 }

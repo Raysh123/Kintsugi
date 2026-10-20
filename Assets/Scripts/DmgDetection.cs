@@ -44,6 +44,8 @@ public class DmgDetection : MonoBehaviour
     [SerializeField] private float hitKnockbackDist = 0.6f;
     [Tooltip("The push is a quick slide over this many seconds instead of a teleport.")]
     [SerializeField] private float hitKnockbackTime = 0.15f;
+    [Tooltip("Block pushes (Knockback Dist) glide over this many seconds instead of teleporting.")]
+    [SerializeField] private float blockPushTime = 0.12f;
     [Header("Debug")]
     [Tooltip("Logs every scoring hit with the states involved, and warns when both sides score within " +
              "a fraction of a second of each other.")]
@@ -84,8 +86,8 @@ public class DmgDetection : MonoBehaviour
     {
         if (playerStateMachine != null && playerStateMachine.EnterStun(playerPosture))
         {
-            Debug.Log("Player stun");
             FightSounds.Stun();
+            FightVFX.Play(FightVFX.Kind.Stun, player != null ? player.transform.position : transform.position, player != null ? player.transform : null);
         }
     }
     /// <summary>A hit on a leg collider: posture damage only - no points, no hit pause, no hurt
@@ -101,8 +103,8 @@ public class DmgDetection : MonoBehaviour
         if (playerAttacking && !string.IsNullOrEmpty(enemyLegTag) && hitTag == enemyLegTag)
         {
             hitRegistered = true;
-            Debug.Log($"Leg hit on enemy (+{legHitPostureDamage} posture, no points).");
             FightSounds.EnemyLegHit();
+            FightVFX.Play(FightVFX.Kind.LegHit, other.bounds.ClosestPoint(transform.position));
             if (enemyPosture != null) enemyPosture.posDmg(legHitPostureDamage);
             if (enemyStateMachine != null && enemyPosture != null &&
                 enemyPosture.postureSlider.value >= postureMaxVal &&
@@ -120,8 +122,8 @@ public class DmgDetection : MonoBehaviour
         if (enemyAttacking && !string.IsNullOrEmpty(playerLegTag) && hitTag == playerLegTag)
         {
             hitRegistered = true;
-            Debug.Log($"Leg hit on player (+{legHitPostureDamage} posture, no points).");
             FightSounds.PlayerLegHit();
+            FightVFX.Play(FightVFX.Kind.LegHit, other.bounds.ClosestPoint(transform.position));
             if (playerPosture != null) playerPosture.posDmg(legHitPostureDamage);
             if (playerPosture != null && playerPosture.postureSlider.value >= postureMaxVal)
             {
@@ -155,8 +157,8 @@ public class DmgDetection : MonoBehaviour
         {
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
-                Debug.Log("blocked by enemy");
                 FightSounds.EnemyBlocked();
+                FightVFX.Play(FightVFX.Kind.EnemyBlock, other.bounds.ClosestPoint(transform.position));
                 PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
@@ -181,6 +183,7 @@ public class DmgDetection : MonoBehaviour
             }
             LogScore(true);
             FightSounds.EnemyHit();
+            FightVFX.Play(FightVFX.Kind.EnemyHit, other.bounds.ClosestPoint(transform.position));
             KnockbackEnemy();
             PlayEnemyHurt(enemyHurtOnPunchAnim, enemyHurtOnKickAnim);
             hitRegistered = true;
@@ -191,8 +194,8 @@ public class DmgDetection : MonoBehaviour
         {
             if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Block)
             {
-                Debug.Log("blocked by enemy");
                 FightSounds.EnemyBlocked();
+                FightVFX.Play(FightVFX.Kind.EnemyBlock, other.bounds.ClosestPoint(transform.position));
                 PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                 if (playerPosture.postureSlider.value >= postureMaxVal)
                 {
@@ -217,6 +220,7 @@ public class DmgDetection : MonoBehaviour
             }
             LogScore(true);
             FightSounds.EnemyHit();
+            FightVFX.Play(FightVFX.Kind.EnemyHit, other.bounds.ClosestPoint(transform.position));
             KnockbackEnemy();
             PlayEnemyHurt(enemyHurtOnKickAnim, enemyHurtOnPunchAnim);
             hitRegistered = true;
@@ -229,8 +233,8 @@ public class DmgDetection : MonoBehaviour
             {
                 if (playerStateMachine.TryPerfectBlock())
                 {
-                    Debug.Log("Blocked");
                     FightSounds.PlayerBlocked(true);
+                    FightVFX.Play(FightVFX.Kind.PerfectBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(enemyPerfectBlockedPostureDamage);
                     // A perfect block always stops the enemy's current attack outright - on
@@ -240,7 +244,6 @@ public class DmgDetection : MonoBehaviour
                     {
                         if (enemyPosture.postureSlider.value >= postureMaxVal)
                         {
-                            Debug.Log("Enemy stun");
                             enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Stun);
                         }
                         else
@@ -258,8 +261,8 @@ public class DmgDetection : MonoBehaviour
                 }
                 if (playerStateMachine.IsNormalBlockActive())
                 {
-                    Debug.Log("normal block");
                     FightSounds.PlayerBlocked(false);
+                    FightVFX.Play(FightVFX.Kind.PlayerBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
@@ -275,12 +278,13 @@ public class DmgDetection : MonoBehaviour
             {
                 // Same cut the perfect-block branch uses - ends the combo on any point. Only
                 // leave the Attack state, so a stunned/blocking enemy isn't knocked out of it.
-                enemyStateMachine.StopCombo();
+                enemyStateMachine.StopCombo(enemyStateMachine.HitFollowThrough);
                 if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
             LogScore(false);
             FightSounds.PlayerHit();
+            FightVFX.Play(FightVFX.Kind.PlayerHit, other.bounds.ClosestPoint(transform.position));
             KnockbackPlayer();
             if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
             hitRegistered = true;
@@ -294,8 +298,8 @@ public class DmgDetection : MonoBehaviour
             {
                 if (playerStateMachine.TryPerfectBlock())
                 {
-                    Debug.Log("Blocked");
                     FightSounds.PlayerBlocked(true);
+                    FightVFX.Play(FightVFX.Kind.PerfectBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(enemyPerfectBlockedPostureDamage);
                     // Same as the punch branch above - a perfect block always stops the
@@ -304,7 +308,6 @@ public class DmgDetection : MonoBehaviour
                     {
                         if (enemyPosture.postureSlider.value >= postureMaxVal)
                         {
-                            Debug.Log("Enemy stun");
                             enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Stun);
                         }
                         else
@@ -320,8 +323,8 @@ public class DmgDetection : MonoBehaviour
                 }
                 if (playerStateMachine.IsNormalBlockActive())
                 {
-                    Debug.Log("normal Block");
                     FightSounds.PlayerBlocked(false);
+                    FightVFX.Play(FightVFX.Kind.PlayerBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
                     {
@@ -337,12 +340,13 @@ public class DmgDetection : MonoBehaviour
             {
                 // Same cut the perfect-block branch uses - ends the combo on any point. Only
                 // leave the Attack state, so a stunned/blocking enemy isn't knocked out of it.
-                enemyStateMachine.StopCombo();
+                enemyStateMachine.StopCombo(enemyStateMachine.HitFollowThrough);
                 if (enemyStateMachine.currentState == EnemyStateMachine.EnemyState.Attack)
                     enemyStateMachine.ChangeState(EnemyStateMachine.EnemyState.Idle);
             }
             LogScore(false);
             FightSounds.PlayerHit();
+            FightVFX.Play(FightVFX.Kind.PlayerHit, other.bounds.ClosestPoint(transform.position));
             KnockbackPlayer();
             if (playerStateMachine != null) playerStateMachine.PlayHurt(gameObject.tag == "ePunch");
             hitRegistered = true;
@@ -356,12 +360,8 @@ public class DmgDetection : MonoBehaviour
         float now = Time.time;
         if (playerScored) lastPlayerScoreTime = now; else lastEnemyScoreTime = now;
         if (!logHits) return;
-        Debug.Log($"[Hit] {(playerScored ? "PLAYER scores" : "ENEMY scores")} with '{gameObject.name}' ({gameObject.tag}) | " +
-                  $"enemyState={enemyStateMachine.currentState} counterWindow={enemyStateMachine.InCounterWindow} " +
-                  $"playerState={(playerStateMachine != null ? playerStateMachine.currentState.ToString() : "?")} " +
-                  $"playerAttackType={(playerStateMachine != null ? playerStateMachine.currentAttackType.ToString() : "?")}");
         if (Mathf.Abs(lastPlayerScoreTime - lastEnemyScoreTime) < 0.3f)
-            Debug.LogWarning("[Hit] DOUBLE HIT: both sides scored within 0.3s of each other (see the two [Hit] lines above).");
+        { }
     }
 
     private void KnockbackEnemy()
@@ -385,7 +385,8 @@ public class DmgDetection : MonoBehaviour
         while (t < dur)
         {
             t += Time.unscaledDeltaTime;
-            float target = total * Mathf.Clamp01(t / dur);
+            float k = Mathf.Clamp01(t / dur);
+            float target = total * (1f - (1f - k) * (1f - k));
             float step = target - moved;
             moved = target;
             Vector3 delta = new Vector3(dir * step, 0f, 0f);
@@ -405,16 +406,14 @@ public class DmgDetection : MonoBehaviour
         Animator target = enemyStateMachine != null && enemyStateMachine.anim != null ? enemyStateMachine.anim : anim;
         if (target == null) return;
         if (logHits && anim != null && anim != target)
-            Debug.LogWarning($"[Hit] '{gameObject.name}' has its Anim field set to '{anim.gameObject.name}', which is NOT the " +
-                             $"enemy's animator ('{target.gameObject.name}'). Playing the hurt animation on the enemy anyway - " +
-                             $"you can clear or fix that field.");
+        { }
 
         string clip = target.HasState(0, Animator.StringToHash(preferred)) ? preferred : fallback;
         if (clip != preferred)
-            Debug.LogWarning($"[DmgDetection] Enemy animator has no state '{preferred}' - " +
-                             $"playing '{fallback}' instead. Add the state, or change the name in the Inspector.");
-        if (logHits) Debug.Log($"[Hit] Enemy hurt animation '{clip}' played on '{target.gameObject.name}'.");
-        target.Play(clip);
+        { }
+        bool fromCombo = enemyStateMachine != null && enemyStateMachine.InSnapCombo();
+        if (fromCombo) target.Play(clip);
+        else target.CrossFadeInFixedTime(Animator.StringToHash(clip), AnimBlend.DefaultBlend * 0.5f, 0, 0f);
     }
 
     // Score by the move the player actually performed (set when they pressed punch/kick),
@@ -431,20 +430,38 @@ public class DmgDetection : MonoBehaviour
     {
         Vector3 direction = player.transform.position - source.position;
         direction.y = 0;
-        if (direction.sqrMagnitude < 0.001f)
-        {
-            return;
-        }
-        player.controller.Move(direction.normalized * distance);
+        if (direction.sqrMagnitude < 0.001f) return;
+        StartCoroutine(GlideRoutine(player.transform, direction.normalized * distance, true));
     }
+
     void PushBackEnemy(Transform source, float distance)
     {
         Vector3 direction = enemyStateMachine.transform.position - source.position;
         direction.y = 0f;
+        if (direction.sqrMagnitude < 0.001f) return;
+        StartCoroutine(GlideRoutine(enemyStateMachine.transform, direction.normalized * distance, false));
+    }
 
-        if (direction.sqrMagnitude < 0.001f)
-            return;
-
-        enemyStateMachine.transform.position += direction.normalized * distance;
+    /// <summary>Moves 'who' by 'total' with an ease-out over blockPushTime (real time).</summary>
+    private IEnumerator GlideRoutine(Transform who, Vector3 total, bool usesController)
+    {
+        float dur = Mathf.Max(0.02f, blockPushTime);
+        float t = 0f;
+        Vector3 moved = Vector3.zero;
+        while (t < dur)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            k = 1f - (1f - k) * (1f - k);
+            Vector3 target = total * k;
+            Vector3 step = target - moved;
+            moved = target;
+            if (who == null) yield break;
+            if (usesController && player != null && player.controller != null && player.controller.enabled)
+                player.controller.Move(step);
+            else
+                who.position += step;
+            yield return null;
+        }
     }
 }

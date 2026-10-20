@@ -22,12 +22,24 @@ public class AttackTrails : MonoBehaviour
     [SerializeField] private TrailRenderer[] handTrails;
     [SerializeField] private TrailRenderer[] footTrails;
 
-    [Header("Gradients (left = the limb / newest part of the trail, right = the tail end)")]
-    [Tooltip("Trail look while he is attacking but no hit is imminent. Edit the colour keys AND the alpha keys " +
-             "(top markers = alpha) - e.g. fade the alpha to 0 at the right so the tail vanishes.")]
-    [SerializeField] private Gradient normalGradient = MakeGradient(new Color(1f, 1f, 1f), 0.55f, new Color(0.6f, 0.8f, 1f));
-    [Tooltip("The limb about to hit uses this gradient for the perfect-block window.")]
-    [SerializeField] private Gradient perfectGradient = MakeGradient(new Color(1f, 0.15f, 0.1f), 1f, new Color(1f, 0.55f, 0.1f));
+    [Header("Trail look (the trail colour and the material emission both use these)")]
+    [Tooltip("Trail colour while he is attacking but no hit is imminent (0-255 values: 191 191 191).")]
+    [SerializeField] private Color normalColor = new Color32(191, 191, 191, 255);
+    [Tooltip("Trail colour for the limb about to hit, during the perfect-block window (191 6 0).")]
+    [SerializeField] private Color perfectColor = new Color32(191, 6, 0, 255);
+    [Tooltip("Opacity at the limb end of the trail (it fades to 0 at the tail).")]
+    [SerializeField] private float normalAlpha = 0.55f;
+    [SerializeField] private float perfectAlpha = 1f;
+
+    [Header("Emission (on the trail MATERIAL - needs a shader with an emission colour, e.g. URP/Lit)")]
+    [SerializeField] private bool useEmission = true;
+    [Tooltip("Shader property name of the emission colour (URP/Lit and Standard use _EmissionColor).")]
+    [SerializeField] private string emissionProperty = "_EmissionColor";
+    [Tooltip("HDR intensity (the picker's Intensity value) for the plain trail.")]
+    [SerializeField] private float normalEmissionIntensity = 0.8f;
+    [Tooltip("HDR intensity for the red trail.")]
+    [SerializeField] private float perfectEmissionIntensity = 3f;
+
     [Tooltip("Trail width multiplier while red (1 = unchanged). A little wider makes the cue pop.")]
     [SerializeField] private float redWidthMultiplier = 1.25f;
 
@@ -35,7 +47,10 @@ public class AttackTrails : MonoBehaviour
     [Tooltip("(Only used when the player's 'Perfect By Distance' is OFF - otherwise the trail turns red when his limb is within " +
              "the player's Perfect Block Distance.) Turns red this many seconds BEFORE the perfect-block window opens (reaction cushion). " +
              "The window itself is the player's Perfect Block Window (read automatically) and ends when the hit lands.")]
-    [SerializeField] private float redLeadTime = 0.05f;
+    [SerializeField] private float redLeadTime = 0.12f;
+    [Tooltip("(Perfect By Distance ON) Turns red when his limb is this much FARTHER than the Perfect Block Distance, " +
+             "so the cue shows a little earlier. 0 = exactly when a block would be perfect.")]
+    [SerializeField] private float redLeadDistance = 0.3f;
     [Tooltip("Keep it red this long AFTER the hit stops being live, in seconds. 0 = back to normal at once.")]
     [SerializeField] private float redHoldAfterHit = 0f;
     [Tooltip("Only the limb that is about to strike is turned on. OFF = all trails on during his whole attack " +
@@ -56,6 +71,15 @@ public class AttackTrails : MonoBehaviour
     public bool TrailsActive => wasAttacking;
 
     private bool wasAttacking;
+    private Gradient normalGradient, perfectGradient;
+
+    private static Color Hdr(Color c, float intensity)
+    {
+        Color l = c.linear * Mathf.Pow(2f, intensity);
+        l.a = 1f;
+        return l;
+    }
+
     private int appliedRed = -2;          // which limb group is currently red (-1 none), -2 = nothing applied yet
     private float holdUntil;
     private int holdLimb = -1;
@@ -68,6 +92,9 @@ public class AttackTrails : MonoBehaviour
         if (enemy == null) enemy = FindFirstObjectByType<EnemyStateMachine>();
         if (player == null) player = FindFirstObjectByType<PlayerStateMachine>();
 
+        normalGradient = MakeGradient(normalColor, normalAlpha, normalColor);
+        perfectGradient = MakeGradient(perfectColor, perfectAlpha, perfectColor);
+
         var list = new System.Collections.Generic.List<TrailRenderer>();
         if (handTrails != null) list.AddRange(handTrails);
         if (footTrails != null) list.AddRange(footTrails);
@@ -77,7 +104,6 @@ public class AttackTrails : MonoBehaviour
 
         SetEmitting(handTrails, false);
         SetEmitting(footTrails, false);
-        if (enemy == null) Debug.LogWarning("[AttackTrails] No EnemyStateMachine found.");
     }
 
     private void Update()
@@ -99,7 +125,6 @@ public class AttackTrails : MonoBehaviour
             ClearAll();
             ResetLook();
             wasAttacking = true;
-            if (logTrails) Debug.Log($"[AttackTrails] attack started - trails on ({(handTrails != null ? handTrails.Length : 0)} hand, {(footTrails != null ? footTrails.Length : 0)} foot).");
         }
 
         // Which limb is about to strike (or striking), and is the perfect window on?
@@ -121,7 +146,7 @@ public class AttackTrails : MonoBehaviour
                 {
                     // Distance rule: red exactly while a block pressed NOW would be perfect (his striking limb is close enough).
                     float gap = player.IncomingLimbGap();
-                    if (gap >= 0f && gap <= player.PerfectBlockDistance) red = upcoming;
+                    if (gap >= 0f && gap <= player.PerfectBlockDistance + Mathf.Max(0f, redLeadDistance)) red = upcoming;
                 }
                 else
                 {
@@ -151,7 +176,6 @@ public class AttackTrails : MonoBehaviour
         {
             appliedRed = red;
             ApplyColors(red);
-            if (logTrails) Debug.Log($"[AttackTrails] red limb = {(red == 0 ? "hands" : red == 1 ? "feet" : "none")}");
         }
     }
 
@@ -173,7 +197,7 @@ public class AttackTrails : MonoBehaviour
         AnimationClip clip = infos[0].clip;
         AnimatorStateInfo st = a.GetCurrentAnimatorStateInfo(0);
         float now = (st.loop ? Mathf.Repeat(st.normalizedTime, 1f) : Mathf.Clamp01(st.normalizedTime)) * clip.length;
-        float speed = Mathf.Max(0.01f, a.speed * st.speedMultiplier);
+        float speed = Mathf.Max(0.01f, st.speedMultiplier);
         float best = -1f;
         foreach (AnimationEvent evt in clip.events)
         {
@@ -195,10 +219,20 @@ public class AttackTrails : MonoBehaviour
     {
         if (group == null) return;
         Gradient g = red ? perfectGradient : normalGradient;
+        Color emission = red ? Hdr(perfectColor, perfectEmissionIntensity) : Hdr(normalColor, normalEmissionIntensity);
         foreach (var t in group)
         {
             if (t == null) continue;
             t.colorGradient = g;
+            if (useEmission)
+            {
+                Material m = t.material;   // an instance per trail, so the shared material isn't touched
+                if (m != null && m.HasProperty(emissionProperty))
+                {
+                    m.EnableKeyword("_EMISSION");
+                    m.SetColor(emissionProperty, emission);
+                }
+            }
             int idx = System.Array.IndexOf(all, t);
             float baseW = (idx >= 0 && baseWidths != null) ? baseWidths[idx] : t.widthMultiplier;
             t.widthMultiplier = red ? baseW * redWidthMultiplier : baseW;

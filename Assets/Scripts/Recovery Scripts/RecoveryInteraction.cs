@@ -46,6 +46,16 @@ public class RecoveryInteraction : MonoBehaviour
     [Header("Calendar")]
     [SerializeField] private ActivityDefinition activity;
 
+    [Header("Interact Glow")]
+    [Tooltip("Root of the nested particle effect that marks this spot. It plays while the interaction is available, " +
+             "and stops during the interaction and once a once-a-day activity has been done (back on the next day). " +
+             "Optional.")]
+    [SerializeField] private GameObject interactGlow;
+
+    [Tooltip("A prompt (e.g. \"E / A: Interact\") shown while the player is in range and the activity is available. " +
+             "Hidden during the activity and once a once-a-day activity has been done. Keep it INACTIVE in the scene. Optional.")]
+    [SerializeField] private GameObject interactPrompt;
+
     [Header("Camera")]
     [SerializeField] private Camera activityCamera;
 
@@ -66,8 +76,15 @@ public class RecoveryInteraction : MonoBehaviour
     [SerializeField] private string onboardingFlagId;
 
     private string OnboardingFlagId => string.IsNullOrEmpty(onboardingFlagId)
-        ? $"RecoveryInteraction_{GetInstanceID()}_onboarding_seen"
+        ? $"RecoveryInteraction_{gameObject.scene.name}_{HierarchyPath()}_onboarding_seen"
         : onboardingFlagId;
+
+    private string HierarchyPath()
+    {
+        string p = name;
+        for (Transform t = transform.parent; t != null; t = t.parent) p = t.name + "/" + p;
+        return p;
+    }
 
     private bool canInteract;
 
@@ -102,6 +119,9 @@ public class RecoveryInteraction : MonoBehaviour
 
     private void OnDisable()
     {
+        SetGlow(false);
+        SetPrompt(false);
+        glowInitialised = false;
         if (meter != null) meter.OnFillChanged -= HandleFillChanged;
     }
 
@@ -113,6 +133,9 @@ public class RecoveryInteraction : MonoBehaviour
 
     void Update()
     {
+        SetGlow(ShouldGlow());
+        SetPrompt(canInteract && !ActiveDialogueTracker.AnyActive && ShouldGlow());
+
         if (canInteract && player.interacting && !meterActive)
             BeginInteraction();
     }
@@ -122,14 +145,12 @@ public class RecoveryInteraction : MonoBehaviour
         if (!CalendarManager.instance.TryConsumeActivity(activity))
         {
             player.interacting = false;
-            Debug.Log($"{activity.displayName} already done today.");
             return;
         }
 
         if (!StoryEnvironmentController.instance.CanDoActivity())
         {
             player.interacting = false;
-            Debug.Log("Too tired to do more today.");
             return;
         }
 
@@ -155,9 +176,6 @@ public class RecoveryInteraction : MonoBehaviour
 
             if (PersistentGameFlags.instance != null)
                 PersistentGameFlags.instance.SetFlag(OnboardingFlagId);
-            else
-                Debug.LogWarning("[RecoveryInteraction] onboardingUI shown but PersistentGameFlags.instance " +
-                                  "is null - this won't be remembered across scene reloads.");
         }
 
         // Hide player mesh, show activity model
@@ -190,7 +208,6 @@ public class RecoveryInteraction : MonoBehaviour
 
         if (meter.won)
         {
-            Debug.Log("Won");
             RecoverySoundscape.ActivityWon(activity);
             HealthAndMotivation.instance.ModifyHealth(winHealth);
             HealthAndMotivation.instance.ModifyMotivation(winMotivation);
@@ -198,7 +215,6 @@ public class RecoveryInteraction : MonoBehaviour
         }
         else if (meter.lost)
         {
-            Debug.Log("Lost");
             RecoverySoundscape.ActivityLost(activity);
             HealthAndMotivation.instance.ModifyHealth(loseHealth);
             HealthAndMotivation.instance.ModifyMotivation(loseMotivation);
@@ -206,7 +222,6 @@ public class RecoveryInteraction : MonoBehaviour
         }
         else if (meter.injured)
         {
-            Debug.Log("Injured");
             RecoverySoundscape.ActivityInjured(activity);
             HealthAndMotivation.instance.ModifyHealth(injuryHealth);
             HealthAndMotivation.instance.ModifyMotivation(injuryMotivation);
@@ -246,5 +261,35 @@ public class RecoveryInteraction : MonoBehaviour
 
         float length = activityAnimator.GetCurrentAnimatorStateInfo(0).length;
         yield return new WaitForSeconds(length);
+    }
+
+    private void SetPrompt(bool on)
+    {
+        if (interactPrompt != null && interactPrompt.activeSelf != on) interactPrompt.SetActive(on);
+    }
+
+    private bool glowInitialised;
+    private bool glowOn;
+
+    private bool ShouldGlow()
+    {
+        if (meterActive) return false;
+
+        return activity == null || !activity.onceLimitPerDay || CalendarManager.instance == null ||
+               !CalendarManager.instance.HasDoneToday(activity.activityId);
+    }
+
+    private void SetGlow(bool on)
+    {
+        if (interactGlow == null || (glowInitialised && glowOn == on)) return;
+
+        glowInitialised = true;
+        glowOn = on;
+
+        foreach (ParticleSystem ps in interactGlow.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (on) ps.Play(false);
+            else ps.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+        }
     }
 }

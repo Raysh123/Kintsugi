@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fe0b8adda465ae45b6b1acbb9ca92bd, type: 3}
+  m_Name: Sensei Dialouge box
+  m_EditorClassIdentifier: 
+  characterName: Yang Sensei
+  dialogueBlocks:
+  - phase: 2
+    anyTimeOfDay: 0
+    timeOfDay: 3
+    anyDay: 0
+    dayNumber: 1
+    lines:
+    - audioClip: {fileID: 0}
+      subtitle: Good work today. But dont push past your injury, take it with you.
+        Go home and rest now.  I will see you tomorrow
+      waitForInput: 1
+  - phase: 3
+    anyTimeOfDay: 1
+    timeOfDay: 3
+    anyDay: 0
+    dayNumber: 2
+    lines:
+    - audioClip: {fileID: 0}
+      subtitle: Good Progress! But dont let it get to your head.
+      waitForInput: 1

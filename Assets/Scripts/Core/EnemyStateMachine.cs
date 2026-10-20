@@ -213,7 +213,7 @@ public class EnemyStateMachine : MonoBehaviour
         // (DmgDetection checks his Block state first, so a kick he blocked never gets here.)
         if (isKick && alwaysDodgeKickInWindow && (InCounterWindow || Time.time < kickImmuneUntil))
         {
-            Debug.Log($"[Counter] KICK reached him {(Time.time - counterWindowStart):F2}s after the perfect block -> slipped (safety net).");
+            { }
             if (currentState == EnemyState.Idle)
             {
                 counterOpenUntil = 0f;
@@ -227,8 +227,7 @@ public class EnemyStateMachine : MonoBehaviour
 
         float into = Time.time - counterWindowStart;
         bool dodge = isKick ? alwaysDodgeKickInWindow : counterDodgeRolled;
-        Debug.Log($"[Counter] {(isKick ? "KICK" : "PUNCH")} landed {into:F2}s into the {counterWindowSeconds:F2}s window -> " +
-                  (dodge ? "he DODGES it." : "it connects."));
+        { }
         if (!dodge) return false;
 
         counterOpenUntil = 0f;
@@ -265,6 +264,25 @@ public class EnemyStateMachine : MonoBehaviour
     private int lastComboIndex = -1;
     /// <summary>Name of the combo he is (or last was) performing.</summary>
     public string CurrentComboName { get; private set; } = "InPlaceCombo1";
+
+    [Tooltip("Combo states that snap (no blend) when a parry / block / hit cuts them off - for clips whose pose is mid-turn and makes him spin when blended out of. All other combos blend normally.")]
+    [SerializeField] private string[] snapWhenInterruptedCombos = { "InPlaceCombo2" };
+
+    /// <summary>True while he is in one of the combos listed above.</summary>
+    public bool InSnapCombo()
+    {
+        if (anim == null || snapWhenInterruptedCombos == null) return false;
+        AnimatorStateInfo st = anim.GetCurrentAnimatorStateInfo(0);
+        foreach (string n in snapWhenInterruptedCombos)
+            if (!string.IsNullOrEmpty(n) && st.IsName(n)) return true;
+        return false;
+    }
+
+    public void BlendInterrupt(string stateName)
+    {
+        if (anim == null) return;
+        anim.PlayBlend(stateName, InSnapCombo() ? 0f : -1f);
+    }
 
     // Random choice among the combos that exist on the Animator. Returns null for the legacy single combo.
     private string PickCombo()
@@ -346,7 +364,7 @@ public class EnemyStateMachine : MonoBehaviour
              "the rest of the wind-up. OFF = the old behaviour (blue for the whole wind-up + a flash).")]
     [SerializeField] private bool telegraphOnlyPerfectWindow = true;
     [Tooltip("Show it this many seconds earlier than the perfect window starts (reaction cushion). 0 = exactly the window.")]
-    [SerializeField] private float telegraphWindowEarlyBy = 0f;
+    [SerializeField] private float telegraphWindowEarlyBy = 0.08f;
     private Coroutine flashRoutine;
     private void Awake()
     {
@@ -380,7 +398,7 @@ public class EnemyStateMachine : MonoBehaviour
     {
         if (currentState != EnemyState.Swap) return;
         decisionLockTimer = Mathf.Max(decisionLockTimer, recovery);
-        if (anim != null) anim.Play(idleAnimationName);
+        if (anim != null) anim.PlayBlend(idleAnimationName);
         ChangeState(EnemyState.Idle);
     }
 
@@ -396,7 +414,7 @@ public class EnemyStateMachine : MonoBehaviour
         counterOpenUntil = Time.time + counterWindowSeconds;
         kickImmuneUntil = Time.time + counterWindowSeconds + Mathf.Max(0f, kickImmuneExtraSeconds);
         counterDodgeRolled = Random.value * 100f < punchDodgeChancePercent;
-        if (debugAI) Debug.Log($"[Counter] Window open for {counterWindowSeconds:F2}s (punch dodge rolled: {counterDodgeRolled}).");
+        if (debugAI) { }
     }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -406,6 +424,7 @@ public class EnemyStateMachine : MonoBehaviour
     }
     public void ChangeState(EnemyState state)
     {
+        if (state != EnemyState.Attack) ReleaseHold();
         // Single chokepoint every transition goes through. Leaving Attack for ANY reason
         // must fully cancel whatever's actually running, not just relabel currentState - a
         // perfect block or a posture-stun calling ChangeState(Stun) while AttackRoutine is
@@ -446,7 +465,7 @@ public class EnemyStateMachine : MonoBehaviour
             // same forced cut, just back to idleAnimationName instead.
             if (state != EnemyState.Stun && anim != null)
             {
-                anim.Play(idleAnimationName);
+                anim.PlayBlend(idleAnimationName);
             }
         }
 
@@ -480,11 +499,12 @@ public class EnemyStateMachine : MonoBehaviour
         if (state == EnemyState.Stun && currentState != EnemyState.Stun)
         {
             FightSounds.Stun();
+            FightVFX.Play(FightVFX.Kind.Stun, transform.position, transform);
             StunHalo.Begin(false, stunDuration);
             if (anim != null)
             {
-                Debug.Log($"[EnemyStateMachine] Forcing Animator to \"{stunAnimationName}\" (entering Stun from {currentState}).");
-                anim.Play(stunAnimationName);
+                { }
+                BlendInterrupt(stunAnimationName);
             }
             else
             {
@@ -516,7 +536,7 @@ public class EnemyStateMachine : MonoBehaviour
             parryRecoveryPending = false;
             if (currentState == EnemyState.Idle && Random.value * 100f < dodgeAfterComboBreakPercent)
             {
-                if (debugAI) Debug.Log("[EnemyAI] BACK DASH after combo break.");
+                if (debugAI) { }
                 StartBackDash();
             }
         }
@@ -539,9 +559,7 @@ public class EnemyStateMachine : MonoBehaviour
             DistanceDecisionMaker();
             decisionTimer = DecisionInterval;
             if (debugAI)
-                Debug.Log($"[EnemyAI] state={currentState} dist={Vector3.Distance(transform.position, Player.position):F2} " +
-                          $"attackTimer={attackTimer:F2} dashCd={retreatTimer:F1} roll={decisionRoll:F0} approach={shouldApproach} " +
-                          $"dash={(backDashRoutine != null)} pausing={isIdlePausing} lock={decisionLockTimer:F2}");
+            { }
         }
         // After the decision tick on purpose: if the tick starts a back dash, state is already
         // Retreat here, so HandleIdle can't attack on the same frame and pre-empt it.
@@ -586,7 +604,7 @@ public class EnemyStateMachine : MonoBehaviour
         shouldApproach = false;
         shouldRetreat = false;
 
-        anim.Play("Idle");
+        anim.PlayBlend("Idle");
         ChangeState(EnemyState.Idle);
     }
     private void HandleFacing()
@@ -645,7 +663,7 @@ public class EnemyStateMachine : MonoBehaviour
             t += Time.deltaTime;
             if (dodgeOut && t >= dodgeAt)
             {
-                if (debugAI) Debug.Log("[EnemyAI] BACK DASH out of stun.");
+                if (debugAI) { }
                 StunHalo.Shatter(false);
                 stunRoutine = null;
                 // Otherwise HandleIdle would see posture still over the threshold and re-stun him.
@@ -661,7 +679,7 @@ public class EnemyStateMachine : MonoBehaviour
         ChangeState(EnemyState.Idle);
         if (Random.value * 100f < dodgeAfterStunPercent)
         {
-            if (debugAI) Debug.Log("[EnemyAI] BACK DASH after stun.");
+            if (debugAI) { }
             StartBackDash();
         }
     }
@@ -850,11 +868,11 @@ public class EnemyStateMachine : MonoBehaviour
                     {
                         counterOpenUntil = 0f;
                         decisionLockTimer = 0f;
-                        if (debugAI) Debug.Log("[Counter] Kick incoming in the counter window -> he DODGES.");
+                        if (debugAI) { }
                         return;
                     }
                 }
-                if (debugAI && kickIncoming && InCounterWindow) Debug.Log("[Counter] Kick incoming in the counter window -> he BLOCKS.");
+                if (debugAI && kickIncoming && InCounterWindow) { }
                 ChangeState(EnemyState.Block);
             }
             return;
@@ -876,7 +894,7 @@ public class EnemyStateMachine : MonoBehaviour
                 shouldApproach = false;
                 shouldRetreat = false;
                 attackTimer = attackCooldown / Aggro;
-                if (debugAI) Debug.Log($"[EnemyAI] ATTACK started (dist={distance:F2}, roll={decisionRoll:F0}).");
+                if (debugAI) { }
                 ChangeState(EnemyState.Attack);
             }
             //else if (decisionRoll > 20)
@@ -962,8 +980,95 @@ public class EnemyStateMachine : MonoBehaviour
         //}
     }
 
-    public void StopCombo()
+    [Tooltip("When his attack LANDS on the player, his animation keeps playing this many seconds before it is cut to idle, instead of vanishing the same frame.")]
+    [SerializeField] private float hitFollowThrough = 0.3f;
+    public float HitFollowThrough => hitFollowThrough;
+    private Coroutine releaseAnimRoutine;
+
+    private IEnumerator ReleaseAnimAfter(float seconds)
     {
+        yield return new WaitForSecondsRealtime(seconds);
+        releaseAnimRoutine = null;
+        if (anim != null && attackRoutine == null && currentState != EnemyState.Stun && currentState != EnemyState.Attack)
+            anim.PlayBlend(idleAnimationName);
+    }
+
+    [Header("Attack anticipation hold")]
+    [Tooltip("His animation freezes on the wind-up pose for this many seconds just before each hit lands, so the strike reads clearly. 0 = off.")]
+    [SerializeField] private float anticipationHoldSeconds = 0.12f;
+    [Tooltip("The freeze starts when the hit is this many seconds away in the clip (about 3 frames = 0.05).")]
+    [SerializeField] private float anticipationHoldLead = 0.05f;
+    [Tooltip("The freeze eases in and out over this many seconds each, instead of stopping dead - 0 = hard stop.")]
+    [SerializeField] private float anticipationEaseSeconds = 0.14f;
+    private Coroutine holdRoutine;
+    private bool holding;
+    private float holdPrevSpeed = 1f;
+    private float extraHoldTime;
+
+    private void ReleaseHold()
+    {
+        if (holdRoutine != null) { StopCoroutine(holdRoutine); holdRoutine = null; }
+        if (holding)
+        {
+            holding = false;
+            if (anim != null) anim.speed = holdPrevSpeed;
+        }
+    }
+
+    private IEnumerator AnticipationHoldRoutine()
+    {
+        var done = new System.Collections.Generic.HashSet<int>();
+        while (isAttacking && currentState == EnemyState.Attack && anim != null)
+        {
+            AnimatorClipInfo[] infos = anim.GetCurrentAnimatorClipInfo(0);
+            if (infos != null && infos.Length > 0 && infos[0].clip != null)
+            {
+                AnimationClip clip = infos[0].clip;
+                AnimatorStateInfo st = anim.GetCurrentAnimatorStateInfo(0);
+                float now = Mathf.Clamp01(st.normalizedTime) * clip.length;
+                foreach (AnimationEvent evt in clip.events)
+                {
+                    if (evt.functionName != "OpenEnemyHitWindow" && evt.functionName != "DealDamage") continue;
+                    int key = Mathf.RoundToInt(evt.time * 1000f);
+                    if (done.Contains(key) || evt.time <= now) continue;
+                    if (evt.time - now > anticipationHoldLead + 0.5f * Mathf.Max(0f, anticipationEaseSeconds)) continue;
+
+                    done.Add(key);
+                    holdPrevSpeed = anim.speed;
+                    holding = true;
+                    float ease = Mathf.Max(0f, anticipationEaseSeconds);
+                    float t = 0f;
+                    while (t < ease)
+                    {
+                        t += Time.deltaTime;
+                        float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / ease));
+                        anim.speed = Mathf.Max(0.03f, holdPrevSpeed * (1f - k));
+                        yield return null;
+                    }
+                    anim.speed = 0.03f;   // a slow creep rather than a dead stop
+                    yield return new WaitForSeconds(anticipationHoldSeconds);
+                    t = 0f;
+                    while (t < ease)
+                    {
+                        t += Time.deltaTime;
+                        float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / ease));
+                        anim.speed = Mathf.Max(0.03f, holdPrevSpeed * k);
+                        yield return null;
+                    }
+                    holding = false;
+                    anim.speed = holdPrevSpeed;
+                    extraHoldTime += anticipationHoldSeconds + ease;
+                    break;
+                }
+            }
+            yield return null;
+        }
+        holdRoutine = null;
+    }
+
+    public void StopCombo(float animHold = 0f)
+    {
+        ReleaseHold();
         bool wasRunning = attackRoutine != null;
 
         if (attackRoutine != null)
@@ -993,9 +1098,11 @@ public class EnemyStateMachine : MonoBehaviour
         // Forcing it here instead, right where the coroutine is actually being torn down, is
         // what actually stops the clip mid-playback. Guarded by wasRunning so a StopCombo()
         // called when nothing was attacking anyway doesn't yank the Animator for no reason.
+        if (releaseAnimRoutine != null) { StopCoroutine(releaseAnimRoutine); releaseAnimRoutine = null; }
         if (wasRunning && anim != null)
         {
-            anim.Play(idleAnimationName);
+            if (animHold > 0f) releaseAnimRoutine = StartCoroutine(ReleaseAnimAfter(animHold));
+            else anim.PlayBlend(idleAnimationName);
         }
 
         // Unlike CloseEnemyHitWindow's own blue re-show (which assumes the combo continues),
@@ -1016,7 +1123,7 @@ public class EnemyStateMachine : MonoBehaviour
         string picked = PickCombo();
         string comboState = picked ?? "InPlaceCombo1";
         CurrentComboName = comboState;
-        if (logComboChoice) Debug.Log($"[EnemyAI] Combo chosen: '{comboState}'.");
+        if (logComboChoice) { }
         anim.Play(comboState);
         yield return null; // one frame so GetCurrentAnimatorStateInfo reflects the new clip, not the previous one
         attackLength = anim.GetCurrentAnimatorStateInfo(0).length;
@@ -1039,7 +1146,15 @@ public class EnemyStateMachine : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(attackLength);
+        extraHoldTime = 0f;
+        if (anticipationHoldSeconds > 0f) holdRoutine = StartCoroutine(AnticipationHoldRoutine());
+        float waited = 0f;
+        while (waited < attackLength + extraHoldTime)
+        {
+            waited += Time.deltaTime;
+            yield return null;
+        }
+        ReleaseHold();
         isAttacking = false;
         attackRoutine = null;
 
@@ -1120,10 +1235,10 @@ public class EnemyStateMachine : MonoBehaviour
         if (telegraph == null) { if (logTelegraph) Debug.LogWarning("[Telegraph] No AttackTelegraph assigned on the enemy."); return; }
         if (TryGetSecondsUntilNextHit(out float secs))
         {
-            if (logTelegraph) Debug.Log($"[Telegraph] next hit in {secs:F2}s -> window scheduled (window {(playerStateMachine != null ? playerStateMachine.PerfectBlockWindow : 0.15f):F2}s).");
+            if (logTelegraph) { }
             flashRoutine = StartCoroutine(PerfectWindowRoutine(secs));
         }
-        else if (logTelegraph) Debug.Log("[Telegraph] no hit event (DealDamage / OpenEnemyHitWindow) ahead in the playing clip - no window to show.");
+        else if (logTelegraph) { }
     }
 
     // Shows the telegraph for exactly the perfect-block window before the hit lands.
@@ -1135,7 +1250,7 @@ public class EnemyStateMachine : MonoBehaviour
         yield return new WaitForSeconds(wait);
         if (telegraph != null)
         {
-            if (logTelegraph) Debug.Log($"[Telegraph] SHOW window now ({telegraphWarningColor}, {Mathf.Min(showFor, secondsUntilHit):F2}s).");
+            if (logTelegraph) { }
             telegraph.Show(telegraphWarningColor, Mathf.Min(showFor, secondsUntilHit));
         }
         // The hit opening (OpenEnemyHitWindow) turns it solid Perfect; CloseEnemyHitWindow hides it.
@@ -1166,12 +1281,12 @@ public class EnemyStateMachine : MonoBehaviour
         isBlocking = true;
         if (incomingAttackTypes == PlayerStateMachine.AttackTypes.Punch)
         {
-            anim.Play("Middle_Block");
+            BlendInterrupt("Middle_Block");
         }
         else if (incomingAttackTypes == PlayerStateMachine.AttackTypes.Kick)
         {
             yield return new WaitForSeconds(0.1f);
-            anim.Play("Lower_Block");
+            BlendInterrupt("Lower_Block");
         }
         yield return new WaitUntil(() =>
             playerStateMachine.currentState != PlayerStateMachine.PlayerStates.Attack);
@@ -1213,7 +1328,7 @@ public class EnemyStateMachine : MonoBehaviour
             shouldApproach = distance > approachStopDistance;
             if (retreatTimer <= 0f && Random.value * 100f < backDashChancePercent)
             {
-                if (debugAI) Debug.Log($"[EnemyAI] BACK DASH started (dist={distance:F2}).");
+                if (debugAI) { }
                 StartBackDash();
             }
             return;
@@ -1240,7 +1355,7 @@ public class EnemyStateMachine : MonoBehaviour
         // stun lowers posture below this before calling, so it isn't affected.
         if (enemyPosture != null && enemyPosture.postureSlider.value >= 0.85f)
         {
-            if (debugAI) Debug.Log("[EnemyAI] Back dash skipped - he's about to be stunned.");
+            if (debugAI) { }
             return;
         }
         shouldApproach = false;
@@ -1263,7 +1378,7 @@ public class EnemyStateMachine : MonoBehaviour
         {
             bool hasDash = !string.IsNullOrEmpty(backDashAnim) &&
                            anim.HasState(0, Animator.StringToHash(backDashAnim));
-            anim.Play(hasDash ? backDashAnim : walkBackwardAnim);
+            anim.PlayBlend(hasDash ? backDashAnim : walkBackwardAnim);
             if (!hasDash)
                 Debug.LogWarning($"[EnemyStateMachine] No animator state \"{backDashAnim}\" - using \"{walkBackwardAnim}\" for the back dash.");
         }
@@ -1279,7 +1394,7 @@ public class EnemyStateMachine : MonoBehaviour
             {
                 // A point / pause landed mid-dash: abandon it rather than resuming later.
                 backDashRoutine = null;
-                if (anim != null) anim.Play(idleAnimationName);
+                if (anim != null) anim.PlayBlend(idleAnimationName);
                 ChangeState(EnemyState.Idle);
                 yield break;
             }
@@ -1292,7 +1407,7 @@ public class EnemyStateMachine : MonoBehaviour
         transform.position = targetPos;
 
         backDashRoutine = null;
-        if (anim != null) anim.Play(idleAnimationName);
+        if (anim != null) anim.PlayBlend(idleAnimationName);
 
         if (Random.value * 100f < attackAfterDashChancePercent)
         {
@@ -1335,7 +1450,7 @@ public class EnemyStateMachine : MonoBehaviour
         {
             currentMovementAnim = null; // so the clip restarts cleanly next time he moves, instead of HandleMovement thinking it's still mid-loop from before
             if (debugAI && wasMovingLogged)
-                Debug.Log($"[EnemyMove] STOPPED because state changed to {currentState} (dist={Vector3.Distance(transform.position, Player.position):F2}).");
+            { }
             wasMovingLogged = false;
             moveVelX = 0f;
             return;
@@ -1363,7 +1478,7 @@ public class EnemyStateMachine : MonoBehaviour
         if (Mathf.Abs(moveVelX) > 0.05f)
         {
             if (debugAI && !wasMovingLogged)
-                Debug.Log($"[EnemyMove] started moving (dist={distance:F2}, vel={moveVelX:F2}).");
+            { }
             wasMovingLogged = true;
             transform.position += new Vector3(moveVelX * Time.deltaTime, 0f, 0f);
             bool towardPlayer = Mathf.Sign(moveVelX) == direction;
@@ -1380,11 +1495,7 @@ public class EnemyStateMachine : MonoBehaviour
         else
         {
             if (debugAI && wasMovingLogged)
-                Debug.Log($"[EnemyMove] STOPPED: state={currentState} approach={shouldApproach} retreat={shouldRetreat} " +
-                          $"pausing={isIdlePausing} lock={decisionLockTimer:F2} dist={distance:F2} " +
-                          $"stopDist={approachStopDistance} desiredVel={desiredVel:F2} " +
-                          $"dx={Mathf.Abs(Player.position.x - transform.position.x):F2} " +
-                          $"dz={Mathf.Abs(Player.position.z - transform.position.z):F2}");
+            { }
             wasMovingLogged = false;
             moveVelX = 0f;
             // Stopped after walking: go back to Idle (the walk clips loop, so without this he'd
