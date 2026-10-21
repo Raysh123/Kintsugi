@@ -39,6 +39,11 @@ public class ComicCutscene : MonoBehaviour
              "this script activates them the first time they're reached.")]
     [SerializeField] private List<RectTransform> panels = new List<RectTransform>();
 
+    [Header("Fixed Icons (don't scroll with the strip)")]
+    [Tooltip("Icons / buttons that stay still while the comic scrolls. Keep them OUTSIDE the Strip Container (not its children). " +
+             "They are shown only while the comic is on and hidden with it.")]
+    [SerializeField] private GameObject[] fixedIcons;
+
     [Header("Audio")]
     [Tooltip("Music (SoundLibrary id on this scene's AudioManager) that plays during the cutscene. " +
              "Blank = no music.")]
@@ -75,6 +80,14 @@ public class ComicCutscene : MonoBehaviour
             cameraFollow = Camera.main.GetComponent<TopDownCameraFollow>();
 
         if (stripContainer != null) stripContainer.gameObject.SetActive(false);
+        SetFixedIcons(false);
+    }
+
+    private void SetFixedIcons(bool on)
+    {
+        if (fixedIcons == null) return;
+        foreach (GameObject g in fixedIcons)
+            if (g != null) g.SetActive(on);
     }
 
     public void Play()
@@ -112,6 +125,7 @@ public class ComicCutscene : MonoBehaviour
         {
             stripContainer.gameObject.SetActive(true);
         }
+        SetFixedIcons(true);
         // cutsceneLocked, NOT movementLocked - StoryEnvironmentController owns movementLocked
         // and unconditionally sets it to (phase == BedRest) whenever its own phase-changed
         // check runs, which was silently un-locking movement here the instant that happened
@@ -288,6 +302,7 @@ public class ComicCutscene : MonoBehaviour
     {
         // Safety: never leave the ambience muted if this object is switched off mid-cutscene.
         if (isPlaying && silenceAmbience) RecoverySoundscape.SetAmbienceSuppressed(false);
+        SetFixedIcons(false);
     }
 
     private void EndCutscene()
@@ -298,6 +313,7 @@ public class ComicCutscene : MonoBehaviour
         musicStartedByMe = false;
 
         if (stripContainer != null) stripContainer.gameObject.SetActive(false);
+        SetFixedIcons(false);
         if (player != null) player.cutsceneLocked = false;
         if (cameraFollow != null) cameraFollow.enableOrbitRotation = cameraOrbitWasEnabled;
 

@@ -32,8 +32,12 @@ public class AttackTrails : MonoBehaviour
     [SerializeField] private float perfectAlpha = 1f;
 
     [Header("Emission (on the trail MATERIAL - needs a shader with an emission colour, e.g. URP/Lit)")]
+    [Tooltip("Drop your emission material here. Every trail gets its own copy of it at start, and the emission colour below is " +
+             "set on those copies. Empty = use whatever material is already on each TrailRenderer.")]
+    [SerializeField] private Material trailMaterial;
     [SerializeField] private bool useEmission = true;
-    [Tooltip("Shader property name of the emission colour (URP/Lit and Standard use _EmissionColor).")]
+    [Tooltip("Shader property name of the emission colour (URP/Lit and Standard use _EmissionColor). If the material doesn't " +
+             "have it, _EmissiveColor, _EmissionColor, _Emission and _EmissionTint are tried too.")]
     [SerializeField] private string emissionProperty = "_EmissionColor";
     [Tooltip("HDR intensity (the picker's Intensity value) for the plain trail.")]
     [SerializeField] private float normalEmissionIntensity = 0.8f;
@@ -102,8 +106,27 @@ public class AttackTrails : MonoBehaviour
         baseWidths = new float[all.Length];
         for (int i = 0; i < all.Length; i++) if (all[i] != null) baseWidths[i] = all[i].widthMultiplier;
 
+        if (trailMaterial != null)
+            foreach (var t in all)
+                if (t != null) t.sharedMaterial = new Material(trailMaterial);   // one copy per trail
+
         SetEmitting(handTrails, false);
         SetEmitting(footTrails, false);
+    }
+
+    private static readonly string[] emissionFallbacks = { "_EmissiveColor", "_EmissionColor", "_Emission", "_EmissionTint" };
+    private bool warnedNoEmission;
+
+    private string FindEmissionProperty(Material m)
+    {
+        if (m.HasProperty(emissionProperty)) return emissionProperty;
+        foreach (string n in emissionFallbacks) if (m.HasProperty(n)) return n;
+        if (!warnedNoEmission)
+        {
+            warnedNoEmission = true;
+            Debug.LogWarning($"[AttackTrails] The trail material '{m.name}' (shader {m.shader.name}) has no emission colour property - set 'Emission Property' to its exact name.");
+        }
+        return null;
     }
 
     private void Update()
@@ -227,10 +250,11 @@ public class AttackTrails : MonoBehaviour
             if (useEmission)
             {
                 Material m = t.material;   // an instance per trail, so the shared material isn't touched
-                if (m != null && m.HasProperty(emissionProperty))
+                string prop = m != null ? FindEmissionProperty(m) : null;
+                if (prop != null)
                 {
                     m.EnableKeyword("_EMISSION");
-                    m.SetColor(emissionProperty, emission);
+                    m.SetColor(prop, emission);
                 }
             }
             int idx = System.Array.IndexOf(all, t);

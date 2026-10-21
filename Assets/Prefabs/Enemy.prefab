@@ -62,6 +62,9 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 600794341963295685, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
+      insertIndex: 5
+      addedObject: {fileID: 8523341689651517030}
+    - targetCorrespondingSourceObject: {fileID: 600794341963295685, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
       insertIndex: -1
       addedObject: {fileID: -5726364010294432594}
   m_SourcePrefab: {fileID: 100100000, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
@@ -70,6 +73,41 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 600794341963295685, guid: 6f55bcd2d18a9e64c95122d498e77825, type: 3}
   m_PrefabInstance: {fileID: 3341754936227202272}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8523341689651517030
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2753457688648249125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6eb1952aa0f6a044843c68c464f22b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  handTrails:
+  - {fileID: 0}
+  - {fileID: 0}
+  footTrails:
+  - {fileID: 0}
+  - {fileID: 0}
+  normalColor: {r: 1, g: 0.9484561, b: 0.8066038, a: 1}
+  perfectColor: {r: 0.7490196, g: 0.023529412, b: 0, a: 1}
+  normalAlpha: 0.55
+  perfectAlpha: 1
+  trailMaterial: {fileID: 2100000, guid: 726aef737300a3c4dbfb090f2d9b82f0, type: 2}
+  useEmission: 1
+  emissionProperty: _EmissionColor
+  normalEmissionIntensity: 0.8
+  perfectEmissionIntensity: 3
+  redWidthMultiplier: 1.28
+  redLeadTime: 0.05
+  redLeadDistance: 0.3
+  redHoldAfterHit: 0
+  onlyStrikingLimbTrail: 1
+  enemy: {fileID: 0}
+  player: {fileID: 0}
+  logTrails: 0
 --- !u!114 &-5726364010294432594
 MonoBehaviour:
   m_ObjectHideFlags: 0

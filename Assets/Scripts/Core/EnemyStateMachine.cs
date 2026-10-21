@@ -998,9 +998,12 @@ public class EnemyStateMachine : MonoBehaviour
     [SerializeField] private float anticipationHoldSeconds = 0.12f;
     [Tooltip("The freeze starts when the hit is this many seconds away in the clip (about 3 frames = 0.05).")]
     [SerializeField] private float anticipationHoldLead = 0.05f;
-    [Tooltip("The freeze eases in and out over this many seconds each, instead of stopping dead - 0 = hard stop.")]
-    [SerializeField] private float anticipationEaseSeconds = 0.14f;
+    [Tooltip("Total slow-down time = Hold Seconds + this. It is one smooth dip in speed, so a smaller total = a shorter wind-up.")]
+    [SerializeField] private float anticipationEaseSeconds = 0.22f;
+    [Tooltip("Speed (0-1) of his animation at the slowest moment of the hold. Higher = never really stops, just drifts through the pose.")]
+    [Range(0f, 0.6f)][SerializeField] private float anticipationCreepSpeed = 0.1f;
     private Coroutine holdRoutine;
+    private Coroutine eventHoldRoutine;
     private bool holding;
     private float holdPrevSpeed = 1f;
     private float extraHoldTime;
@@ -1008,6 +1011,7 @@ public class EnemyStateMachine : MonoBehaviour
     private void ReleaseHold()
     {
         if (holdRoutine != null) { StopCoroutine(holdRoutine); holdRoutine = null; }
+        if (eventHoldRoutine != null) { StopCoroutine(eventHoldRoutine); eventHoldRoutine = null; }
         if (holding)
         {
             holding = false;
@@ -1026,44 +1030,58 @@ public class EnemyStateMachine : MonoBehaviour
                 AnimationClip clip = infos[0].clip;
                 AnimatorStateInfo st = anim.GetCurrentAnimatorStateInfo(0);
                 float now = Mathf.Clamp01(st.normalizedTime) * clip.length;
-                foreach (AnimationEvent evt in clip.events)
-                {
-                    if (evt.functionName != "OpenEnemyHitWindow" && evt.functionName != "DealDamage") continue;
-                    int key = Mathf.RoundToInt(evt.time * 1000f);
-                    if (done.Contains(key) || evt.time <= now) continue;
-                    if (evt.time - now > anticipationHoldLead + 0.5f * Mathf.Max(0f, anticipationEaseSeconds)) continue;
+                // A clip with its own AnticipationHold event is held by that event instead of the automatic lead time.
+                bool hasHoldEvent = false;
+                foreach (AnimationEvent e in clip.events)
+                    if (e.functionName == "AnticipationHold") { hasHoldEvent = true; break; }
+                if (!hasHoldEvent)
+                    foreach (AnimationEvent evt in clip.events)
+                    {
+                        if (evt.functionName != "OpenEnemyHitWindow" && evt.functionName != "DealDamage") continue;
+                        int key = Mathf.RoundToInt(evt.time * 1000f);
+                        if (done.Contains(key) || evt.time <= now) continue;
+                        if (evt.time - now > anticipationHoldLead + 0.5f * Mathf.Max(0f, anticipationEaseSeconds)) continue;
 
-                    done.Add(key);
-                    holdPrevSpeed = anim.speed;
-                    holding = true;
-                    float ease = Mathf.Max(0f, anticipationEaseSeconds);
-                    float t = 0f;
-                    while (t < ease)
-                    {
-                        t += Time.deltaTime;
-                        float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / ease));
-                        anim.speed = Mathf.Max(0.03f, holdPrevSpeed * (1f - k));
-                        yield return null;
+                        done.Add(key);
+                        yield return HoldPose(anticipationHoldSeconds);
+                        break;
                     }
-                    anim.speed = 0.03f;   // a slow creep rather than a dead stop
-                    yield return new WaitForSeconds(anticipationHoldSeconds);
-                    t = 0f;
-                    while (t < ease)
-                    {
-                        t += Time.deltaTime;
-                        float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / ease));
-                        anim.speed = Mathf.Max(0.03f, holdPrevSpeed * k);
-                        yield return null;
-                    }
-                    holding = false;
-                    anim.speed = holdPrevSpeed;
-                    extraHoldTime += anticipationHoldSeconds + ease;
-                    break;
-                }
             }
             yield return null;
         }
         holdRoutine = null;
+    }
+
+    /// <summary>Animation Event: put "AnticipationHold" on the exact frame of the wind-up pose to hold. His animation eases into
+    /// that pose, holds, then eases back out. The float parameter is the hold length in seconds (0 = the Inspector value).</summary>
+    public void AnticipationHold(float seconds)
+    {
+        if (!isAttacking || currentState != EnemyState.Attack || anim == null || holding) return;
+        float hold = seconds > 0f ? seconds : anticipationHoldSeconds;
+        if (hold <= 0f) return;
+        eventHoldRoutine = StartCoroutine(HoldPose(hold));
+    }
+
+    private IEnumerator HoldPose(float hold)
+    {
+        holdPrevSpeed = anim.speed;
+        holding = true;
+        // One continuous slow-down and speed-up (a sine bell) - no flat stop: the animation is slowest at the middle of the
+        // curve and keeps moving through the held pose. Length = hold + ease.
+        float total = Mathf.Max(0.05f, hold + Mathf.Max(0f, anticipationEaseSeconds));
+        float creep = Mathf.Clamp01(anticipationCreepSpeed);
+        extraHoldTime += (1f - creep) * (2f / Mathf.PI) * total;   // the attack waits for the time the slow-down costs
+        float t = 0f;
+        while (t < total)
+        {
+            t += Time.deltaTime;
+            float w = Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / total));
+            anim.speed = holdPrevSpeed * (1f - (1f - creep) * w);
+            yield return null;
+        }
+        holding = false;
+        anim.speed = holdPrevSpeed;
+        eventHoldRoutine = null;
     }
 
     public void StopCombo(float animHold = 0f)

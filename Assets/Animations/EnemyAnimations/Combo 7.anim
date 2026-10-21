@@ -198064,6 +198064,13 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
+  - time: 0.375
+    functionName: AnticipationHold
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
   - time: 0.5
     functionName: DealDamage
     data: 
@@ -198085,6 +198092,13 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
+  - time: 0.875
+    functionName: AnticipationHold
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
   - time: 0.9583333
     functionName: DealDamage
     data: 
@@ -198101,6 +198115,13 @@ AnimationClip:
     messageOptions: 0
   - time: 1.5416666
     functionName: Move
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 1.625
+    functionName: AnticipationHold
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0

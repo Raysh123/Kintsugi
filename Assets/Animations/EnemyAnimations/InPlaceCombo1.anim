@@ -292644,22 +292644,36 @@ AnimationClip:
   m_HasGenericRootTransform: 0
   m_HasMotionFloatCurves: 0
   m_Events:
-  - time: 0.8076923
+  - time: 0.5
+    functionName: AnticipationHold
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.7692308
     functionName: DealDamage
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 1
     messageOptions: 0
-  - time: 0.9230769
+  - time: 0.88461536
     functionName: Move
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 1.0769231
+  - time: 1
     functionName: CancelDamage
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 1.1538461
+    functionName: AnticipationHold
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
@@ -292673,14 +292687,21 @@ AnimationClip:
     intParameter: 0
     messageOptions: 0
   - time: 1.4615384
-    functionName: Move
+    functionName: CancelDamage
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
   - time: 1.4615384
-    functionName: CancelDamage
+    functionName: Move
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 1.8461539
+    functionName: AnticipationHold
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
@@ -292707,8 +292728,15 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 2.8461537
+  - time: 2.7307692
     functionName: Move
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 3.0769231
+    functionName: AnticipationHold
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
@@ -292723,6 +292751,13 @@ AnimationClip:
     messageOptions: 0
   - time: 3.3846154
     functionName: CancelDamage
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 3.6538463
+    functionName: AnticipationHold
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0

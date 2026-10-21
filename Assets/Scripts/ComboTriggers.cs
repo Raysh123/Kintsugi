@@ -19,4 +19,9 @@ public class ComboTriggers : MonoBehaviour
     {
         enemy.MoveBetCombo();
     }
+    // Animation Event "AnticipationHold": the float is the hold length in seconds (0 = the Inspector value on the enemy)
+    public void AnticipationHold(float seconds)
+    {
+        enemy.AnticipationHold(seconds);
+    }
 }

@@ -110,6 +110,71 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 361335516036797773}
     m_Modifications:
+    - target: {fileID: 715883988229094226, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 214
+      objectReference: {fileID: 0}
+    - target: {fileID: 715883988229094226, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 47
+      objectReference: {fileID: 0}
+    - target: {fileID: 1729456979073240750, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 240
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[0].body
+      value: "A to punch\nMove towards enemy + punch to use moving punch\n Punches
+        count for 1 point"
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[1].body
+      value: "B to Kick\n forward + B to do a moving Kick\n Kicks awards you 2 points\n10
+        points, or the highest points at the end of time, Wins"
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[3].body
+      value: "Block incoming attacks.\n Blocks cause Posture Damage to the Player"
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[4].body
+      value: 'Block just beforethe hit connects to parry
+
+        Parrying causes
+        posture damage to the opponent'
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[4].clip
+      value: 
+      objectReference: {fileID: 32900000, guid: 44aadd04803ab5c4e83c369458e6709e, type: 3}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[5].body
+      value: "Right after a parry, the Enemy is open to a quick punch.\n Kicks wont
+        work here"
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[5].clip
+      value: 
+      objectReference: {fileID: 32900000, guid: 7c256523c1610e24a819eb54509c9ac8, type: 3}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[7].body
+      value: "If you are thrown out of bounds, you get a warning. \n2 warnings leads
+        to a point deduction"
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[8].body
+      value: "when cornered, and the Opponent THROWS A PUNCH, quickly tap Y to swap
+        places with them .\n This only works against enemy punches, not their kicks\n\nAll
+        controls can be viewed in the Pause Menu "
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[4].title
+      value: Parry
+      objectReference: {fileID: 0}
+    - target: {fileID: 2547103942606094687, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: pages.Array.data[5].title
+      value: QuickPunch
+      objectReference: {fileID: 0}
     - target: {fileID: 3498292848404627637, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -190,12 +255,48 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4982020723129308260, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: b00f3dc8e83a334429416ad3fc855c11, type: 3}
+    - target: {fileID: 6721963924709340717, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_fontSize
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6721963924709340717, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_margin.x
+      value: -74.46423
+      objectReference: {fileID: 0}
+    - target: {fileID: 6721963924709340717, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_margin.z
+      value: -130.70236
+      objectReference: {fileID: 0}
+    - target: {fileID: 6721963924709340717, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_fontColor.b
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6721963924709340717, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_fontColor.g
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6721963924709340717, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6721963924709340717, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4294967295
+      objectReference: {fileID: 0}
     - target: {fileID: 7455526400851737978, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
       propertyPath: m_Name
       value: TutorialPanel
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 3613184057254136308, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+    - {fileID: 5943863370437964708, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+    - {fileID: 4886315119575464128, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
+    - {fileID: 786489113125911264, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 874e289d11e7d104aa343a83c5c46ad1, type: 3}

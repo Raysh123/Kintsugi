@@ -17,20 +17,33 @@ public class MatchTimer : MonoBehaviour
     [Header("Hit Pause")]
     [SerializeField] private float hitPauseDuration = 5f;
 
-    [Header("Debug")]
-    [SerializeField] private bool debugLog = true; // logs the countdown to the Console in whole seconds
+    [Header("Tie Break")]
+    [Tooltip("When time runs out with the score level, add extra time instead of ending the match.")]
+    [SerializeField] private bool extendOnTie = true;
+    [SerializeField] private float tieExtensionSeconds = 15f;
+    [Tooltip("How many extra-time periods before sudden death.")]
+    [SerializeField] private int extraTimeRounds = 1;
+    [Tooltip("Still tied after the extra time: the next point wins (the clock stops counting).")]
+    [SerializeField] private bool suddenDeathAfterExtra = true;
+    [Tooltip("Found automatically if empty.")]
+    [SerializeField] private MatchScore matchScore;
 
     [Header("Events")]
     public UnityEvent OnTimeUp; // hook this up to your "match over" logic
     public UnityEvent OnMatchStart;
     public UnityEvent OnMatchStop;
+    public UnityEvent OnExtraTime;   // tied at time-up: extra time is starting
+    public UnityEvent OnSuddenDeath; // still tied after the extra time: next point wins
 
     /// <summary>True once the match has been decided (e.g. first to N points). Nothing can restart
     /// the clock after this - the post-point resume is ignored.</summary>
     public bool matchOver { get; private set; }
 
+    /// <summary>True once the extra time has ended level: the next point wins the match.</summary>
+    public bool SuddenDeath { get; private set; }
+
     private float matchTimer;
-    private int lastLoggedSecond = -1;
+    private int extensions;
     private Coroutine hitPauseRoutine;
 
     public float TimeRemaining => matchTimer;
@@ -38,6 +51,7 @@ public class MatchTimer : MonoBehaviour
     private void Awake()
     {
         matchTimer = matchDuration;
+        if (matchScore == null) matchScore = FindFirstObjectByType<MatchScore>();
     }
 
     private void Start()
@@ -53,20 +67,39 @@ public class MatchTimer : MonoBehaviour
 
         if (matchTimer <= 0f)
         {
+            if (extendOnTie && matchScore != null && !matchOver &&
+                matchScore.PlayerScore == matchScore.EnemyScore)
+            {
+                if (extensions < extraTimeRounds)
+                {
+                    extensions++;
+                    matchTimer = tieExtensionSeconds;
+                    PauseForCall();
+                    OnExtraTime?.Invoke();
+                    return;
+                }
+                if (suddenDeathAfterExtra)
+                {
+                    matchTimer = 0f;
+                    SuddenDeath = true;
+                    PauseForCall();
+                    OnSuddenDeath?.Invoke();
+                    return;
+                }
+            }
+
             matchTimer = 0f;
             matchStopped = true;
             OnTimeUp?.Invoke();
         }
+    }
 
-        if (debugLog)
-        {
-            int currentSecond = Mathf.CeilToInt(matchTimer);
-            if (currentSecond != lastLoggedSecond)
-            {
-                lastLoggedSecond = currentSecond;
-                Debug.Log("Match Timer: " + currentSecond);
-            }
-        }
+    // Stops play for the referee's call, then resumes like after a point.
+    private void PauseForCall()
+    {
+        StopTimer();
+        if (hitPauseRoutine != null) StopCoroutine(hitPauseRoutine);
+        hitPauseRoutine = StartCoroutine(ResumeAfterHit());
     }
 
     // Call this from your referee script when "hajime" is called
@@ -109,7 +142,7 @@ public class MatchTimer : MonoBehaviour
     public void RegisterHit()
     {
         // Ignore hits while the match is stopped
-        if (matchStopped || matchTimer <= 0f)
+        if (matchStopped || (matchTimer <= 0f && !SuddenDeath))
             return;
 
         StopTimer();
@@ -141,7 +174,8 @@ public class MatchTimer : MonoBehaviour
         }
 
         matchTimer = matchDuration;
-        lastLoggedSecond = -1;
+        extensions = 0;
+        SuddenDeath = false;
         matchStopped = true;
 
         //Time.timeScale = 1f;

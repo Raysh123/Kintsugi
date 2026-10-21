@@ -6,12 +6,11 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// The tutorial fight, kept simple. It does exactly four things:
+/// The tutorial fight, kept simple. It does exactly three things:
 ///
 ///   1. When the scene starts it opens the TutorialBrowser (the video pages) and waits until the player closes it.
 ///   2. Then the normal fight goes on - the referee, scoring and the enemy's own AI are untouched.
-///   3. During the fight it smoothly SLOWS TIME DOWN just before each of the enemy's hits, and eases back afterwards.
-///   4. When either side reaches the target score (7): the point is awarded, the referee restarts the match (Hajime), then the
+///   3. When either side reaches the target score (7): the point is awarded, the referee restarts the match (Hajime), then the
 ///      clock stops and the inputs lock, a short dialogue plays (skip each line with Enter / A), the player is prompted for the
 ///      FINISHER (Up + Kick / Up + B). When it is pressed the player and the enemy are hidden and the injury cutscene plays
 ///      (ONE prefab holding both fighters in one animation); 'After Clip Seconds' after the clip ends the next scene loads.
@@ -30,26 +29,19 @@ public class TutorialDirector : MonoBehaviour
     [SerializeField] private TutorialBrowser tutorialBrowser;
     [SerializeField] private bool showPagesAtStart = true;
 
-    // ------------------------------------------------------------------ 3. slow motion
-    [Header("2. Slow-motion before his attacks")]
-    [SerializeField] private bool attackSlowMo = true;
-    [Tooltip("Time scale at the deepest point (0.4 = 40% speed).")]
-    [Range(0.1f, 1f)][SerializeField] private float slowMoScale = 0.4f;
-    [Tooltip("Real seconds to ease INTO the slow-down (bigger = softer).")]
-    [SerializeField] private float slowMoEaseIn = 0.18f;
-    [Tooltip("Real seconds to ease back to normal speed (bigger = softer).")]
-    [SerializeField] private float slowMoEaseOut = 0.35f;
-    [Tooltip("The slow-down starts when his next hit is this many (game) seconds away, so the windup stays readable.")]
-    [SerializeField] private float slowMoLeadSeconds = 0.6f;
-    [Tooltip("Stay slow this long after a hit is over, so it never snaps back.")]
-    [SerializeField] private float slowMoHoldAfterHit = 0.2f;
-
     // ------------------------------------------------------------------ 4. injury
     [Header("3. The injury (at this score)")]
     [Tooltip("When either fighter reaches this many points, the injury cutscene starts.")]
     [SerializeField] private int pointsToEnd = 7;
     [Tooltip("If nobody has reached the score by the time the clock shows this many seconds left, the injury cutscene starts anyway. 0 = off.")]
     [SerializeField] private float endAtSecondsLeft = 10f;
+    [Tooltip("The referee stops the match (Yame, fighters reset, like after a point) and calls this before the cutscene starts. Blank = no call.")]
+    [SerializeField] private string timeWarningText = "10 seconds left!";
+    [Tooltip("Real seconds the warning stays up after the reset, before Hajime.")]
+    [SerializeField] private float timeWarningHold = 1.5f;
+    [Tooltip("Real seconds of play after Hajime before the cutscene freezes the fight.")]
+    [SerializeField] private float afterHajimeSeconds = 0.6f;
+    [SerializeField] private RefereeController referee;
     [Tooltip("The cutscene prefab, placed in the scene and switched OFF. Its root needs an Animator whose default state is the clip.")]
     [SerializeField] private GameObject cutsceneRoot;
     [Tooltip("Leave empty to find the Animator on the Cutscene Root.")]
@@ -111,14 +103,13 @@ public class TutorialDirector : MonoBehaviour
     private bool promptActive;   // the finisher prompt is up: every other fight input is cleared
     private bool introDone;
     private bool injuryStarted;
-    private float slowVel;
-    private float slowHoldUntil;
 
     private void Start()
     {
         if (enemy == null) enemy = FindFirstObjectByType<EnemyStateMachine>();
         if (matchScore == null) matchScore = FindFirstObjectByType<MatchScore>();
         if (matchTimer == null) matchTimer = FindFirstObjectByType<MatchTimer>();
+        if (referee == null) referee = FindFirstObjectByType<RefereeController>();
         if (fadeOverlay != null) fadeOverlay.alpha = 0f;
         if (cutsceneRoot != null) cutsceneRoot.SetActive(false);
 
@@ -143,65 +134,20 @@ public class TutorialDirector : MonoBehaviour
         if (promptActive) ClearFightInput();
         if (!introDone || injuryStarted) return;
         CheckScore();
-        UpdateAttackSlowMo();
-    }
-
-    // ------------------------------------------------------------------ 3. slow motion
-    /// <summary>Seconds until the enemy's next hit-open event in the clip he is playing (-1 = none).</summary>
-    private float SecondsToNextHit()
-    {
-        if (enemy == null || enemy.anim == null) return -1f;
-        Animator a = enemy.anim;
-        AnimatorClipInfo[] infos = a.GetCurrentAnimatorClipInfo(0);
-        if (infos == null || infos.Length == 0 || infos[0].clip == null) return -1f;
-        AnimationClip clip = infos[0].clip;
-        AnimatorStateInfo st = a.GetCurrentAnimatorStateInfo(0);
-        float now = (st.loop ? Mathf.Repeat(st.normalizedTime, 1f) : Mathf.Clamp01(st.normalizedTime)) * clip.length;
-        float speed = Mathf.Max(0.01f, a.speed * st.speedMultiplier);
-        float best = -1f;
-        foreach (AnimationEvent evt in clip.events)
-        {
-            if ((evt.functionName != "DealDamage" && evt.functionName != "OpenEnemyHitWindow") || evt.time <= now) continue;
-            if (best < 0f || evt.time < best) best = evt.time;
-        }
-        return best < 0f ? -1f : (best - now) / speed;
-    }
-
-    /// <summary>Only touches the time scale while it is above 0 (never fights a pause); if something else changed it, it simply
-    /// continues smoothly from there.</summary>
-    private void UpdateAttackSlowMo()
-    {
-        if (!attackSlowMo) return;
-        float cur = Time.timeScale;
-        if (cur <= 0.001f) { slowVel = 0f; return; }
-
-        float target = 1f;
-        bool playing = matchTimer == null || !matchTimer.matchStopped;
-        if (playing && enemy != null && enemy.currentState == EnemyStateMachine.EnemyState.Attack)
-        {
-            float secs = SecondsToNextHit();
-            bool imminent = enemy.HitWindowOpen || (secs >= 0f && secs <= slowMoLeadSeconds);
-            if (imminent) slowHoldUntil = Time.unscaledTime + slowMoHoldAfterHit;
-            if (imminent || Time.unscaledTime < slowHoldUntil) target = slowMoScale;
-        }
-
-        if (Mathf.Approximately(cur, target) && Mathf.Abs(slowVel) < 0.0001f) return;
-        float smooth = target < cur ? slowMoEaseIn : slowMoEaseOut;
-        float next = Mathf.SmoothDamp(cur, target, ref slowVel, Mathf.Max(0.01f, smooth), Mathf.Infinity, Time.unscaledDeltaTime);
-        Time.timeScale = Mathf.Clamp(next, 0.05f, 1f);
-        if (Mathf.Abs(Time.timeScale - target) < 0.005f) { Time.timeScale = target; slowVel = 0f; }
     }
 
     // ------------------------------------------------------------------ 4. injury
     private void CheckScore()
     {
         if (matchScore == null) return;
-        bool timeIsUp = endAtSecondsLeft > 0f && matchTimer != null && !matchTimer.matchOver &&
+        bool scoreReached = matchScore.PlayerScore >= pointsToEnd || matchScore.EnemyScore >= pointsToEnd;
+        // time trigger waits for play to be running, so it never cuts into a point that is still being called
+        bool timeIsUp = endAtSecondsLeft > 0f && matchTimer != null && !matchTimer.matchOver && !matchTimer.matchStopped &&
                         matchTimer.TimeRemaining <= endAtSecondsLeft;
-        if (matchScore.PlayerScore >= pointsToEnd || matchScore.EnemyScore >= pointsToEnd || timeIsUp)
+        if (scoreReached || timeIsUp)
         {
             injuryStarted = true;
-            StartCoroutine(Injury());
+            StartCoroutine(Injury(!scoreReached));
         }
     }
 
@@ -274,13 +220,28 @@ public class TutorialDirector : MonoBehaviour
         if (target <= 0f) g.gameObject.SetActive(false);
     }
 
-    private IEnumerator Injury()
+    private IEnumerator Injury(bool byTime = false)
     {
-        Time.timeScale = 1f;   // the referee's sequence runs normally (no slow-mo from here on)
-        slowVel = 0f;
+        Time.timeScale = 1f;
 
         // 1) the point is awarded, the referee calls Yame / resets the fighters ... and says Hajime (the clock runs again)
-        if (matchTimer != null)
+        if (byTime && matchTimer != null)
+        {
+            // no point was scored: stop the match like after a point, warn, reset, Hajime
+            matchTimer.StopTimer();
+            if (referee == null) referee = FindFirstObjectByType<RefereeController>();
+            if (referee != null)
+            {
+                referee.CallPenalty(timeWarningText, null);
+                float wait = 0f;
+                while (referee.IsCalling && wait < 8f) { wait += Time.unscaledDeltaTime; yield return null; }
+                if (timeWarningHold > 0f) yield return new WaitForSecondsRealtime(timeWarningHold);
+            }
+            matchTimer.StartTimer();
+            yield return new WaitForSecondsRealtime(afterHajimeSeconds);
+            matchTimer.StopTimer();
+        }
+        else if (matchTimer != null)
         {
             float guard = 0f;
             while (!matchTimer.matchStopped && !matchTimer.matchOver && guard < 3f) { guard += Time.unscaledDeltaTime; yield return null; }

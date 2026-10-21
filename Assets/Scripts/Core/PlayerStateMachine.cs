@@ -216,6 +216,8 @@ public class PlayerStateMachine : MonoBehaviour
     [Tooltip("Same idea as the moving punch: kick while pushing toward the opponent and this state plays " +
              "instead of the standing kick. Blank / missing state = the normal kick.")]
     [SerializeField] private string movingKickAnim = "Moving_Kick";
+    [Tooltip("The forward (moving) kick's effect goes on the OTHER leg: the 2nd hitbox tagged Kick in P Hit Boxes. Swap their order in the list if it lands on the wrong leg.")]
+    [SerializeField] private bool movingKickUsesOtherLimb = true;
     [SerializeField] private float movingKickLunge = 0.25f;
     [Range(0f, 1f)][SerializeField] private float movingKickHitStart = 0.35f;
     [Range(0f, 1f)][SerializeField] private float movingKickHitEnd = 0.7f;
@@ -603,9 +605,19 @@ public class PlayerStateMachine : MonoBehaviour
         {
             bool kick = currentAttackType == AttackTypes.Kick;
             Vector3 at = transform.position;
+            Transform limb = transform;
+            // the forward (moving) kick uses the other leg: the 2nd Kick-tagged hitbox in the list
+            int skip = (kick && moving && movingKickUsesOtherLimb) ? 1 : 0;
+            Transform first = null;
             foreach (var hb in pHitBoxes)
-                if (hb != null && hb.CompareTag(kick ? "Kick" : "Punch")) { at = hb.transform.position; break; }
-            FightVFX.Play(kick ? FightVFX.Kind.PlayerKick : FightVFX.Kind.PlayerPunch, at, transform);
+            {
+                if (hb == null || !hb.CompareTag(kick ? "Kick" : "Punch")) continue;
+                if (first == null) first = hb.transform;
+                if (skip-- > 0) continue;
+                limb = hb.transform; at = limb.position; break;
+            }
+            if (limb == transform && first != null) { limb = first; at = first.position; }
+            FightVFX.Play(kick ? FightVFX.Kind.PlayerKick : FightVFX.Kind.PlayerPunch, at, limb);
         }
         yield return new WaitForSeconds(duration * (end - start));
         SetPlayerHitWindow(false);

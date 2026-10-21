@@ -132,6 +132,12 @@ public class RefereeController : MonoBehaviour
     [SerializeField] private string resumeText = "Hajime!";
     [Tooltip("Shown when time runs out. Empty = say nothing.")]
     [SerializeField] private string timeUpText = "Time!";
+    [Tooltip("Called when time runs out with the score level (extra time follows). Empty = say nothing.")]
+    [SerializeField] private string extraTimeText = "Tied! Extra time";
+    [Tooltip("Called when still level after the extra time. Empty = say nothing.")]
+    [SerializeField] private string suddenDeathText = "Tied! Next point wins";
+    [Tooltip("Optional referee Animator trigger for those two calls (blank = none).")]
+    [SerializeField] private string tieCallTrigger;
     [Header("Result call")]
     [SerializeField] private string playerWinText = "Player wins!";
     [SerializeField] private string playerLoseText = "Player loses!";
@@ -240,6 +246,8 @@ public class RefereeController : MonoBehaviour
         {
             matchTimer.OnMatchStart.AddListener(OnMatchResumed);
             matchTimer.OnTimeUp.AddListener(OnTimeUp);
+            matchTimer.OnExtraTime.AddListener(OnExtraTime);
+            matchTimer.OnSuddenDeath.AddListener(OnSuddenDeath);
         }
     }
 
@@ -250,6 +258,8 @@ public class RefereeController : MonoBehaviour
         {
             matchTimer.OnMatchStart.RemoveListener(OnMatchResumed);
             matchTimer.OnTimeUp.RemoveListener(OnTimeUp);
+            matchTimer.OnExtraTime.RemoveListener(OnExtraTime);
+            matchTimer.OnSuddenDeath.RemoveListener(OnSuddenDeath);
         }
     }
 
@@ -336,7 +346,14 @@ public class RefereeController : MonoBehaviour
         ShowTimed(resumeText, resumeTextDuration);
     }
 
+    /// <summary>True while a stop call (point / penalty) is still playing out: Yame, reset, the call.</summary>
+    public bool IsCalling => pointSequenceRoutine != null;
+
     private void OnTimeUp() => ShowTimed(timeUpText, 3f);
+
+    // Level at time-up: stop, reset, call it - same flow as a point (MatchTimer resumes play afterwards).
+    private void OnExtraTime() => CallPenalty(extraTimeText, tieCallTrigger);
+    private void OnSuddenDeath() => CallPenalty(suddenDeathText, tieCallTrigger);
 
     [Header("Result")]
     [Tooltip("Time-up: real seconds the fighters get to walk back to their start spots (GameManager Reset Duration + a little) " +

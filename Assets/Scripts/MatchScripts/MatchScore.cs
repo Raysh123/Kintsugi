@@ -23,8 +23,8 @@ public class MatchScore : MonoBehaviour
     [SerializeField] private MatchTimer matchTimer;
     [SerializeField] private AttackTypes attackPointValues;
 
-    [Tooltip("No sudden-death/encho-sen round implemented yet - this just decides who the " +
-             "winner is if points are exactly equal when time runs out.")]
+    [Tooltip("Only used if the match somehow ends level (MatchTimer normally plays extra time and " +
+             "sudden death instead).")]
     [SerializeField] private bool tieGoesToPlayer = false;
 
     [Header("Result (win / lose)")]
@@ -101,14 +101,20 @@ public class MatchScore : MonoBehaviour
     {
         if (fromPlayer) PlayerScore -= points; else EnemyScore -= points;
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
+        CheckPointsToWin();
     }
 
     private bool endingByPoints;
 
     private void CheckPointsToWin()
     {
-        if (pointsToWin <= 0 || winnerDeclared || endingByPoints) return;
-        if (PlayerScore < pointsToWin && EnemyScore < pointsToWin) return;
+        if (winnerDeclared || endingByPoints) return;
+        bool suddenDeathPoint = matchTimer != null && matchTimer.SuddenDeath && PlayerScore != EnemyScore;
+        if (!suddenDeathPoint)
+        {
+            if (pointsToWin <= 0) return;
+            if (PlayerScore < pointsToWin && EnemyScore < pointsToWin) return;
+        }
         endingByPoints = true;
         StartCoroutine(EndByPoints());
     }

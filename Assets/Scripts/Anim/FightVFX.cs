@@ -29,6 +29,8 @@ public class FightVFX : MonoBehaviour
         public float dissipateSeconds = 0.5f;
         [Tooltip("Parent it to the fighter it is about (e.g. stun stars that follow him).")]
         public bool followTarget;
+        [Tooltip("Off (default): follows the target's POSITION only, its rotation stays fixed. On: parented, so it turns with the target too.")]
+        public bool rotateWithTarget;
     }
 
     [SerializeField]
@@ -74,10 +76,32 @@ public class FightVFX : MonoBehaviour
             if (e == null || e.kind != kind || e.prefab == null) continue;
             GameObject go = Object.Instantiate(e.prefab, position + e.offset, Quaternion.Euler(e.rotation));
             go.transform.localScale = go.transform.localScale * e.scale;
-            if (e.followTarget && follow != null) go.transform.SetParent(follow, true);
+            if (e.followTarget && follow != null)
+            {
+                if (e.rotateWithTarget) go.transform.SetParent(follow, true);
+                else go.AddComponent<VfxFollowPosition>().Begin(follow);
+            }
             if (e.dissipate) go.AddComponent<VfxDissipate>().Begin(Mathf.Max(0.1f, e.lifetime), Mathf.Max(0f, e.dissipateSeconds));
             else Object.Destroy(go, Mathf.Max(0.1f, e.lifetime));
         }
+    }
+}
+
+/// <summary>Keeps a spawned effect on a moving target without inheriting its rotation or scale.</summary>
+public class VfxFollowPosition : MonoBehaviour
+{
+    private Transform target;
+    private Vector3 offset;
+
+    public void Begin(Transform follow)
+    {
+        target = follow;
+        offset = transform.position - follow.position;
+    }
+
+    private void LateUpdate()
+    {
+        if (target != null) transform.position = target.position + offset;
     }
 }
 
