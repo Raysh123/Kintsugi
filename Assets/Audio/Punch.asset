@@ -15,7 +15,10 @@ MonoBehaviour:
   id: punch
   category: 0
   clips:
-  - {fileID: 8300000, guid: bf6077ff81bc2254d9783aaf1c4f4099, type: 3}
+  - {fileID: 8300000, guid: 3526fc30de081ed43964a636e129f79d, type: 3}
+  - {fileID: 8300000, guid: 7b6b75dd54f5fd743b64f0cc6ff790cc, type: 3}
+  - {fileID: 8300000, guid: 5c6d355eff109db4495782685dc325c5, type: 3}
+  - {fileID: 8300000, guid: 355c4a6baa8de41499a22cecd8bd31ea, type: 3}
   volume: 1
   pitch: 1
   pitchVariance: 0

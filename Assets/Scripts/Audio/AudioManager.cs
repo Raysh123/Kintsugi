@@ -157,8 +157,6 @@ public class AudioManager : MonoBehaviour
     {
         if (instance != null && instance != this)
         {
-            Debug.LogWarning("[AudioManager] Another AudioManager already exists in this scene " +
-                              "— destroying this one. Only one should be present at a time.");
             Destroy(gameObject);
             return;
         }
@@ -174,7 +172,6 @@ public class AudioManager : MonoBehaviour
     {
         if (string.IsNullOrEmpty(autoPlayMusicId)) return;
 
-        Debug.Log($"[AudioManager] Auto-starting music '{autoPlayMusicId}'.");
         PlayMusic(autoPlayMusicId, autoPlayMusicFadeIn);
     }
 
@@ -266,22 +263,18 @@ public class AudioManager : MonoBehaviour
         SoundDefinition sound = library != null ? library.Get(soundId) : null;
         if (sound == null)
         {
-            Debug.LogWarning($"[AudioManager] Could not play SFX '{soundId}' — not found in library.");
             return null;
         }
 
         AudioClip clip = sound.GetClip();
         if (clip == null)
         {
-            Debug.LogWarning($"[AudioManager] SoundDefinition '{soundId}' has no clips assigned.");
             return null;
         }
 
         AudioSource source = GetFreeSfxSource();
         if (source == null)
         {
-            Debug.LogWarning($"[AudioManager] SFX pool exhausted (size {sfxPoolSize}) — dropped " +
-                              $"'{soundId}'. Increase sfxPoolSize if this happens often.");
             return null;
         }
 
@@ -296,11 +289,18 @@ public class AudioManager : MonoBehaviour
         return source;
     }
 
+    // A source handed out this frame is skipped for the rest of the frame: isPlaying can still read false right after Play(),
+    // which let two sounds started on the same frame (e.g. two animation events on one frame) share a source and cut each other off.
+    private readonly Dictionary<AudioSource, int> claimedFrame = new Dictionary<AudioSource, int>();
+
     private AudioSource GetFreeSfxSource()
     {
         foreach (AudioSource source in sfxPool)
         {
-            if (!source.isPlaying) return source;
+            if (source.isPlaying) continue;
+            if (claimedFrame.TryGetValue(source, out int f) && f == Time.frameCount) continue;
+            claimedFrame[source] = Time.frameCount;
+            return source;
         }
         return null;
     }
@@ -320,7 +320,6 @@ public class AudioManager : MonoBehaviour
     {
         if (string.IsNullOrEmpty(loopKey))
         {
-            Debug.LogWarning("[AudioManager] PlayLoopingSFX called with an empty loopKey.");
             return null;
         }
 
@@ -333,21 +332,18 @@ public class AudioManager : MonoBehaviour
         SoundDefinition sound = library != null ? library.Get(soundId) : null;
         if (sound == null)
         {
-            Debug.LogWarning($"[AudioManager] Could not start loop '{loopKey}' — sound '{soundId}' not found in library.");
             return null;
         }
 
         AudioClip clip = sound.GetClip();
         if (clip == null)
         {
-            Debug.LogWarning($"[AudioManager] SoundDefinition '{soundId}' has no clips assigned.");
             return null;
         }
 
         AudioSource source = GetFreeSfxSource();
         if (source == null)
         {
-            Debug.LogWarning($"[AudioManager] SFX pool exhausted (size {sfxPoolSize}) — couldn't start loop '{loopKey}'.");
             return null;
         }
 
@@ -366,8 +362,6 @@ public class AudioManager : MonoBehaviour
         if (fadeInTime > 0f)
             StartLoopFade(loopKey, source, source.volume, targetVolume, fadeInTime, stopAtEnd: false);
 
-        Debug.Log($"[AudioManager] Started loop '{loopKey}' ('{soundId}') clip '{clip.name}' length {clip.length:F2}s, " +
-                  $"loadState {clip.loadState}, volume {targetVolume:F2}, pitch {source.pitch:F2}.");
 
         return source;
     }
@@ -393,7 +387,6 @@ public class AudioManager : MonoBehaviour
 
         StartLoopFade(loopKey, source, source.volume, 0f, fadeOutTime, stopAtEnd: true);
 
-        Debug.Log($"[AudioManager] Stopping loop '{loopKey}' over {fadeOutTime}s.");
     }
 
     /// <summary>Repositions an already-running loop, e.g. to keep a looping sound (footsteps,
@@ -450,14 +443,12 @@ public class AudioManager : MonoBehaviour
         SoundDefinition sound = library != null ? library.Get(musicId) : null;
         if (sound == null)
         {
-            Debug.LogWarning($"[AudioManager] Could not play music '{musicId}' — not found in library.");
             return;
         }
 
         AudioClip clip = sound.GetClip();
         if (clip == null)
         {
-            Debug.LogWarning($"[AudioManager] SoundDefinition '{musicId}' has no clips assigned.");
             return;
         }
 
@@ -482,7 +473,6 @@ public class AudioManager : MonoBehaviour
         activeMusicChannel = nextChannel;
         currentMusicId = musicId;
 
-        Debug.Log($"[AudioManager] Crossfading to music '{musicId}' over {fadeTime}s.");
     }
 
     /// <summary>Fades the currently playing music out and stops it. No-op if nothing is playing.</summary>
@@ -557,21 +547,18 @@ public class AudioManager : MonoBehaviour
     {
         if (layerIndex < 0 || layerIndex >= layerChannels.Length)
         {
-            Debug.LogWarning($"[AudioManager] PlayMusicLayer: layerIndex {layerIndex} out of range.");
             return;
         }
 
         SoundDefinition sound = library != null ? library.Get(musicId) : null;
         if (sound == null)
         {
-            Debug.LogWarning($"[AudioManager] Could not play music layer '{musicId}' — not found in library.");
             return;
         }
 
         AudioClip clip = sound.GetClip();
         if (clip == null)
         {
-            Debug.LogWarning($"[AudioManager] SoundDefinition '{musicId}' has no clips assigned.");
             return;
         }
 
@@ -682,7 +669,6 @@ public class AudioManager : MonoBehaviour
     {
         if (mixer == null)
         {
-            Debug.LogWarning("[AudioManager] ApplyMusicPauseEffect: no AudioMixer assigned - nothing to change.");
             return;
         }
 
@@ -701,9 +687,6 @@ public class AudioManager : MonoBehaviour
             {
                 musicPauseHas[i] = mixer.GetFloat(names[i], out musicPauseBase[i]);
                 anyFound |= musicPauseHas[i];
-                if (!musicPauseHas[i])
-                    Debug.LogWarning($"[AudioManager] Mixer param '{names[i]}' isn't exposed - " +
-                                      "skipping it in the pause effect.");
             }
 
             if (!anyFound) return;
@@ -722,7 +705,6 @@ public class AudioManager : MonoBehaviour
 
         StartMusicBusFade(targets, pauseTransitionTime);
         StartMusicPitchFade(Mathf.Clamp(pausePitchMultiplier, 0.3f, 1f), pauseTransitionTime);
-        Debug.Log("[AudioManager] Music pause effect ON.");
     }
 
     /// <summary>Fades the music bus back to exactly the volume/EQ it had before
@@ -736,7 +718,6 @@ public class AudioManager : MonoBehaviour
         musicPauseActive = false;
         StartMusicBusFade((float[])musicPauseBase.Clone(), resumeTransitionTime);
         StartMusicPitchFade(1f, resumeTransitionTime);
-        Debug.Log("[AudioManager] Music pause effect OFF (restoring).");
     }
 
     private void ApplyMusicPitch()
@@ -816,7 +797,6 @@ public class AudioManager : MonoBehaviour
     {
         if (mixer == null)
         {
-            Debug.LogWarning("[AudioManager] No AudioMixer assigned — can't set mixer volume.");
             return;
         }
 
@@ -849,7 +829,6 @@ public class AudioManager : MonoBehaviour
     {
         if (mixer == null)
         {
-            Debug.LogWarning("[AudioManager] No AudioMixer assigned — can't set EQ.");
             return;
         }
 

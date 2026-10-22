@@ -1,8 +1,8 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 /// <summary>
 /// Tracks the mash-to-run minigame's speed and elapsed time. Does NOT move anything
-/// itself and does NOT decide when the run ends — a RunnerMover reads CurrentSpeed to
+/// itself and does NOT decide when the run ends ï¿½ a RunnerMover reads CurrentSpeed to
 /// actually move the runner, and a RunningFinishLine trigger calls CompleteRun() when
 /// the runner physically reaches the end of the track.
 /// </summary>
@@ -17,10 +17,21 @@ public class RunningTrackMinigame : MonoBehaviour
     [SerializeField] private float speedDecayPerSecond = 4f;
     [SerializeField] private float maxSpeed = 20f;
     [Tooltip("If no alternating key press happens for this many seconds, speed snaps to zero " +
-             "immediately instead of continuing to gradually decay — this is what stops the " +
+             "immediately instead of continuing to gradually decay ï¿½ this is what stops the " +
              "'coasting' feel once the player actually lets go, rather than it slowly bleeding " +
              "off over several seconds.")]
     [SerializeField] private float noInputStopDelay = 0.25f;
+
+    [Header("Footsteps")]
+    [Tooltip("SoundLibrary ids, used in turn for each step (e.g. left foot, right foot). One id is fine. Blank list = no footsteps.")]
+    [SerializeField] private string[] stepSoundIds = new string[0];
+    [Range(0f, 2f)][SerializeField] private float stepVolume = 1f;
+    [Tooltip("When the average gap between your last strides is shorter than this (seconds), the steps are averaged into a steady run.")]
+    [SerializeField] private float mashGap = 0.2f;
+    [Tooltip("Seconds between steps in that steady run - a normal running pace.")]
+    [SerializeField] private float steadyInterval = 0.26f;
+    [Tooltip("How many recent gaps are averaged.")]
+    [SerializeField] private int averageOver = 4;
 
     [Header("Reward Curve")]
     [Tooltip("Finish time (seconds) that earns the max reward.")]
@@ -50,6 +61,49 @@ public class RunningTrackMinigame : MonoBehaviour
         timeSinceLastPress = 0f;
         lastPress = LastPress.None;
         isRunning = true;
+        lastStrideTime = -10f;
+        gapCount = gapIndex = 0;
+        steady = false;
+    }
+
+    // ---- footsteps: one per accepted stride; very fast mashing is averaged into a steady running pace
+    private float lastStrideTime = -10f;
+    private float[] gaps;
+    private int gapCount, gapIndex, stepIndex;
+    private float nextSteady;
+    private bool steady;
+
+    private void OnStride()
+    {
+        float now = Time.time;
+        float gap = now - lastStrideTime;
+        lastStrideTime = now;
+        if (gaps == null || gaps.Length != Mathf.Max(2, averageOver)) gaps = new float[Mathf.Max(2, averageOver)];
+
+        if (gap > 1f) { gapCount = gapIndex = 0; steady = false; PlayStep(); return; }   // first stride after a pause
+
+        gaps[gapIndex] = gap;
+        gapIndex = (gapIndex + 1) % gaps.Length;
+        gapCount = Mathf.Min(gapCount + 1, gaps.Length);
+        float sum = 0f;
+        for (int i = 0; i < gapCount; i++) sum += gaps[i];
+
+        if (gapCount >= 3 && sum / gapCount < mashGap)
+        {
+            if (!steady) { steady = true; nextSteady = now + steadyInterval; }   // the timer in Update plays the steps now
+        }
+        else
+        {
+            steady = false;
+            PlayStep();
+        }
+    }
+
+    private void PlayStep()
+    {
+        if (stepSoundIds == null || stepSoundIds.Length == 0) return;
+        Sfx.Play(stepSoundIds[stepIndex % stepSoundIds.Length], stepVolume);
+        stepIndex++;
     }
 
     private void Update()
@@ -67,23 +121,31 @@ public class RunningTrackMinigame : MonoBehaviour
             lastPress = LastPress.Left;
             timeSinceLastPress = 0f;
             CurrentSpeed = Mathf.Min(CurrentSpeed + speedBoostPerAlternation, maxSpeed);
+            OnStride();
         }
         else if (pressedRight && lastPress != LastPress.Right)
         {
             lastPress = LastPress.Right;
             timeSinceLastPress = 0f;
             CurrentSpeed = Mathf.Min(CurrentSpeed + speedBoostPerAlternation, maxSpeed);
+            OnStride();
+        }
+
+        if (steady)
+        {
+            if (timeSinceLastPress >= noInputStopDelay) { steady = false; gapCount = gapIndex = 0; }
+            else if (Time.time >= nextSteady) { PlayStep(); nextSteady = Time.time + steadyInterval; }
         }
 
         if (timeSinceLastPress >= noInputStopDelay)
         {
-            // Player has genuinely stopped mashing — kill speed immediately rather than
+            // Player has genuinely stopped mashing ï¿½ kill speed immediately rather than
             // letting it coast down over several seconds.
             CurrentSpeed = 0f;
         }
         else
         {
-            // Still within a normal gap between alternating presses — decay gently so
+            // Still within a normal gap between alternating presses ï¿½ decay gently so
             // mashing at a steady rhythm doesn't stutter between each key press.
             CurrentSpeed = Mathf.Max(0f, CurrentSpeed - speedDecayPerSecond * Time.deltaTime);
         }

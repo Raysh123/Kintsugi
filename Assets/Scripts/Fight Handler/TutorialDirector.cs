@@ -64,16 +64,20 @@ public class TutorialDirector : MonoBehaviour
     [Header("3b. Dialogue and finisher prompt (shown after the 7th point and the referee's Hajime)")]
     [Tooltip("Speaker name shown with the lines (optional).")]
     [SerializeField] private string dialogueSpeaker = "";
-    [TextArea(1, 4)]
-    [SerializeField]
-    private string[] dialogueLines = new[]
-    {
-        "Seven points. One more and the title is mine.",
-        "Time to end this with something he will never forget."
-    };
+    [Tooltip("The line shown when YOU reach the score first.")]
+    [TextArea(1, 4)][SerializeField] private string playerReachedLine = "Seven points. One more and the title is mine.";
+    [Tooltip("The line shown when the OPPONENT reaches the score first.")]
+    [TextArea(1, 4)][SerializeField] private string enemyReachedLine = "Seven points for him. I can't lose like this.";
+    [Tooltip("The line shown when the clock hits the time limit instead.")]
+    [TextArea(1, 4)][SerializeField] private string timeUpLine = "Time is nearly gone. This ends now.";
+    private string[] dialogueLines = new string[0];
     [Tooltip("The dialogue panel (a CanvasGroup). Each line is closed with the project's skip button (Enter / A). Leave empty to skip the dialogue.")]
     [SerializeField] private CanvasGroup dialoguePanel;
     [SerializeField] private TMP_Text dialogueSpeakerText;
+    [Tooltip("The PLAYER's icon on the finisher dialogue panel (an Image). Optional.")]
+    [SerializeField] private Image dialogueIcon;
+    [Tooltip("Sprite put on that icon. Blank = keep whatever the Image already shows.")]
+    [SerializeField] private Sprite dialogueIconSprite;
     [SerializeField] private TMP_Text dialogueBodyText;
     [Tooltip("Shown while waiting for the finisher.")]
     [SerializeField] private CanvasGroup promptPanel;
@@ -86,6 +90,35 @@ public class TutorialDirector : MonoBehaviour
     [SerializeField] private float panelFade = 0.2f;
     [Tooltip("Ignore the skip / finisher button for this long after a panel appears (so a leftover press doesn't skip it).")]
     [SerializeField] private float minShow = 0.35f;
+
+    [Header("3c. Opponent taunts (text, after each point HE scores)")]
+    [Tooltip("One is picked at random (never the same twice in a row) after each point the opponent scores. Leave empty for no taunts. " +
+             "The 7th point goes straight to the finisher instead.")]
+    [TextArea(1, 3)]
+    [SerializeField]
+    private string[] tauntLines = new[]
+    {
+        "Is that all you've got?",
+        "Too slow!",
+        "Try to keep up.",
+        "You can't touch me."
+    };
+    [SerializeField] private string tauntSpeaker = "";
+    [Tooltip("Its OWN small panel (a CanvasGroup), separate from the finisher dialogue panel. Keep it switched off. Without it no taunts show.")]
+    [SerializeField] private CanvasGroup tauntPanel;
+    [SerializeField] private TMP_Text tauntSpeakerText;
+    [SerializeField] private TMP_Text tauntBodyText;
+    [Tooltip("The OPPONENT's icon on the taunt panel (an Image). Optional.")]
+    [SerializeField] private Image tauntIcon;
+    [Tooltip("Sprite put on that icon. Blank = keep whatever the Image already shows.")]
+    [SerializeField] private Sprite tauntIconSprite;
+    [Tooltip("Real seconds after the referee's Yame and the reset (the point has been awarded) before the taunt appears.")]
+    [SerializeField] private float tauntDelay = 0.3f;
+    [Tooltip("The clock stays stopped while the taunt is up; it closes on Enter / A and then the referee says Hajime. " +
+             "Ignore that button for this long after the taunt appears.")]
+    [SerializeField] private float tauntMinShow = 0.5f;
+    [Tooltip("Closes by itself after this many real seconds. 0 = waits for the button.")]
+    [SerializeField] private float tauntHold = 0f;
 
     [Header("4. Then")]
     [Tooltip("The scene changes this many seconds AFTER the animation has finished.")]
@@ -104,6 +137,12 @@ public class TutorialDirector : MonoBehaviour
     private bool introDone;
     private bool injuryStarted;
 
+    private void Awake()
+    {
+        // The referee's opening ritual (calls, sounds, music) waits until the tutorial pages are closed.
+        RefereeController.HoldIntro = showPagesAtStart;
+    }
+
     private void Start()
     {
         if (enemy == null) enemy = FindFirstObjectByType<EnemyStateMachine>();
@@ -112,7 +151,8 @@ public class TutorialDirector : MonoBehaviour
         if (referee == null) referee = FindFirstObjectByType<RefereeController>();
         if (fadeOverlay != null) fadeOverlay.alpha = 0f;
         if (cutsceneRoot != null) cutsceneRoot.SetActive(false);
-
+        if (tauntPanel != null) tauntPanel.alpha = 0f;
+        if (referee != null) { referee.onEnemyPoint.AddListener(OnEnemyScored); referee.onReadyToReset.AddListener(OnResetDone); }
 
         StartCoroutine(Intro());
     }
@@ -127,6 +167,7 @@ public class TutorialDirector : MonoBehaviour
             if (tutorialBrowser != null) yield return tutorialBrowser.Show();
         }
         introDone = true;
+        RefereeController.HoldIntro = false;
     }
 
     private void Update()
@@ -146,6 +187,9 @@ public class TutorialDirector : MonoBehaviour
                         matchTimer.TimeRemaining <= endAtSecondsLeft;
         if (scoreReached || timeIsUp)
         {
+            string line = matchScore.PlayerScore >= pointsToEnd ? playerReachedLine
+                        : matchScore.EnemyScore >= pointsToEnd ? enemyReachedLine : timeUpLine;
+            dialogueLines = string.IsNullOrEmpty(line) ? new string[0] : new[] { line };
             injuryStarted = true;
             StartCoroutine(Injury(!scoreReached));
         }
@@ -222,6 +266,11 @@ public class TutorialDirector : MonoBehaviour
 
     private IEnumerator Injury(bool byTime = false)
     {
+        tauntPending = false;
+        ReleaseHold();
+        if (tauntRoutine != null) { StopCoroutine(tauntRoutine); tauntRoutine = null; }
+        if (tauntPanel != null) { tauntPanel.alpha = 0f; tauntPanel.gameObject.SetActive(false); }
+        HideObjs(tauntSpeakerText, tauntBodyText, tauntIcon);
         Time.timeScale = 1f;
 
         // 1) the point is awarded, the referee calls Yame / resets the fighters ... and says Hajime (the clock runs again)
@@ -260,7 +309,9 @@ public class TutorialDirector : MonoBehaviour
         {
             if (dialoguePanel != null)
             {
-                if (dialogueSpeakerText != null) dialogueSpeakerText.text = dialogueSpeaker;
+                if (dialogueSpeakerText != null) { dialogueSpeakerText.gameObject.SetActive(true); dialogueSpeakerText.text = dialogueSpeaker; }
+                if (dialogueBodyText != null) dialogueBodyText.gameObject.SetActive(true);
+                if (dialogueIcon != null) { if (dialogueIconSprite != null) dialogueIcon.sprite = dialogueIconSprite; dialogueIcon.gameObject.SetActive(dialogueIcon.sprite != null); }
                 if (dialogueBodyText != null) dialogueBodyText.text = dialogueLines[0];
                 yield return FadePanel(dialoguePanel, 1f, panelFade);
             }
@@ -279,6 +330,7 @@ public class TutorialDirector : MonoBehaviour
             }
             guiText = null;
             if (dialoguePanel != null) yield return FadePanel(dialoguePanel, 0f, panelFade);
+            HideObjs(dialogueSpeakerText, dialogueBodyText, dialogueIcon);
         }
 
         // 4) swap to the cutscene NOW, frozen on its first frame: both live fighters are hidden and the paired prefab stands
@@ -329,8 +381,8 @@ public class TutorialDirector : MonoBehaviour
             ih.upperKick = false;
             finisherSeen = false;
             if (promptPanel == null) guiText = promptString;
-            if (promptLabel != null) promptLabel.text = promptString;
-            if (promptIcon != null) promptIcon.enabled = promptIcon.sprite != null;
+            if (promptLabel != null) { promptLabel.gameObject.SetActive(true); promptLabel.text = promptString; }
+            if (promptIcon != null) { promptIcon.gameObject.SetActive(promptIcon.sprite != null); promptIcon.enabled = promptIcon.sprite != null; }
             yield return FadePanel(promptPanel, 1f, panelFade);
             float t = 0f;
             while (true)
@@ -344,6 +396,7 @@ public class TutorialDirector : MonoBehaviour
             promptActive = false;
             ih.SetInput(false);
             yield return FadePanel(promptPanel, 0f, 0.1f);
+            HideObjs(promptLabel, promptIcon);
         }
 
         // 6) the finisher is pressed: time runs again and the animation plays from its first frame
@@ -378,8 +431,69 @@ public class TutorialDirector : MonoBehaviour
         SceneManager.LoadScene(nextSceneName);
     }
 
+    private Coroutine tauntRoutine;
+    private int lastTaunt = -1;
+
+    private void OnEnemyScored()
+    {
+        if (injuryStarted || tauntPanel == null || tauntLines == null || tauntLines.Length == 0) return;
+        if (matchScore != null && matchScore.EnemyScore >= pointsToEnd) return;   // the finisher takes over
+        tauntPending = true;   // shown once the referee has called Yame and the fighters are reset
+        if (matchTimer != null) matchTimer.HoldResume = true;   // no Hajime until the taunt is closed
+    }
+
+    private bool tauntPending;
+
+    // Icons / texts may sit outside their panel, so switch them off themselves when the panel closes.
+    private static void HideObjs(params Component[] items)
+    {
+        foreach (Component c in items) if (c != null) c.gameObject.SetActive(false);
+    }
+
+    private void ReleaseHold() { if (matchTimer != null) matchTimer.HoldResume = false; }
+
+    private void OnResetDone()
+    {
+        if (!tauntPending) return;
+        tauntPending = false;
+        if (injuryStarted) { ReleaseHold(); return; }
+        if (tauntRoutine != null) StopCoroutine(tauntRoutine);
+        tauntRoutine = StartCoroutine(TauntRoutine());
+    }
+
+    private IEnumerator TauntRoutine()
+    {
+        yield return new WaitForSecondsRealtime(tauntDelay);
+        if (injuryStarted) { ReleaseHold(); yield break; }
+
+        var valid = new System.Collections.Generic.List<int>();
+        for (int k = 0; k < tauntLines.Length; k++) if (!string.IsNullOrEmpty(tauntLines[k])) valid.Add(k);
+        if (valid.Count == 0) { ReleaseHold(); yield break; }
+        if (valid.Count > 1) valid.Remove(lastTaunt);
+        lastTaunt = valid[Random.Range(0, valid.Count)];
+
+        if (tauntSpeakerText != null) { tauntSpeakerText.gameObject.SetActive(true); tauntSpeakerText.text = tauntSpeaker; }
+        if (tauntIcon != null) { if (tauntIconSprite != null) tauntIcon.sprite = tauntIconSprite; tauntIcon.gameObject.SetActive(tauntIcon.sprite != null); }
+        if (tauntBodyText != null) { tauntBodyText.gameObject.SetActive(true); tauntBodyText.text = tauntLines[lastTaunt]; }
+        yield return FadePanel(tauntPanel, 1f, panelFade);
+        float held = 0f;
+        while (true)
+        {
+            held += Time.unscaledDeltaTime;
+            if (held >= tauntMinShow && SkipInput.Pressed()) break;
+            if (tauntHold > 0f && held >= tauntHold) break;
+            yield return null;
+        }
+        yield return FadePanel(tauntPanel, 0f, panelFade);
+        HideObjs(tauntSpeakerText, tauntBodyText, tauntIcon);
+        ReleaseHold();
+        tauntRoutine = null;
+    }
+
     private void OnDestroy()
     {
+        RefereeController.HoldIntro = false;
+        if (referee != null) { referee.onEnemyPoint.RemoveListener(OnEnemyScored); referee.onReadyToReset.RemoveListener(OnResetDone); }
         Time.timeScale = 1f;
     }
 }

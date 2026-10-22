@@ -20,88 +20,44 @@ MonoBehaviour:
     dayNumber: 0
     lines:
     - speakerIndex: 0
-      subtitle: So....
+      subtitle: I heard about your dojo. What an ass.
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: So?
+      subtitle: "Hey, he\u2019s still my sensei, man."
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: I heard about your dojo, what an ass
+      subtitle: Nah Bro! You won him tournaments. How many new students did he get
+        from that? So, what now?
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: 'Hey, He''s still my Sensei man
-
-'
+      subtitle: "I don\u2019t know. Recover, focus on work, maybe? Name one dojo
+        that\u2019d take in a \"Liability\" like me."
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: Hell Nah! Man you are good, and he benifitted from that. How many
-        new students did he get cuz you won tournaments
+      subtitle: My sensei would take you in.
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: ....
+      subtitle: "Your dojo\u2019s more karate and self-help than tournaments. That\u2019s
+        not my style."
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: 'So what now ?
-
-'
+      subtitle: " You can\u2019t give up, Dastaan. You need to learn to fight differently
+        now. Like it or not, your injury is part of you. My sensei knows his stuff,
+        so join us. I\u2019ve never seen you give up yet, and I won\u2019t let you
+        start now."
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: I dont know, Recover, focus on work, maybe?
+      subtitle: Alright, fine. Seems like my only option for now.
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: There are other dojos out there you know?
+      subtitle: "That\u2019s my boy! Lemon tea before we head back? My treat!"
       audioClip: {fileID: 0}
       waitForInput: 1
-    - speakerIndex: 1
-      subtitle: 'Yeah?Name 1 that would take in a cripple like me '
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: Shut up da. You're not a cripple, First of all thats rude to people
-        with actual disabilities.
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: Secondly, My sensei would take you in.
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: But your dojo is more about Karate and self help than about tournaments,
-        You know thats not my style
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: Thats BS. Listen, you cant give up, this is an option . You need
-        to learn to fight again...
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: Bro I know how to figh...
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: 'Thats not what I mean. You have to change it, You need to fight
-        different, Like it or not, your injury is a part of you.  '
-      audioClip: {fileID: 0}
-      waitForInput: 0
-    - speakerIndex: 0
-      subtitle: My sensei knows his shit. he can help. Join us. I haven't ever seen
-        you give up on anything yet, I wont let you start now.
-      audioClip: {fileID: 0}
-      waitForInput: 0
-    - speakerIndex: 1
-      subtitle: 'Alright, fine! seems like its my only option for now anyway. '
-      audioClip: {fileID: 0}
-      waitForInput: 0
-    - speakerIndex: 0
-      subtitle: Thats ma boy. Alright Lemon tea before we head back? My treat!!
-      audioClip: {fileID: 0}
-      waitForInput: 0

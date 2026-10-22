@@ -15,8 +15,8 @@ MonoBehaviour:
   id: dojo
   category: 0
   clips:
-  - {fileID: 8300000, guid: 4c98cb836aa760a44a3905837de23771, type: 3}
-  volume: 0.511
+  - {fileID: 8300000, guid: 232670bdd3c62b0478f401d73b9b164b, type: 3}
+  volume: 1
   pitch: 1
   pitchVariance: 0
   loop: 1

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using TMPro;
 using Random = UnityEngine.Random;
 
 /// <summary>
@@ -77,6 +78,9 @@ public class CatPlayInteraction : MonoBehaviour
     [SerializeField] private ActivityDefinition activity;
 
     [Header("Prompt")]
+    [Tooltip("Optional text (child of the prompt) that shows what this activity gives and costs. Filled from this activity's own values.")]
+    [SerializeField] private TMP_Text stakesText;
+
     [Tooltip("A prompt (e.g. \"E / A: Play\") shown while the player is in range and the cat can be played with. " +
              "Hidden during the session and once the once-a-day play has been done. Keep it INACTIVE in the scene. Optional.")]
     [SerializeField] private GameObject interactPrompt;
@@ -118,6 +122,8 @@ public class CatPlayInteraction : MonoBehaviour
 
     private bool canInteract;
     private bool sessionActive;
+    /// <summary>True while the cat play session is running (the HUD-hiding script reads this).</summary>
+    public static bool SessionInProgress { get; private set; }
     private Vector3 promptIconBaseScale = Vector3.one;
 
     private void OnTriggerEnter(Collider other)
@@ -135,6 +141,7 @@ public class CatPlayInteraction : MonoBehaviour
 
     private void Start()
     {
+        ActivityStakes.FillMotivation(stakesText, minMotivation, maxMotivation, activity != null ? activity.quadrantTicks : 0);
         if (activityModel != null) activityModel.SetActive(false);
         if (promptIcon != null)
         {
@@ -146,7 +153,27 @@ public class CatPlayInteraction : MonoBehaviour
 
     private void OnDisable()
     {
-        if (interactPrompt != null) interactPrompt.SetActive(false);
+        if (sessionActive) SessionInProgress = false;
+        SetPromptShown(false);
+    }
+
+    private bool promptMine;
+
+    // The prompt object / text may be shared with other interactions, so only this script's own show is undone by it.
+    private void SetPromptShown(bool on)
+    {
+        if (on)
+        {
+            if (!promptMine) { promptMine = true; ActivityStakes.FillMotivation(stakesText, minMotivation, maxMotivation, activity != null ? activity.quadrantTicks : 0); }
+            if (interactPrompt != null && !interactPrompt.activeSelf) interactPrompt.SetActive(true);
+            if (stakesText != null && !stakesText.gameObject.activeSelf) stakesText.gameObject.SetActive(true);
+        }
+        else if (promptMine)
+        {
+            promptMine = false;
+            if (interactPrompt != null && interactPrompt.activeSelf) interactPrompt.SetActive(false);
+            if (stakesText != null) stakesText.gameObject.SetActive(false);
+        }
     }
 
     private void Update()
@@ -154,8 +181,7 @@ public class CatPlayInteraction : MonoBehaviour
         bool available = !sessionActive && !ActiveDialogueTracker.AnyActive &&
                          (activity == null || !activity.onceLimitPerDay || CalendarManager.instance == null ||
                           !CalendarManager.instance.HasDoneToday(activity.activityId));
-        if (interactPrompt != null && interactPrompt.activeSelf != (canInteract && available))
-            interactPrompt.SetActive(canInteract && available);
+        SetPromptShown(canInteract && available);
 
         if (canInteract && player != null && player.interacting && !sessionActive)
             BeginInteraction();
@@ -170,6 +196,7 @@ public class CatPlayInteraction : MonoBehaviour
         }
 
         sessionActive = true;
+        SessionInProgress = true;
         if (catPatrol != null) catPatrol.SetPaused(true);
         StartCoroutine(RunSession());
     }
@@ -331,6 +358,7 @@ public class CatPlayInteraction : MonoBehaviour
 
         player.interacting = false;
         sessionActive = false;
+        SessionInProgress = false;
         if (catPatrol != null) catPatrol.SetPaused(false);
 
         OnSessionFinished?.Invoke();

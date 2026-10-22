@@ -234,6 +234,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     FightSounds.PlayerBlocked(true);
+                    FightStats.perfectParries++;
                     FightVFX.Play(FightVFX.Kind.PerfectBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(enemyPerfectBlockedPostureDamage);
@@ -262,6 +263,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.IsNormalBlockActive())
                 {
                     FightSounds.PlayerBlocked(false);
+                    FightStats.normalBlocks++;
                     FightVFX.Play(FightVFX.Kind.PlayerBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)
@@ -299,6 +301,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.TryPerfectBlock())
                 {
                     FightSounds.PlayerBlocked(true);
+                    FightStats.perfectParries++;
                     FightVFX.Play(FightVFX.Kind.PerfectBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackEnemy(player.transform, knockbackDist);
                     enemyPosture.posDmg(enemyPerfectBlockedPostureDamage);
@@ -324,6 +327,7 @@ public class DmgDetection : MonoBehaviour
                 if (playerStateMachine.IsNormalBlockActive())
                 {
                     FightSounds.PlayerBlocked(false);
+                    FightStats.normalBlocks++;
                     FightVFX.Play(FightVFX.Kind.PlayerBlock, other.bounds.ClosestPoint(transform.position));
                     PushBackPlayer(enemyStateMachine.transform, knockbackDist);
                     if (playerPosture.postureSlider.value >= postureMaxVal)

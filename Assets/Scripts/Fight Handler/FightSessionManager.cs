@@ -50,6 +50,7 @@ public static class FightSessionManager
         opponentId = opponent;
         hasPendingResult = false;
         injuredLastFight = false;
+        FightStats.Reset();
 
         SceneManager.LoadScene(fightSceneName);
     }

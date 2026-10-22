@@ -28,27 +28,22 @@ MonoBehaviour:
       audioClip: {fileID: 0}
       waitForInput: 0
     - speakerIndex: 0
-      subtitle: 'Sensei  I know you said I wasn''t ready, but please let me spar,
-        I need to get back to the tournaments. I only have a couple years left, once
-        I get into college, I wont have the time. '
-      audioClip: {fileID: 0}
-      waitForInput: 0
-    - speakerIndex: 0
-      subtitle: I want to go as far as I can in this art, please help me
+      subtitle: "Sensei, please let me spar. I need to get back to the tournaments,
+        and I won\u2019t have the time once college starts."
       audioClip: {fileID: 0}
       waitForInput: 0
     - speakerIndex: 1
-      subtitle: 'Hmm. Your injury must not be ignored. It is a part of you, and must
-        be treated as such, but you have not yet learnt to fight like it is. '
+      subtitle: "Hm. Your injury can\u2019t be ignored. You haven\u2019t yet learnt
+        to fight with it."
       audioClip: {fileID: 0}
       waitForInput: 0
     - speakerIndex: 0
-      subtitle: Then teach me sensei
+      subtitle: Then teach me, Sensei. Please.
       audioClip: {fileID: 0}
       waitForInput: 0
     - speakerIndex: 1
-      subtitle: Oh alright, Theres a tournament in 10 days, if you can beat two of
-        my students in that time, I shall see about letting you sign up.
+      subtitle: "Very well. There\u2019s a tournament in 10 days. Beat two of my
+        students by then and I\u2019ll see about signing you up."
       audioClip: {fileID: 0}
       waitForInput: 0
     - speakerIndex: 0

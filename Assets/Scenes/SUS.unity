@@ -1017,6 +1017,7 @@ MonoBehaviour:
   anticipationHoldSeconds: 0.12
   anticipationHoldLead: 0.05
   anticipationEaseSeconds: 0.06
+  anticipationCreepSpeed: 0.1
   logTelegraph: 1
 --- !u!136 &332933033
 CapsuleCollider:
@@ -5305,9 +5306,9 @@ MonoBehaviour:
   playerLegHit: block
   enemyLegHit: 
   playerLegHurt: 
-  swapReady: block
-  swap: kick
-  swapPush: phit
+  swapReady: grab
+  swap: swap
+  swapPush: push
 --- !u!4 &931598579
 Transform:
   m_ObjectHideFlags: 0
@@ -5825,7 +5826,11 @@ MonoBehaviour:
   matchStopped: 1
   autoStartOnSceneLoad: 0
   hitPauseDuration: 5
-  debugLog: 0
+  extendOnTie: 1
+  tieExtensionSeconds: 15
+  extraTimeRounds: 1
+  suddenDeathAfterExtra: 1
+  matchScore: {fileID: 0}
   OnTimeUp:
     m_PersistentCalls:
       m_Calls: []
@@ -5859,6 +5864,12 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  OnExtraTime:
+    m_PersistentCalls:
+      m_Calls: []
+  OnSuddenDeath:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!4 &1086321185
 Transform:
   m_ObjectHideFlags: 0
@@ -5889,8 +5900,8 @@ MonoBehaviour:
   matchTimer: {fileID: 1086321184}
   attackPointValues: {fileID: 11400000, guid: 69137bad41d2c2e41972ce72de441efc, type: 2}
   tieGoesToPlayer: 0
-  winStingerId: won
-  loseStingerId: defeat
+  winStingerId: Vwon
+  loseStingerId: Vdefeat
   resultHold: 8
   referee: {fileID: 0}
   healthGainOnWin: 5
@@ -11263,7 +11274,7 @@ MonoBehaviour:
   turnDuration: 0.6
   idleState: Idle
   bowHoldSeconds: 1
-  startDelay: 0.75
+  startDelay: 1.5
   steps:
   - name: Face referee
     displayText: Face me
@@ -11282,7 +11293,7 @@ MonoBehaviour:
     playerTrigger: 
     opponentTrigger: 
     refereeTrigger: 
-    sfxId: 
+    sfxId: faceme
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11303,7 +11314,7 @@ MonoBehaviour:
     playerTrigger: Bow
     opponentTrigger: Bow
     refereeTrigger: 
-    sfxId: 
+    sfxId: bow
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11324,7 +11335,7 @@ MonoBehaviour:
     playerTrigger: 
     opponentTrigger: 
     refereeTrigger: 
-    sfxId: 
+    sfxId: faceeo
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11345,7 +11356,7 @@ MonoBehaviour:
     playerTrigger: Bow
     opponentTrigger: Bow
     refereeTrigger: Bow2
-    sfxId: 
+    sfxId: bow
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11366,7 +11377,7 @@ MonoBehaviour:
     playerTrigger: 
     opponentTrigger: 
     refereeTrigger: Begin
-    sfxId: 
+    sfxId: hajime
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11375,19 +11386,24 @@ MonoBehaviour:
   enemyPointText: Point! Sami (+{points})
   resumeText: Hajime!
   timeUpText: Time!
+  extraTimeText: Tied! Extra time
+  suddenDeathText: Tied! Next point wins
+  tieCallTrigger: 
+  extraTimeTrigger: 
+  suddenDeathTrigger: 
   playerWinText: Dastaan wins!
   playerLoseText: Sami Wins!
   refereeWinTrigger: 
   refereeLoseTrigger: 
   refereeWinState: WinPlayer
   refereeLoseState: WinEnemy
-  pointTextDuration: 2.5
+  pointTextDuration: 1.5
   resumeTextDuration: 1
   hitAnimDelay: 0.4
   yameText: Yame!
   yameDuration: 0.8
   refereeYameTrigger: Yame
-  yameSfxId: 
+  yameSfxId: yame
   onReadyToReset:
     m_PersistentCalls:
       m_Calls:
@@ -11409,8 +11425,13 @@ MonoBehaviour:
   refereeEnemyPoint2Trigger: PointEnemy2
   refereeResumeTrigger: Begin
   callAnimDelayAfterReset: 0.8
-  pointSfxId: 
-  resumeSfxId: 
+  pointSfxId: point
+  resumeSfxId: hajime
+  warningSfxId: warning
+  deductionSfxId: pd
+  timeUpSfxId: time
+  extraTimeSfxId: tx
+  suddenDeathSfxId: sd
   onPlayerPoint:
     m_PersistentCalls:
       m_Calls: []
@@ -11419,7 +11440,7 @@ MonoBehaviour:
       m_Calls: []
   musicId: Vinland
   musicFadeIn: 2
-  introMusicId: intro
+  introMusicId: Vintro
   introMusicFadeIn: 1
   introMusicFadeOut: 1.5
   introEndsAfterBow: 2
@@ -11444,6 +11465,7 @@ MonoBehaviour:
   leftEdge: {fileID: 287621449}
   rightEdge: {fileID: 74019216}
   margin: 0
+  swapCreditSeconds: 1.5
   warningsPerDeduction: 2
   pointsDeducted: 1
   warningText: 'Warning! {who} out of bounds '
@@ -12508,6 +12530,7 @@ MonoBehaviour:
   anticipationHoldSeconds: 0.12
   anticipationHoldLead: 0.05
   anticipationEaseSeconds: 0.06
+  anticipationCreepSpeed: 0.1
   logTelegraph: 1
 --- !u!114 &2047168657
 MonoBehaviour:
@@ -12547,6 +12570,7 @@ MonoBehaviour:
   perfectColor: {r: 0.7490196, g: 0.023529412, b: 0, a: 1}
   normalAlpha: 0.55
   perfectAlpha: 1
+  trailMaterial: {fileID: 0}
   useEmission: 1
   emissionProperty: _EmissionColor
   normalEmissionIntensity: 0.8

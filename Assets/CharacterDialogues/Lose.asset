@@ -21,8 +21,7 @@ MonoBehaviour:
     dayNumber: 0
     lines:
     - audioClip: {fileID: 0}
-      subtitle: 'You Win
-
+      subtitle: 'You lose
 
 '
       waitForInput: 0

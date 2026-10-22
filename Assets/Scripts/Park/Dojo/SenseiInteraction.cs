@@ -51,20 +51,21 @@ public class SenseiInteraction : MonoBehaviour
     /// <summary>Set once the player has talked to the sensei in TournamentPrep. The fight mat and the cat stay off until then.</summary>
     public const string FirstPrepTalkDoneFlag = "SenseiFirstPrepTalkDone";
 
+    private bool promptMine;
     private bool isBusy; // true during the dialogue - blocks re-entry and input
 
     private void Update()
     {
         if (isBusy)
         {
-            if (interactPrompt != null) interactPrompt.SetActive(false);
+            SharedPrompt.Set(ref promptMine, interactPrompt, false);
             return;
         }
 
         bool inRange = player != null &&
                         Vector3.Distance(player.transform.position, transform.position) <= interactRange;
 
-        if (interactPrompt != null) interactPrompt.SetActive(inRange);
+        SharedPrompt.Set(ref promptMine, interactPrompt, inRange);
         if (!inRange) return;
 
         if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetButtonDown("Submit"))
@@ -80,7 +81,7 @@ public class SenseiInteraction : MonoBehaviour
                              !PersistentGameFlags.instance.HasFlag(FirstPrepTalkDoneFlag);
         if (patrol != null) patrol.SetPaused(true);
         if (player != null) player.movementLocked = true;
-        if (interactPrompt != null) interactPrompt.SetActive(false);
+        SharedPrompt.Set(ref promptMine, interactPrompt, false);
 
         if (ShouldPlayPrepConversation())
         {
@@ -97,6 +98,7 @@ public class SenseiInteraction : MonoBehaviour
         if (firstPrepTalk)
         {
             PersistentGameFlags.instance.SetFlag(FirstPrepTalkDoneFlag);
+            StoryManager.instance.SetTournamentDateFromToday();
 
             if (injuryPanel != null)
             {

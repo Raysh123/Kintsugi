@@ -35,6 +35,8 @@ public class MatchScore : MonoBehaviour
     [Tooltip("Real seconds the win / lose animations (referee call, stinger, fighters) get to play, counted from when the referee " +
              "announces the winner, before the scene changes. The fight music fades out over exactly this time.")]
     [SerializeField] private float resultHold = 3f;
+    [Tooltip("Seconds after the result text / win-lose animations start before the scene changes back to the RPG scene.")]
+    [SerializeField] private float sceneLoadDelay = 1.5f;
     [Tooltip("Referee that announces 'Player wins / loses'. Auto-found if left empty.")]
     [SerializeField] private RefereeController referee;
 
@@ -84,6 +86,7 @@ public class MatchScore : MonoBehaviour
     {
         int points = attackPointValues != null ? attackPointValues.GetPoints(moveType) : 1;
         PlayerScore += points;
+        FightStats.playerHits++;
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
         CheckPointsToWin();
     }
@@ -92,6 +95,7 @@ public class MatchScore : MonoBehaviour
     {
         int points = attackPointValues != null ? attackPointValues.GetPoints(moveType) : 1;
         EnemyScore += points;
+        FightStats.enemyHits++;
         OnScoreChanged?.Invoke(PlayerScore, EnemyScore);
         CheckPointsToWin();
     }
@@ -162,15 +166,20 @@ public class MatchScore : MonoBehaviour
         {
             hm.ModifyHealth(healthGainOnWin);
             hm.ModifyMotivation(motivationGainOnWin);
+            FightStats.healthDelta += healthGainOnWin;
+            FightStats.motivationDelta += motivationGainOnWin;
         }
         else
         {
             hm.ModifyMotivation(-motivationLossOnDefeat);
+            FightStats.motivationDelta -= motivationLossOnDefeat;
         }
     }
 
     private System.Collections.IEnumerator ResultSequence(bool playerWon, bool applyStatChanges = true)
     {
+        FightStats.playerScore = PlayerScore;
+        FightStats.enemyScore = EnemyScore;
         if (applyStatChanges) ApplyStatChanges(playerWon);
 
         if (matchTimer != null) matchTimer.EndMatch();
@@ -182,12 +191,12 @@ public class MatchScore : MonoBehaviour
 
         if (AudioManager.instance != null)
         {
-            AudioManager.instance.StopMusic(Mathf.Max(0.01f, resultHold));
+            AudioManager.instance.StopMusic(Mathf.Max(0.01f, sceneLoadDelay));
             string stinger = playerWon ? winStingerId : loseStingerId;
             if (!string.IsNullOrEmpty(stinger)) AudioManager.instance.PlaySFX(stinger);
         }
 
-        yield return new WaitForSecondsRealtime(resultHold);
+        yield return new WaitForSecondsRealtime(sceneLoadDelay);
         FightSessionManager.ReportResult(playerWon);
     }
 

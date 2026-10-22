@@ -239,6 +239,8 @@ public class HomeArrivalHandler : MonoBehaviour, ITravelArrivalHandler
     }
 
     /// <summary>Waits until the player is within range of mom and presses the interact button.</summary>
+    private bool momPromptMine;
+
     private IEnumerator WaitForMomTalk()
     {
         while (true)
@@ -247,7 +249,7 @@ public class HomeArrivalHandler : MonoBehaviour, ITravelArrivalHandler
                            Vector3.Distance(player.transform.position, momObject.transform.position) <= momInteractRange;
             bool free = !ActiveDialogueTracker.AnyActive && !player.movementLocked;
 
-            if (momTalkPrompt != null) momTalkPrompt.SetActive(inRange && free);
+            SharedPrompt.Set(ref momPromptMine, momTalkPrompt, inRange && free);
 
             if (inRange && free &&
                 (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetButtonDown("Submit")))
@@ -256,7 +258,7 @@ public class HomeArrivalHandler : MonoBehaviour, ITravelArrivalHandler
             yield return null;
         }
 
-        if (momTalkPrompt != null) momTalkPrompt.SetActive(false);
+        SharedPrompt.Set(ref momPromptMine, momTalkPrompt, false);
     }
 
     private void HandleCatFinished()

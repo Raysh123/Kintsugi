@@ -21,8 +21,17 @@ MonoBehaviour:
     dayNumber: 1
     lines:
     - audioClip: {fileID: 0}
-      subtitle: Good work today. But dont push past your injury, take it with you.
-        Go home and rest now.  I will see you tomorrow
+      subtitle: Good work today. But you still push past your injury instead of taking
+        it with you. Go home and rest now.  I will see you tomorrow
+      waitForInput: 1
+  - phase: 2
+    anyTimeOfDay: 0
+    timeOfDay: 0
+    anyDay: 0
+    dayNumber: 2
+    lines:
+    - audioClip: {fileID: 0}
+      subtitle: Finish your training, Let me see your skill level
       waitForInput: 1
   - phase: 3
     anyTimeOfDay: 1
@@ -32,4 +41,22 @@ MonoBehaviour:
     lines:
     - audioClip: {fileID: 0}
       subtitle: Good Progress! But dont let it get to your head.
+      waitForInput: 1
+  - phase: 2
+    anyTimeOfDay: 0
+    timeOfDay: 1
+    anyDay: 1
+    dayNumber: 2
+    lines:
+    - audioClip: {fileID: 0}
+      subtitle: Good, 2 more left.
+      waitForInput: 1
+  - phase: 2
+    anyTimeOfDay: 0
+    timeOfDay: 1
+    anyDay: 0
+    dayNumber: 2
+    lines:
+    - audioClip: {fileID: 0}
+      subtitle: Well done, Just one more Left!
       waitForInput: 1

@@ -27,6 +27,9 @@ public class OutOfBounds : MonoBehaviour
     [Tooltip("A fighter must be this far beyond the edge before it counts (so grazing the line is fine).")]
     [SerializeField] private float margin = 0.1f;
 
+    [Tooltip("An enemy stepping off the mat within this many seconds of the end of your swap counts as a successful swap (for the battle report).")]
+    [SerializeField] private float swapCreditSeconds = 1.5f;
+
     [Header("Penalty")]
     [Tooltip("Warnings that lead to a point deduction (then the count resets to 0).")]
     [SerializeField] private int warningsPerDeduction = 2;
@@ -83,8 +86,6 @@ public class OutOfBounds : MonoBehaviour
             var es = FindFirstObjectByType<EnemyStateMachine>();
             if (es != null) enemy = es.transform;
         }
-        if (leftEdge == null || rightEdge == null)
-            Debug.LogWarning("[OutOfBounds] Left Edge / Right Edge not assigned - nothing will be detected.");
         RefreshUi();
     }
 
@@ -113,6 +114,7 @@ public class OutOfBounds : MonoBehaviour
 
     private void Penalise(bool isPlayer)
     {
+        if (!isPlayer && Time.time - PlayerSwap.LastSwapEnd <= swapCreditSeconds) FightStats.swaps++;
         int count = (isPlayer ? PlayerWarnings : EnemyWarnings) + 1;
         string who = isPlayer ? playerName : enemyName;
         string text;
@@ -124,12 +126,10 @@ public class OutOfBounds : MonoBehaviour
             count = 0;
             if (matchScore != null) matchScore.DeductPoints(isPlayer, pointsDeducted);
             text = deductionText;
-            Debug.Log($"[OutOfBounds] {who} out of bounds - warning limit reached: -{pointsDeducted} point(s), warnings reset to 0.");
         }
         else
         {
             text = warningText;
-            Debug.Log($"[OutOfBounds] {who} out of bounds - warning {count}/{warningsPerDeduction}.");
         }
 
         if (isPlayer) PlayerWarnings = count; else EnemyWarnings = count;
@@ -147,10 +147,9 @@ public class OutOfBounds : MonoBehaviour
             bool left = t != null && t.position.x < centre;
             string side = left ? leftTrigger : rightTrigger;
             string trig = string.IsNullOrEmpty(side) ? refereeTrigger : side;
-            referee.CallPenalty((text ?? "").Replace("{who}", who).Replace("{n}", (isPlayer ? PlayerWarnings : EnemyWarnings).ToString()), trig);
+            referee.CallPenalty((text ?? "").Replace("{who}", who).Replace("{n}", (isPlayer ? PlayerWarnings : EnemyWarnings).ToString()), trig,
+                deduction ? referee.DeductionSfxId : referee.WarningSfxId);
         }
-        else
-            Debug.LogWarning("[OutOfBounds] No RefereeController found - no call, and no reset will fire.");
     }
 
     private void RefreshUi()

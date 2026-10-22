@@ -612,10 +612,11 @@ public class EnemyStateMachine : MonoBehaviour
         if (opponent == null) return;
         if (currentState == EnemyState.Swap) return;   // the swap turns him itself
 
-        Vector3 dir = opponent.position - transform.position;
-        dir.y = 0f;
-
-        if (dir.sqrMagnitude < 0.001f) return;
+        // Face along the mat (left / right) only. Using the full direction made two fighters whose colliders overlap
+        // swing round to face each other along the depth axis and circle each other.
+        float dx = opponent.position.x - transform.position.x;
+        if (Mathf.Abs(dx) < 0.05f) return;   // practically on top of each other: keep the current facing
+        Vector3 dir = new Vector3(Mathf.Sign(dx), 0f, 0f);
 
         Quaternion targetRot = Quaternion.LookRotation(dir);
         transform.rotation = Quaternion.Slerp(

@@ -17,7 +17,7 @@ using UnityEngine;
 ///
 /// Setup: put this on an empty GameObject in the FriendVisit starting scene, and assign the
 /// SAME ComicCutscene strip/panels BedRestPhaseController used to reference as its
-/// bedRestEndCutscene (move that component here, or duplicate it) — ComicCutscene itself
+/// bedRestEndCutscene (move that component here, or duplicate it) â€” ComicCutscene itself
 /// already handles locking player movement/camera for the duration and firing
 /// OnCutsceneComplete when it's done, so nothing else needs to change.
 /// </summary>
@@ -35,6 +35,10 @@ public class GameIntroController : MonoBehaviour
              "sidesteps whatever that is without needing to track it down.")]
     [SerializeField] private float extraStartupDelay = 1f;
 
+    [Tooltip("Optional full-screen black Image/Panel. Leave it ACTIVE in the scene: it covers the world until the comic is up " +
+             "(or straight away if the comic isn't playing), then switches itself off.")]
+    [SerializeField] private GameObject blackCover;
+
     private string PlayedFlagId => string.IsNullOrEmpty(playedFlagId)
         ? $"GameIntroController_{GetInstanceID()}_comic_played"
         : playedFlagId;
@@ -46,13 +50,19 @@ public class GameIntroController : MonoBehaviour
 
     private IEnumerator TryPlayIntro()
     {
+        yield return RunIntro();
+        yield return null;
+        if (blackCover != null) blackCover.SetActive(false);
+    }
+
+    private IEnumerator RunIntro()
+    {
         float waitedSeconds = 0f;
         while (StoryManager.instance == null)
         {
             waitedSeconds += Time.unscaledDeltaTime;
             if (waitedSeconds > 5f)
             {
-                Debug.LogWarning("[GameIntro] StoryManager.instance never appeared after 5s - giving up.");
                 yield break;
             }
             yield return null;
@@ -63,21 +73,16 @@ public class GameIntroController : MonoBehaviour
 
         if (StoryManager.instance.CurrentPhase != StoryPhase.FriendVisit || alreadyPlayed)
         {
-            Debug.Log($"[GameIntro] Not playing intro - phase={StoryManager.instance.CurrentPhase}, " +
-                      $"alreadyPlayed={alreadyPlayed}.");
             yield break;
         }
 
         if (introCutscene == null)
         {
-            Debug.LogWarning("[GameIntro] No Intro Cutscene assigned in the Inspector - nothing will play.");
             yield break;
         }
 
         if (extraStartupDelay > 0f)
         {
-            Debug.Log($"[GameIntro] Waiting {extraStartupDelay}s before playing, to clear whatever " +
-                      "else runs in the first instant of scene load.");
             yield return new WaitForSecondsRealtime(extraStartupDelay);
         }
 
@@ -88,17 +93,12 @@ public class GameIntroController : MonoBehaviour
         // it active first so that can't be the reason this doesn't play.
         if (!introCutscene.gameObject.activeSelf)
         {
-            Debug.Log("[GameIntro] Intro cutscene's GameObject was inactive - activating it.");
             introCutscene.gameObject.SetActive(true);
         }
 
         if (PersistentGameFlags.instance != null)
             PersistentGameFlags.instance.SetFlag(PlayedFlagId);
-        else
-            Debug.LogWarning("[GameIntro] PersistentGameFlags.instance is null - this won't be remembered, " +
-                              "the intro will replay on next load.");
 
-        Debug.Log("[GameIntro] Playing intro cutscene.");
         introCutscene.Play();
     }
 }

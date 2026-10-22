@@ -118,6 +118,16 @@ public class RecoverySoundscape : MonoBehaviour
 
     // ---------------------------------------------------------------- Activities
     [System.Serializable]
+    public class Cue
+    {
+        [Tooltip("SoundDefinition id.")]
+        public string soundId;
+        [Tooltip("Seconds after the moment it is triggered before this sound starts.")]
+        public float delay = 0f;
+        [Range(0f, 2f)] public float volume = 1f;
+    }
+
+    [System.Serializable]
     public class ActivitySounds
     {
         [Tooltip("Plays the moment the activity is accepted (before any tutorial popup).")]
@@ -131,6 +141,19 @@ public class RecoverySoundscape : MonoBehaviour
         public string action;
         [Tooltip("Rhythm activities: played on a missed hit.")]
         public string miss;
+
+        [Header("Stackable sounds (play together, each after its own delay)")]
+        [Tooltip("Loop layers while the activity runs (grunting, straining...). Each starts after its delay; all stop when it ends.")]
+        public List<Cue> loopCues = new List<Cue>();
+        public List<Cue> winCues = new List<Cue>();
+        public List<Cue> loseCues = new List<Cue>();
+        public List<Cue> injuredCues = new List<Cue>();
+        [Tooltip("Rhythm activities: a correct hit.")]
+        public List<Cue> actionCues = new List<Cue>();
+        [Tooltip("Rhythm activities: a missed hit.")]
+        public List<Cue> missCues = new List<Cue>();
+        [Tooltip("Rhythm activities: the player gets hurt.")]
+        public List<Cue> hurtCues = new List<Cue>();
     }
 
     [System.Serializable]
@@ -186,8 +209,6 @@ public class RecoverySoundscape : MonoBehaviour
         if (found != currentArea)
         {
             currentArea = found;
-            if (debugAmbience)
-                Debug.Log($"[Soundscape] Entered area: {(currentArea >= 0 ? areas[currentArea].name : "none")}");
             RefreshAmbience();
         }
     }
@@ -247,21 +268,13 @@ public class RecoverySoundscape : MonoBehaviour
     // ================================================================ ambience
     private IEnumerator BeginAmbience()
     {
-        Debug.Log("[Soundscape] BeginAmbience started - waiting for an AudioManager in this scene.");
         float audioWait = 0f;
         bool warned = false;
         while (AudioManager.instance == null)
         {
             audioWait += Time.unscaledDeltaTime;
-            if (!warned && audioWait > 2f)
-            {
-                warned = true;
-                Debug.LogWarning("[Soundscape] Still no AudioManager.instance after 2s - ambience can't play. " +
-                                 "Is there an active AudioManager in THIS scene, and does it set instance in Awake?");
-            }
             yield return null;
         }
-        Debug.Log("[Soundscape] AudioManager found.");
 
         currentPhase = DayPhase.Morning;
         float wait = 0f; // scenes without a calendar just ignore the phase filter
@@ -278,8 +291,6 @@ public class RecoverySoundscape : MonoBehaviour
         if (currentArea < 0) currentArea = FindArea(startingArea);
         if (detectFromZones) currentArea = DetectArea();
         if (currentArea >= 0) lastAreaName = areas[currentArea].name;
-        Debug.Log($"[Soundscape] Starting in area: {(currentArea >= 0 ? areas[currentArea].name : "none")}, phase {currentPhase}, " +
-                  $"{areas.Count} area(s), {everywhere.Count} 'everywhere' layer(s).");
         RefreshAmbience();
         areaTimer = areaCheckInterval;
         ambienceReady = true;
@@ -299,7 +310,6 @@ public class RecoverySoundscape : MonoBehaviour
         if (idx < 0 || idx == currentArea) return;
         currentArea = idx;
         lastAreaName = areas[idx].name;
-        if (debugAmbience) Debug.Log($"[Soundscape] Area set to: {areas[idx].name}");
         if (ambienceReady) RefreshAmbience();
     }
 
@@ -309,8 +319,6 @@ public class RecoverySoundscape : MonoBehaviour
         for (int i = 0; i < areas.Count; i++)
             if (string.Equals(areas[i].name, areaName, System.StringComparison.OrdinalIgnoreCase))
                 return i;
-        Debug.LogWarning($"[Soundscape] No ambience area named '{areaName}' - add one with that exact name " +
-                         "(or rename an existing one) so the ambience can follow it.");
         return -1;
     }
 
@@ -365,12 +373,6 @@ public class RecoverySoundscape : MonoBehaviour
                 if (Wanted(layers[j])) wanted[$"amb_{GetInstanceID()}_a{currentArea}_{j}"] = layers[j];
         }
 
-        if (wanted.Count == 0)
-            Debug.LogWarning($"[Soundscape] No ambience layers qualify right now (area: " +
-                             $"{(currentArea >= 0 && currentArea < areas.Count ? areas[currentArea].name : "NONE - area name didn't match")}, " +
-                             $"phase: {currentPhase}). Check: area name matches 'Starting Area'/location name, layers have a Sound Id, " +
-                             "and 'Play During' includes the current phase (or is empty).");
-
         // Stop what's no longer wanted...
         var toStop = new List<string>();
         foreach (string key in playingKeys)
@@ -385,9 +387,6 @@ public class RecoverySoundscape : MonoBehaviour
         foreach (var kv in wanted)
         {
             if (playingKeys.Contains(kv.Key)) continue;
-            Debug.Log($"[Soundscape] Starting ambience '{kv.Value.soundId}' at layer volume {kv.Value.volume:F2} (area: {(currentArea >= 0 ? areas[currentArea].name : "none")}, phase: {currentPhase}).");
-            if (kv.Value.volume <= 0.001f)
-                Debug.LogWarning($"[Soundscape] Layer '{kv.Value.soundId}' has volume 0 - it will be silent. Set Volume to 1.");
             Sfx.StartLoop(kv.Key, kv.Value.soundId, ambienceFade, kv.Value.volume);
             playingKeys.Add(kv.Key);
         }
@@ -407,16 +406,85 @@ public class RecoverySoundscape : MonoBehaviour
     public static void ActivityStarted(ActivityDefinition a) { if (instance != null) Sfx.Play(instance.Pick(a, s => s.startChime)); }
     public static void ActivityLoopStart(ActivityDefinition a) { if (instance != null) instance.StartActivityLoop(a); }
     public static void ActivityLoopStop(ActivityDefinition a) { if (instance != null) instance.StopActivityLoop(a); }
-    public static void ActivityWon(ActivityDefinition a) { if (instance != null) { instance.StopActivityLoop(a); Sfx.Play(instance.Pick(a, s => s.win)); } }
-    public static void ActivityLost(ActivityDefinition a) { if (instance != null) { instance.StopActivityLoop(a); Sfx.Play(instance.Pick(a, s => s.lose)); } }
-    public static void ActivityInjured(ActivityDefinition a) { if (instance != null) { instance.StopActivityLoop(a); Sfx.Play(instance.Pick(a, s => s.injured)); } }
-    public static void ActivityAction(ActivityDefinition a) { if (instance != null) Sfx.Play(instance.Pick(a, s => s.action)); }
-    public static void ActivityMiss(ActivityDefinition a) { if (instance != null) Sfx.Play(instance.Pick(a, s => s.miss)); }
+    public static void ActivityWon(ActivityDefinition a) { if (instance != null) { instance.StopActivityLoop(a); Sfx.Play(instance.Pick(a, x => x.win)); instance.PlayCues(a, x => x.winCues); } }
+    public static void ActivityLost(ActivityDefinition a) { if (instance != null) { instance.StopActivityLoop(a); Sfx.Play(instance.Pick(a, x => x.lose)); instance.PlayCues(a, x => x.loseCues); } }
+    public static void ActivityInjured(ActivityDefinition a) { if (instance != null) { instance.StopActivityLoop(a); Sfx.Play(instance.Pick(a, x => x.injured)); instance.PlayCues(a, x => x.injuredCues); } }
+    public static void ActivityAction(ActivityDefinition a) { if (instance != null) { Sfx.Play(instance.Pick(a, x => x.action)); instance.PlayCues(a, x => x.actionCues); } }
+    public static void ActivityMiss(ActivityDefinition a) { if (instance != null) { Sfx.Play(instance.Pick(a, x => x.miss)); instance.PlayCues(a, x => x.missCues); } }
+    public static void ActivityHurt(ActivityDefinition a) { if (instance != null) instance.PlayCues(a, x => x.hurtCues); }
 
     private string ActivityLoopKey(ActivityDefinition a) => $"activity_{(a != null ? a.GetInstanceID() : 0)}";
 
-    private void StartActivityLoop(ActivityDefinition a) => Sfx.StartLoop(ActivityLoopKey(a), Pick(a, s => s.loop), activityLoopFade);
-    private void StopActivityLoop(ActivityDefinition a) => Sfx.StopLoop(ActivityLoopKey(a), activityLoopFade);
+    // Sounds set on the activity itself (each interaction script registers its own in Start). They beat the
+    // Activity Overrides list and the defaults; blank ids / empty lists fall through to those.
+    private static readonly Dictionary<ActivityDefinition, ActivitySounds> ownSounds = new Dictionary<ActivityDefinition, ActivitySounds>();
+    public static void SetOwnSounds(ActivityDefinition a, ActivitySounds sounds)
+    {
+        if (a == null) return;
+        if (sounds == null) ownSounds.Remove(a); else ownSounds[a] = sounds;
+    }
+
+    private int loopToken;
+    private readonly List<string> activeLoopKeys = new List<string>();
+
+    private void StartActivityLoop(ActivityDefinition a)
+    {
+        StopActivityLoop(a);
+        Sfx.StartLoop(ActivityLoopKey(a), Pick(a, x => x.loop), activityLoopFade);
+        List<Cue> cues = PickCues(a, x => x.loopCues);
+        for (int i = 0; i < cues.Count; i++)
+            StartCoroutine(LoopCueRoutine(ActivityLoopKey(a) + "_" + i, cues[i], loopToken));
+    }
+
+    private IEnumerator LoopCueRoutine(string key, Cue cue, int token)
+    {
+        if (cue == null || string.IsNullOrEmpty(cue.soundId)) yield break;
+        if (cue.delay > 0f) yield return new WaitForSeconds(cue.delay);
+        if (token != loopToken) yield break;
+        activeLoopKeys.Add(key);
+        Sfx.StartLoop(key, cue.soundId, activityLoopFade, cue.volume);
+    }
+
+    private void StopActivityLoop(ActivityDefinition a)
+    {
+        loopToken++;
+        Sfx.StopLoop(ActivityLoopKey(a), activityLoopFade);
+        foreach (string k in activeLoopKeys) Sfx.StopLoop(k, activityLoopFade);
+        activeLoopKeys.Clear();
+    }
+
+    private void PlayCues(ActivityDefinition a, System.Func<ActivitySounds, List<Cue>> field)
+    {
+        foreach (Cue c in PickCues(a, field))
+            if (c != null && !string.IsNullOrEmpty(c.soundId)) StartCoroutine(OneShotRoutine(c));
+    }
+
+    private IEnumerator OneShotRoutine(Cue c)
+    {
+        if (c.delay > 0f) yield return new WaitForSeconds(c.delay);
+        Sfx.Play(c.soundId, c.volume);
+    }
+
+    /// <summary>The activity's own list if its override has any entries, otherwise the defaults.</summary>
+    private List<Cue> PickCues(ActivityDefinition a, System.Func<ActivitySounds, List<Cue>> field)
+    {
+        if (a != null)
+        {
+            if (ownSounds.TryGetValue(a, out ActivitySounds mine))
+            {
+                List<Cue> m = field(mine);
+                if (m != null && m.Count > 0) return m;
+            }
+            foreach (ActivityOverride o in activityOverrides)
+            {
+                if (o.activity != a || o.sounds == null) continue;
+                List<Cue> l = field(o.sounds);
+                if (l != null && l.Count > 0) return l;
+                break;
+            }
+        }
+        return field(activityDefaults) ?? new List<Cue>();
+    }
 
     /// <summary>The activity's own id if it has an override with that field filled in,
     /// otherwise the default.</summary>
@@ -424,6 +492,11 @@ public class RecoverySoundscape : MonoBehaviour
     {
         if (a != null)
         {
+            if (ownSounds.TryGetValue(a, out ActivitySounds mine))
+            {
+                string m = field(mine);
+                if (!string.IsNullOrEmpty(m)) return m;
+            }
             foreach (ActivityOverride o in activityOverrides)
             {
                 if (o.activity != a || o.sounds == null) continue;

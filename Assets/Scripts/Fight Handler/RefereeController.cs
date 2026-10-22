@@ -138,6 +138,10 @@ public class RefereeController : MonoBehaviour
     [SerializeField] private string suddenDeathText = "Tied! Next point wins";
     [Tooltip("Optional referee Animator trigger for those two calls (blank = none).")]
     [SerializeField] private string tieCallTrigger;
+    [Tooltip("Referee Animator trigger for the EXTRA TIME call. Blank = use Tie Call Trigger.")]
+    [SerializeField] private string extraTimeTrigger;
+    [Tooltip("Referee Animator trigger for the SUDDEN DEATH call. Blank = use Tie Call Trigger.")]
+    [SerializeField] private string suddenDeathTrigger;
     [Header("Result call")]
     [SerializeField] private string playerWinText = "Player wins!";
     [SerializeField] private string playerLoseText = "Player loses!";
@@ -192,6 +196,14 @@ public class RefereeController : MonoBehaviour
     [Tooltip("Optional AudioManager SFX ids (inert until sounds exist).")]
     [SerializeField] private string pointSfxId;
     [SerializeField] private string resumeSfxId;
+    [Header("Call sounds (SoundLibrary ids, blank = none; the point sound is used if a call has none)")]
+    [SerializeField] private string warningSfxId;
+    [SerializeField] private string deductionSfxId;
+    [SerializeField] private string timeUpSfxId;
+    [SerializeField] private string extraTimeSfxId;
+    [SerializeField] private string suddenDeathSfxId;
+    public string WarningSfxId => warningSfxId;
+    public string DeductionSfxId => deductionSfxId;
     /// <summary>Fired when the match is decided (true = the player won). Used by FighterReactions.</summary>
     public event System.Action<bool> OnResultAnnounced;
     public UnityEvent onPlayerPoint;
@@ -289,11 +301,11 @@ public class RefereeController : MonoBehaviour
 
     /// <summary>A stop that isn't a point (out-of-bounds warning / deduction): same flow as a point -
     /// short wait, Yame, reset, then the call text - but nobody scores. Used by OutOfBounds.</summary>
-    public void CallPenalty(string text, string animatorTrigger)
+    public void CallPenalty(string text, string animatorTrigger, string sfxId = null)
     {
         if (!fightStarted) return;
         if (pointSequenceRoutine != null) StopCoroutine(pointSequenceRoutine);
-        pointSequenceRoutine = StartCoroutine(PostPointSequence(text ?? "", animatorTrigger));
+        pointSequenceRoutine = StartCoroutine(PostPointSequence(text ?? "", animatorTrigger, sfxId));
     }
 
     private void CallPoint(string template, int points, string trigger)
@@ -304,7 +316,7 @@ public class RefereeController : MonoBehaviour
     }
 
     // hit anims play -> "Yame!" -> reset fires -> "Point!" call (while fighters walk back).
-    private IEnumerator PostPointSequence(string pointText, string pointTrigger)
+    private IEnumerator PostPointSequence(string pointText, string pointTrigger, string callSfxId = null)
     {
         yield return new WaitForSecondsRealtime(hitAnimDelay);
 
@@ -323,8 +335,7 @@ public class RefereeController : MonoBehaviour
         // The referee's point / warning animation starts only once the fighters are back in place.
         if (callAnimDelayAfterReset > 0f) yield return new WaitForSecondsRealtime(callAnimDelayAfterReset);
         Trigger(refereeAnimator, pointTrigger);
-        if (!string.IsNullOrEmpty(pointSfxId) && AudioManager.instance != null)
-            AudioManager.instance.PlaySFX(pointSfxId);
+        Sfx.Play(string.IsNullOrEmpty(callSfxId) ? pointSfxId : callSfxId);
         pointSequenceRoutine = null;
     }
 
@@ -349,11 +360,11 @@ public class RefereeController : MonoBehaviour
     /// <summary>True while a stop call (point / penalty) is still playing out: Yame, reset, the call.</summary>
     public bool IsCalling => pointSequenceRoutine != null;
 
-    private void OnTimeUp() => ShowTimed(timeUpText, 3f);
+    private void OnTimeUp() { ShowTimed(timeUpText, 3f); Sfx.Play(timeUpSfxId); }
 
     // Level at time-up: stop, reset, call it - same flow as a point (MatchTimer resumes play afterwards).
-    private void OnExtraTime() => CallPenalty(extraTimeText, tieCallTrigger);
-    private void OnSuddenDeath() => CallPenalty(suddenDeathText, tieCallTrigger);
+    private void OnExtraTime() => CallPenalty(extraTimeText, string.IsNullOrEmpty(extraTimeTrigger) ? tieCallTrigger : extraTimeTrigger, extraTimeSfxId);
+    private void OnSuddenDeath() => CallPenalty(suddenDeathText, string.IsNullOrEmpty(suddenDeathTrigger) ? tieCallTrigger : suddenDeathTrigger, suddenDeathSfxId);
 
     [Header("Result")]
     [Tooltip("Time-up: real seconds the fighters get to walk back to their start spots (GameManager Reset Duration + a little) " +
@@ -442,10 +453,14 @@ public class RefereeController : MonoBehaviour
         StartCoroutine(RunSequence());
     }
 
+    /// <summary>While true the opening ritual waits before it starts (set by the tutorial fight while its tutorial pages are open).</summary>
+    public static bool HoldIntro;
+
     private IEnumerator RunSequence()
     {
         IsRunning = true;
         SetText("");
+        while (HoldIntro) yield return null;
 
         if (!skipIntro)
         {
@@ -494,8 +509,8 @@ public class RefereeController : MonoBehaviour
         }
         if (!deferToInput) FireStepTriggers(step);
 
-        if (!string.IsNullOrEmpty(step.sfxId) && AudioManager.instance != null)
-            AudioManager.instance.PlaySFX(step.sfxId);
+        // The step's sound (the referee's call, e.g. "Bow!") always plays when the step starts, before any button press.
+        Sfx.Play(step.sfxId);
 
         step.onStepStart?.Invoke();
 

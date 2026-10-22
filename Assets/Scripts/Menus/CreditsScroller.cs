@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -31,15 +30,14 @@ public class CreditsScroller : MonoBehaviour
     [SerializeField] private float musicFadeIn = 2f;
     [SerializeField] private float musicFadeOut = 2f;
 
-    [Header("Skip")]
-    [Tooltip("A button that goes straight to the main menu. Optional.")]
-    [SerializeField] private Button skipButton;
-
     [Header("After the credits")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
-    [Tooltip("Escape skips the credits (after this many seconds, so a stray press doesn't).")]
+    [Tooltip("Holding B (gamepad) or pressing Escape skips the credits, but only after this many seconds so a stray press doesn't.")]
     [SerializeField] private float skipAvailableAfter = 2f;
 
+    [Tooltip("Hold B (gamepad) this long to skip.")]
+    [SerializeField] private float holdToSkipDuration = 1f;
+    private float skipHold;
     private bool leaving;
 
     private IEnumerator Start()
@@ -47,16 +45,21 @@ public class CreditsScroller : MonoBehaviour
         // The run is over - clear persistent state now so the menu starts a clean game.
         GameReset.ResetAll();
 
-        if (skipButton != null)
-        {
-            skipButton.onClick.AddListener(Leave);
-            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(skipButton.gameObject);
-        }
-
         if (!string.IsNullOrEmpty(musicId))
         {
-            while (AudioManager.instance == null) yield return null;
-            AudioManager.instance.PlayMusic(musicId, musicFadeIn);
+            float waited = 0f;
+            while (AudioManager.instance == null && waited < 2f) { waited += Time.unscaledDeltaTime; yield return null; }   // never hold the scroll up for music
+            if (AudioManager.instance != null) AudioManager.instance.PlayMusic(musicId, musicFadeIn);
+        }
+
+        if (content != null)
+        {
+            // The scroll maths needs the top of Content to be its reference point, so force top anchors + top pivot
+            // (a middle pivot started it half-way up), then measure its real height.
+            content.anchorMin = new Vector2(content.anchorMin.x, 1f);
+            content.anchorMax = new Vector2(content.anchorMax.x, 1f);
+            content.pivot = new Vector2(content.pivot.x, 1f);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
         }
 
         if (content != null && viewport != null)
@@ -67,6 +70,7 @@ public class CreditsScroller : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(startDelay);
 
+        if (content != null) LayoutRebuilder.ForceRebuildLayoutImmediate(content);   // text blocks in a layout group: measure after layout
         float viewH = viewport != null ? viewport.rect.height : Screen.height;
         float contentH = content != null ? content.rect.height : 0f;
         float startY = content != null ? content.anchoredPosition.y : 0f;
@@ -77,7 +81,16 @@ public class CreditsScroller : MonoBehaviour
         while (!leaving && content != null && scrolled < totalDistance)
         {
             t += Time.unscaledDeltaTime;
-            if (t > skipAvailableAfter && Input.GetKeyDown(KeyCode.Escape)) break;
+            if (t > skipAvailableAfter)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape)) { Leave(); yield break; }
+                if (Input.GetKey(KeyCode.JoystickButton1))
+                {
+                    skipHold += Time.unscaledDeltaTime;
+                    if (skipHold >= holdToSkipDuration) { Leave(); yield break; }
+                }
+                else skipHold = 0f;
+            }
 
             bool fast = Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.JoystickButton0);
             scrolled += scrollSpeed * (fast ? fastForward : 1f) * Time.unscaledDeltaTime;
@@ -96,10 +109,7 @@ public class CreditsScroller : MonoBehaviour
         if (AudioManager.instance != null && !string.IsNullOrEmpty(musicId))
             AudioManager.instance.StopMusic(musicFadeOut);
         if (!Application.CanStreamedLevelBeLoaded(mainMenuSceneName))
-        {
-            Debug.LogError($"[Credits] Scene '{mainMenuSceneName}' can't be loaded - check the name and Build Profiles.");
             return;
-        }
         SceneManager.LoadScene(mainMenuSceneName);
     }
 }

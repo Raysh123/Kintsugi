@@ -57,10 +57,20 @@ public class FightSelectionMenu : MonoBehaviour
     /// resume — there's no separate "closed without fighting" event, closing for any reason
     /// (cancel, or a fight actually starting) just flips this false.</summary>
     public bool IsOpen { get; private set; }
+    [Header("Selection highlight")]
+    [Tooltip("The selected button grows and turns this colour. Added automatically to each button that has no SelectableHighlight of its own.")]
+    [SerializeField] private float highlightScale = 1.2f;
+    [SerializeField] private Color highlightColor = new Color(1f, 0.84f, 0.3f);
+
     private int openedFrame = -1;
 
     private void Start()
     {
+        foreach (var item in options)
+        {
+            if (item.icon == null || item.icon.GetComponent<SelectableHighlight>() != null) continue;
+            item.icon.gameObject.AddComponent<SelectableHighlight>().Setup(highlightScale, highlightColor);
+        }
         if (menuPanel != null) menuPanel.SetActive(false);
     }
 

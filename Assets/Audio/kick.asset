@@ -15,7 +15,10 @@ MonoBehaviour:
   id: kick
   category: 0
   clips:
-  - {fileID: 8300000, guid: 405c091bc094cf240967c6a5aebf05be, type: 3}
+  - {fileID: 8300000, guid: 48f03940d20ab104db8ed01ce4f537e6, type: 3}
+  - {fileID: 8300000, guid: a9474de8010c23748989f0700410eed2, type: 3}
+  - {fileID: 8300000, guid: 0ab8c75a5ebbc0e4f854eb5263f82bb9, type: 3}
+  - {fileID: 8300000, guid: d42cf5d0929c78f429af3bac3185e5be, type: 3}
   volume: 1
   pitch: 1
   pitchVariance: 0

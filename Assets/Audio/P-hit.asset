@@ -15,8 +15,15 @@ MonoBehaviour:
   id: phit
   category: 0
   clips:
-  - {fileID: 8300000, guid: bb15d83d74a2ce142ba6c9f692235db1, type: 3}
-  volume: 0.752
+  - {fileID: 8300000, guid: e135a149e2209a9418051cf1583120e3, type: 3}
+  - {fileID: 8300000, guid: 5fd409bac1be0b740b0df8db415365a6, type: 3}
+  - {fileID: 8300000, guid: 983ca22eaa5624741823235e13d97f90, type: 3}
+  - {fileID: 8300000, guid: b275c8fe5eaed2a448b4236b068e5686, type: 3}
+  - {fileID: 8300000, guid: 83d6fc1d92617bb4bb08c30c031a2a15, type: 3}
+  - {fileID: 8300000, guid: 163c89d0a570bb04197f7e561b5139c4, type: 3}
+  - {fileID: 8300000, guid: 8a391307dbe80df4b8d8dfcaa735f613, type: 3}
+  - {fileID: 8300000, guid: e318298ed4983b04aaa51d69917a4268, type: 3}
+  volume: 1
   pitch: 1
   pitchVariance: 0
   loop: 0

@@ -2,8 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Put on any UI object (an icon, the calendar, a HUD group) to fade it out while the player is busy with an activity
-/// (recovery activities, cat play, sleeping - anything that sets the player's 'interacting' flag) and fade it back in
-/// afterwards. It uses a CanvasGroup (added automatically if missing), so the object itself stays active.
+/// (recovery activities, sleeping - anything that sets the player's 'interacting' flag - plus cat play and the park run)
+/// and fade it back in afterwards. It uses a CanvasGroup (added automatically if missing), so the object itself stays active.
 /// </summary>
 public class HideDuringActivity : MonoBehaviour
 {
@@ -26,7 +26,8 @@ public class HideDuringActivity : MonoBehaviour
     {
         if (player == null) player = FindFirstObjectByType<PlayerMovement>();
 
-        bool hide = (hideDuringActivity && player != null && player.interacting) ||
+        bool hide = (hideDuringActivity && ((player != null && player.interacting) ||
+                                            CatPlayInteraction.SessionInProgress || ParkActivity.RunInProgress)) ||
                     (hideDuringDialogue && ActiveDialogueTracker.AnyActive);
 
         float target = hide ? 0f : 1f;

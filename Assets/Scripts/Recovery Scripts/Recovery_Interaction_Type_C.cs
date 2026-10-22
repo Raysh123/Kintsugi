@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using UnityEngine;
+using TMPro;
 
 /// <summary>
 /// Recovery Interaction Type C � same pattern as RecoveryInteraction and
@@ -53,6 +54,12 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
              "and stops during the interaction and once a once-a-day activity has been done (back on the next day). " +
              "Optional.")]
     [SerializeField] private GameObject interactGlow;
+
+    [Tooltip("Optional text (child of the prompt) that shows what this activity gives and costs. Filled from this activity's own values.")]
+    [SerializeField] private TMP_Text stakesText;
+
+    [Header("Sounds (this activity only - blank / empty falls back to the Soundscape's overrides and defaults)")]
+    [SerializeField] private RecoverySoundscape.ActivitySounds sounds = new RecoverySoundscape.ActivitySounds { startChime = "", win = "", lose = "", injured = "" };
 
     [Tooltip("A prompt (e.g. \"E / A: Interact\") shown while the player is in range and the activity is available. " +
              "Hidden during the activity and once a once-a-day activity has been done. Keep it INACTIVE in the scene. Optional.")]
@@ -110,12 +117,26 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
 
     void Start()
     {
+        RecoverySoundscape.SetOwnSounds(activity, sounds);
+        ActivityStakes.Fill(stakesText, winHealth, winMotivation, loseHealth, loseMotivation, injuryHealth, injuryMotivation, activity != null ? activity.quadrantTicks : 0);
         if (activityModel != null) activityModel.SetActive(false);
         if (meter != null) meter.gameObject.SetActive(false);
     }
 
+    private void OnEnable()
+    {
+        if (meter != null) meter.OnBeatResolved += HandleBeatResolved;
+    }
+
+    private void HandleBeatResolved(bool hit)
+    {
+        if (hit) RecoverySoundscape.ActivityAction(activity);
+        else RecoverySoundscape.ActivityMiss(activity);
+    }
+
     private void OnDisable()
     {
+        if (meter != null) meter.OnBeatResolved -= HandleBeatResolved;
         SetGlow(false);
         SetPrompt(false);
         glowInitialised = false;
@@ -229,9 +250,23 @@ public class Recovery_Interaction_Type_C : MonoBehaviour
         meterActive = false;
     }
 
+    private bool promptMine;
+
     private void SetPrompt(bool on)
     {
-        if (interactPrompt != null && interactPrompt.activeSelf != on) interactPrompt.SetActive(on);
+        // The prompt object / text may be shared with other interactions, so only this script's own show is undone by it.
+        if (on)
+        {
+            if (!promptMine) { promptMine = true; ActivityStakes.Fill(stakesText, winHealth, winMotivation, loseHealth, loseMotivation, injuryHealth, injuryMotivation, activity != null ? activity.quadrantTicks : 0); }
+            if (interactPrompt != null && !interactPrompt.activeSelf) interactPrompt.SetActive(true);
+            if (stakesText != null && !stakesText.gameObject.activeSelf) stakesText.gameObject.SetActive(true);
+        }
+        else if (promptMine)
+        {
+            promptMine = false;
+            if (interactPrompt != null && interactPrompt.activeSelf) interactPrompt.SetActive(false);
+            if (stakesText != null) stakesText.gameObject.SetActive(false);
+        }
     }
 
     private bool glowInitialised;

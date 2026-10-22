@@ -101,18 +101,6 @@ public class InjuryMeter : MonoBehaviour
         }
 
         bool paused = matchTimer != null && matchTimer.matchStopped;
-        if (debugLog && injuryMeterValue.value > 0f)
-        {
-            statusLogTimer -= Time.unscaledDeltaTime;
-            if (statusLogTimer <= 0f)
-            {
-                statusLogTimer = 2f;
-                Debug.Log($"[Injury] status: value={injuryMeterValue.value:F3} (slider max={injuryMeterValue.maxValue}, " +
-                          $"whole numbers={injuryMeterValue.wholeNumbers}) rate={injuryMeterDepleteRate}/s " +
-                          $"matchStopped={(matchTimer != null ? matchTimer.matchStopped.ToString() : "no timer assigned")} " +
-                          $"-> {(paused ? "NOT draining (match stopped)" : (injuryMeterDepleteRate <= 0f ? "NOT draining (rate is 0)" : "draining"))}");
-            }
-        }
         if (!paused && injuryMeterDepleteRate > 0f)
             injuryMeterValue.value = Mathf.Max(0f, injuryMeterValue.value - injuryMeterDepleteRate * Time.deltaTime);
     }
@@ -135,8 +123,6 @@ public class InjuryMeter : MonoBehaviour
     {
         if (injuryMeterValue == null || ending) return;
         injuryMeterValue.value = Mathf.Clamp01(injuryMeterValue.value + amount);
-        if (debugLog)
-            Debug.Log($"[Injury] {what} +{amount * 100f:F1}% (HP {CurrentHealth():F0}) -> {injuryMeterValue.value * 100f:F0}%");
     }
 
     /// <summary>Call when the player starts an attack.</summary>
@@ -197,13 +183,10 @@ public class InjuryMeter : MonoBehaviour
             StopCoroutine(pendingBlockRoutine);
             pendingBlockRoutine = null;
             pendingBlockFill = 0f;
-            if (debugLog) Debug.Log("[Injury] perfect block - block cost cancelled before it filled.");
             return;
         }
         if (lastBlockFill <= 0f || injuryMeterValue == null || ending) return;
         injuryMeterValue.value = Mathf.Clamp01(injuryMeterValue.value - lastBlockFill);
-        if (debugLog)
-            Debug.Log($"[Injury] perfect block refund -{lastBlockFill * 100f:F1}% -> {injuryMeterValue.value * 100f:F0}%");
         lastBlockFill = 0f;
     }
 
@@ -211,17 +194,14 @@ public class InjuryMeter : MonoBehaviour
     {
         FightSessionManager.MarkInjured();
 
-        if (debugLog)
-            Debug.Log($"[Injury] Meter full - ending the fight. HP {CurrentHealth():F0} -> {Mathf.Max(0f, CurrentHealth() - healthLossOnInjury):F0}.");
 
         if (matchTimer != null) matchTimer.matchStopped = true;
         onInjuryKnockout?.Invoke();
         OnInjured?.Invoke();
 
+        FightStats.healthDelta -= healthLossOnInjury;
         if (HealthAndMotivation.instance != null)
             HealthAndMotivation.instance.ModifyHealth(-healthLossOnInjury);
-        else
-            Debug.LogWarning("[Injury] No HealthAndMotivation in the scene - HP was not reduced.");
 
         // Hold the match frozen for the delay (a pending post-point resume must not restart it).
         float t = 0f;

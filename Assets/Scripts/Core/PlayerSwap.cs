@@ -20,6 +20,8 @@ public class PlayerSwap : MonoBehaviour
 {
     /// <summary>True while the swap is playing. Walking, attacking and dodging are locked meanwhile.</summary>
     public static bool Swapping { get; private set; }
+    /// <summary>Time.time when the last swap finished (OutOfBounds uses it to credit a swap that threw the enemy off the mat).</summary>
+    public static float LastSwapEnd { get; private set; } = -999f;
 
     [Header("Trigger")]
     [SerializeField] private bool swapEnabled = true;
@@ -104,19 +106,9 @@ public class PlayerSwap : MonoBehaviour
 
     private void TrySwapButton()
     {
-        if (!CanSwapNow(out string why))
-        {
-            if (logSwap) Debug.Log($"[Swap] Swap button pressed - no swap, because: {why}.");
-            if (logSwap && enemy != null)
-            {
-                enemy.IncomingIsPunch(out string info);
-                Debug.Log($"[Swap] (enemy detail: {info})");
-            }
-            return;
-        }
+        if (!CanSwapNow(out string why)) return;
         // The swap is its own move (no block involved). Its cost is a dodge's injury amount.
         if (InjuryMeter.instance != null) InjuryMeter.instance.AddDodgeInjury();
-        if (logSwap) Debug.Log($"[Swap] SWAP (button). Enemy state={enemy.currentState}, gap={GapToEnemy():F2}.");
         StartCoroutine(SwapRoutine());
     }
     private int freshDodgeFrame = -1;
@@ -136,8 +128,7 @@ public class PlayerSwap : MonoBehaviour
         if (enemy == null && psm != null) enemy = psm.enemy;
         if (enemy == null) enemy = FindFirstObjectByType<EnemyStateMachine>();
         if (matchTimer == null) matchTimer = FindFirstObjectByType<MatchTimer>();
-        if (psm != null) { psm.RegisterSwap(this); if (logSwap) Debug.Log($"[Swap] Ready. Enemy='{(enemy != null ? enemy.name : "NONE")}', player controller='{(pc != null ? pc.name : "NONE")}'."); }
-        else Debug.LogWarning("[Swap] No PlayerStateMachine found - the swap can't work.");
+        if (psm != null) psm.RegisterSwap(this);
     }
 
     private void Update()
@@ -168,7 +159,6 @@ public class PlayerSwap : MonoBehaviour
         else if (Time.time >= pendingUntil)
         {
             pending = false;
-            if (logSwap) Debug.Log("[Swap] No block within the leeway - doing the normal dodge.");
             if (psm != null) psm.BeginDodgeNow();
         }
     }
@@ -186,7 +176,6 @@ public class PlayerSwap : MonoBehaviour
         if (!fresh) return false;                    // a held button, not a new press: normal rules
         if (!CanSwapNow(out string why))             // enemy not close / on cooldown / wrong state: normal dodge
         {
-            if (logSwap) Debug.Log($"[Swap] Dodge pressed - no swap, because: {why}.");
             return false;
         }
 
@@ -238,10 +227,8 @@ public class PlayerSwap : MonoBehaviour
     {
         if (!psm.ConsumeDodgeForSwap())
         {
-            if (logSwap) Debug.Log("[Swap] Dodge cooldown is still running - no swap.");
             return;
         }
-        if (logSwap) Debug.Log($"[Swap] SWAP ({why}). Enemy state={enemy.currentState}, gap={GapToEnemy():F2}.");
         suppressDodgeUntilRelease = true;
         StartCoroutine(SwapRoutine());
     }
@@ -345,39 +332,20 @@ public class PlayerSwap : MonoBehaviour
         enemy.EndSwap(enemyRecoveryAfterSwap);
 
         nextSwapTime = Time.time + swapCooldown;
+        LastSwapEnd = Time.time;
         Swapping = false;
     }
 
     private void PlayIfExists(Animator a, string state)
     {
         if (string.IsNullOrEmpty(state)) return;
-        if (a == null) { if (logSwap) Debug.LogWarning($"[Swap] Can't play '{state}': that character's Animator is null."); return; }
+        if (a == null) return;
         int hash = Animator.StringToHash(state);
         // HasState covers top-level states; the full-path attempt covers states inside a sub-state machine.
         bool found = a.HasState(0, hash);
         if (found)
         {
             a.Play(hash, 0, 0f);
-            if (logSwap) { Debug.Log($"[Swap] {a.gameObject.name}: playing '{state}'."); StartCoroutine(VerifyPlaying(a, state, hash)); }
         }
-        else if (logSwap) Debug.LogWarning($"[Swap] {a.gameObject.name}: Animator has no state named '{state}' on layer 0 - skipped. " +
-                                            "(Check the exact state name, and that it's on the Animator Controller this object actually uses.)");
-    }
-
-    // Diagnostic: two frames after Play(), report what the Animator is REALLY doing.
-    private IEnumerator VerifyPlaying(Animator a, string state, int hash)
-    {
-        yield return null;
-        yield return null;
-        if (a == null) yield break;
-        var st = a.GetCurrentAnimatorStateInfo(0);
-        bool inState = st.shortNameHash == hash || st.fullPathHash == hash || st.IsName(state);
-        string clip = "none";
-        var infos = a.GetCurrentAnimatorClipInfo(0);
-        if (infos.Length > 0) clip = infos[0].clip != null ? infos[0].clip.name + $" ({infos[0].clip.length:F2}s)" : "null clip";
-        Debug.Log($"[Swap] CHECK {a.gameObject.name} '{state}': inState={inState}, inTransition={a.IsInTransition(0)}, " +
-                  $"normalizedTime={st.normalizedTime:F2}, clip={clip}, animator.enabled={a.enabled}, speed={a.speed:F2}, " +
-                  $"controller={(a.runtimeAnimatorController != null ? a.runtimeAnimatorController.name : "NONE")}, " +
-                  $"applyRootMotion={a.applyRootMotion}, avatarValid={(a.avatar != null && a.avatar.isValid)}.");
     }
 }

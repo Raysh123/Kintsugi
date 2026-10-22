@@ -20,56 +20,30 @@ MonoBehaviour:
     dayNumber: 0
     lines:
     - speakerIndex: 0
-      subtitle: Uhm Hello!
+      subtitle: "Hello... Sensei Yang? Sami sent me. I\u2019d like to join the dojo.
+        I recently hurt my back."
       audioClip: {fileID: 0}
       waitForInput: 0
     - speakerIndex: 1
-      subtitle: Ah, Sami told me you would be coming in today. I am Yang, youmay
-        call me Sensei.
+      subtitle: "I know about your injury. Herniated discs, right? I had the same
+        a few years back. You\u2019ve done well to get back on your feet."
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: Sensei Yang. I would like to join this dojo. I uhm... recently suffered
-        a back..
+      subtitle: Sami said you could help me fight in tournaments again.
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: 'I know about your injury. Herniated discs in the lower vertibrae
-        right. I had that too a few years back. '
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: I must say you have done well getting back on your feet. Good work
-        on getting through your physio.
+      subtitle: "You\u2019re not ready for tournaments. But if you want to train
+        and heal, you\u2019re welcome here."
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: Thank you Sensei. Sami told me you could help me get back to fighting
-        tournaments.
+      subtitle: But Sensei, I want to fight!
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: You are not ready for tournaments, so I can not allow you to join
-        them,, but if you wish to train, heal and strengthen yourself, You're welcome
-        to join.
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: But Sensei, I want to fight
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: That will come a little later, today, show me where you are at physically,
-        train with me for the day, then we can go on to sparring and beating each
-        other up.
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: But..
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: No more arguments. Come! Join our training. Let me see what level
-        you are at!
+      subtitle: "That comes later. Today, show me where you are, then we\u2019ll
+        spar. Come, join our training!"
       audioClip: {fileID: 0}
       waitForInput: 1

@@ -84,9 +84,11 @@ public class BedInteraction : MonoBehaviour
         if (fadeImage != null) SetFadeAlpha(0f);
     }
 
+    private bool promptMine;
+
     private void OnDisable()
     {
-        if (interactPrompt != null) interactPrompt.SetActive(false);
+        SharedPrompt.Set(ref promptMine, interactPrompt, false);
     }
 
     /// <summary>True when pressing the sleep button right now would actually put the player to sleep.</summary>
@@ -102,8 +104,7 @@ public class BedInteraction : MonoBehaviour
     {
         if (interactPrompt != null)
         {
-            bool show = CanSleepNow();
-            if (interactPrompt.activeSelf != show) interactPrompt.SetActive(show);
+            SharedPrompt.Set(ref promptMine, interactPrompt, CanSleepNow());
         }
 
         if (!canInteract || isSleeping || player == null || player.interacting) return;
@@ -112,7 +113,7 @@ public class BedInteraction : MonoBehaviour
         if (StoryManager.instance != null && StoryManager.instance.CurrentPhase == StoryPhase.BedRest)
             return;
 
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetButtonDown("Cancel"))
+        if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetButtonDown("Submit"))
         {
             if (CalendarManager.instance == null || CalendarManager.instance.CurrentPhase != DayPhase.Night)
                 return;
@@ -159,6 +160,27 @@ public class BedInteraction : MonoBehaviour
         isSleeping = false;
 
         RaiseWakeUp();
+        StartCoroutine(FreePlayerAfterWake());
+    }
+
+    /// <summary>Safety net: waking up must never leave the player stuck. Once the morning's dialogue(s) are over,
+    /// every lock is released (except during BedRest, which owns its own locks).</summary>
+    private IEnumerator FreePlayerAfterWake()
+    {
+        yield return null;
+        float guard = 0f;
+        while (guard < 60f)
+        {
+            while (ActiveDialogueTracker.AnyActive) { guard += Time.unscaledDeltaTime; yield return null; }
+            yield return new WaitForSecondsRealtime(1f);
+            if (!ActiveDialogueTracker.AnyActive) break;
+        }
+
+        if (player == null || isSleeping) yield break;
+        if (StoryManager.instance != null && StoryManager.instance.CurrentPhase == StoryPhase.BedRest) yield break;
+        player.movementLocked = false;
+        player.cutsceneLocked = false;
+        player.interacting = false;
     }
 
     private IEnumerator Fade(float fromAlpha, float toAlpha)

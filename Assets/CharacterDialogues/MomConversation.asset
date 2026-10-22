@@ -19,64 +19,37 @@ MonoBehaviour:
     anyDay: 1
     dayNumber: 0
     lines:
+    - speakerIndex: 1
+      subtitle: "Oh, sweetie... it\u2019s so good to see you up and about again.
+        I was so scared I\u2019d lose you to that bed."
+      audioClip: {fileID: 0}
+      waitForInput: 1
     - speakerIndex: 0
-      subtitle: 'Mom?
-
-'
+      subtitle: "I know, Mom. I\u2019m... I\u2019m better now. Listen, Sami told
+        me about a new dojo, and I-"
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: Oh hi Sweety. You know its so nice to see you up and about again.
-        I was really worried for a bit.
+      subtitle: "No! No more fighting, no more karate. You have a whole life ahead
+        of you. I can\u2019t watch you break your back again!"
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: Yeah, its nice to be off that bed. So listen, Sami told me about
-        this new Dojo and..
+      subtitle: "Mom, please! It\u2019s the one thing I was ever good at. Without
+        it I\u2019m nothing. I have to prove I\u2019m not beaten. I\u2019ll be careful,
+        I swear. I\u2019ll learn to fight differently. Please, just let me try!"
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: No! No more fighting, no more Karate. You have a whole life ahead
-        of you. Take care of your back, dont find ways to break it again
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: 'That''s not fair Mom! I need to do this. '
+      subtitle: ...
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 1
-      subtitle: But Dastaan..
+      subtitle: "Alright. Fine. But promise me you\u2019ll be safe. I don\u2019t
+        think I could survive another call from the hospital."
       audioClip: {fileID: 0}
       waitForInput: 1
     - speakerIndex: 0
-      subtitle: Mom please. This was one thing  I was good at, And I need this. I
-        need to get better and prove to myself that I cant be beaten.
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: .....
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: I promice I'll be careful. Sami said I need to learn to fight again
-        differently, and I agree.
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: ....
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: 'Oh and, THis new sensei, he said he focuses on safety first, and
-        I wont get into fights until he says I''m ready, I promise. '
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 1
-      subtitle: Oh alright, fine. Just promise me youll be safe. I dont know if 
-        Icould handle another call from the hospital like that
-      audioClip: {fileID: 0}
-      waitForInput: 1
-    - speakerIndex: 0
-      subtitle: Thanks Mom. I promise I'll be careful.
+      subtitle: "I promise, Mom. Thank you. I won\u2019t let you down."
       audioClip: {fileID: 0}
       waitForInput: 1

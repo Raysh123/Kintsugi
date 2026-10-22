@@ -60,6 +60,7 @@ public class TournamentCountdownUI : MonoBehaviour
         if (phase != DayPhase.Morning) return;
         if (StoryManager.instance == null || StoryManager.instance.CurrentPhase != StoryPhase.TournamentPrep) return;
         if (StoryManager.instance.BothPartnersBeaten) return;   // the game is ending
+        if (!StoryManager.instance.TournamentDateSet) return;   // not set until the sensei talk
         if (running != null) StopCoroutine(running);
         running = StartCoroutine(Show());
     }
@@ -80,7 +81,6 @@ public class TournamentCountdownUI : MonoBehaviour
         }
 
         if (text != null) text.text = days == 0 ? today : days == 1 ? oneDay : string.Format(manyDays, days);
-        Debug.Log($"[Countdown] Morning banner: {days} day(s) left.");
         if (!string.IsNullOrEmpty(sfxId)) Sfx.Play(sfxId);
 
         yield return FadeTo(1f, fadeIn);

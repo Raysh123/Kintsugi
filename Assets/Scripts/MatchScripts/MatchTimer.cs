@@ -64,6 +64,7 @@ public class MatchTimer : MonoBehaviour
         if (matchStopped || matchTimer <= 0f) return;
 
         matchTimer -= Time.deltaTime;
+        FightStats.time += Time.deltaTime;
 
         if (matchTimer <= 0f)
         {
@@ -156,10 +157,14 @@ public class MatchTimer : MonoBehaviour
         //hitPauseRoutine = StartCoroutine(ResumeAfterHit());
     }
 
+    /// <summary>While true, the automatic restart after a point / call waits (Hajime is not said). Set and cleared by other scripts.</summary>
+    public bool HoldResume { get; set; }
+
     private IEnumerator ResumeAfterHit()
     {
         // Wait using real-world time
         yield return new WaitForSecondsRealtime(hitPauseDuration);
+        while (HoldResume) yield return null;   // something (e.g. the tutorial taunt) wants the pause to last longer
 
         hitPauseRoutine = null;
 

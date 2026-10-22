@@ -55,6 +55,11 @@ public class ComicCutscene : MonoBehaviour
              "bring it back afterwards.")]
     [SerializeField] private bool silenceAmbience = true;
 
+    [Tooltip("SoundLibrary id played when moving to the next page. Blank = none.")]
+    [SerializeField] private string nextPageSoundId;
+    [Tooltip("Played when going back a page. Blank = use the next-page sound.")]
+    [SerializeField] private string prevPageSoundId;
+
     [Header("Movement")]
     [SerializeField] private float moveDuration = 0.3f;
 
@@ -98,10 +103,6 @@ public class ComicCutscene : MonoBehaviour
         // is unassigned (e.g. a reference lost when this object was moved/duplicated into a
         // new scene), everything below still "runs" (Play() gets called, the coroutine
         // starts, logs say it's playing) but nothing ever appears on screen, silently.
-        if (stripContainer == null)
-            Debug.LogWarning("[Comic] Play() called but Strip Container is not assigned - nothing will show.");
-        if (panels == null || panels.Count == 0)
-            Debug.LogWarning("[Comic] Play() called but Panels list is empty - nothing will show.");
 
         StartCoroutine(RunCutscene());
     }
@@ -118,7 +119,6 @@ public class ComicCutscene : MonoBehaviour
                 AudioManager.instance.PlayMusic(musicId, musicFadeIn);
                 musicStartedByMe = true;
             }
-            else Debug.LogWarning("[Comic] Music Id set but there's no AudioManager in the scene.");
         }
 
         if (stripContainer != null)
@@ -193,10 +193,14 @@ public class ComicCutscene : MonoBehaviour
                         finished = true; // moved past the last panel - done
                     }
                     else
+                    {
+                        Sfx.Play(nextPageSoundId);
                         RevealAndFocus(currentIndex + 1);
+                    }
                 }
                 else if (currentIndex > 0)
                 {
+                    Sfx.Play(string.IsNullOrEmpty(prevPageSoundId) ? nextPageSoundId : prevPageSoundId);
                     RevealAndFocus(currentIndex - 1);
                 }
             }
@@ -263,8 +267,6 @@ public class ComicCutscene : MonoBehaviour
     {
         if (stripContainer == null || target == null)
         {
-            Debug.LogWarning($"[Comic] MoveStripToCenter aborted — stripContainer null: " +
-                              $"{stripContainer == null}, target null: {target == null}");
             yield break;
         }
 

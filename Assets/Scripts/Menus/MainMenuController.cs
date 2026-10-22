@@ -8,8 +8,9 @@ using UnityEngine.UI;
 /// <summary>
 /// The main menu scene, in three stages:
 ///
-///   1. PRESS START panel: shown first, the logo animation plays on it, the prompt pulses. Any button / key starts.
-///   2. It fades out and the MENU panel fades in (Play, Options, Credits, Quit).
+///   1. The LOGO fades in (solid black), then the PRESS START prompt starts pulsing. Any button / key starts.
+///   2. The logo shrinks to half size, moves to Y 97 and turns a faint yellow (10% opacity) while the PRESS START panel
+///      fades out and the MENU panel fades in; the menu's buttons work straight away (Play, Options, Credits, Quit).
 ///   3. Pressing a button plays that button's own animation on the character. Its Hit Delay seconds later (default 0.4)
 ///      the button jerks / wobbles as if it was kicked, and its After Hit Delay seconds after that (0.4) the choice
 ///      happens. Both times are set per button:
@@ -42,19 +43,35 @@ public class MainMenuController : MonoBehaviour
         public float afterHitDelay = 0.4f;
     }
 
-    [Header("1. Press Start panel")]
-    [Tooltip("The first screen: logo + 'PRESS START'. Switched on at the start, faded out when the player presses start.")]
+    [Header("1. Logo + Press Start")]
+    [Tooltip("The logo (an Image or a TMP text). Put it OUTSIDE the Press Start panel and the Menu panel - it stays on screen " +
+             "after start is pressed. It fades in black, then shrinks into a faint yellow mark behind the menu.")]
+    [SerializeField] private Graphic logo;
+    [SerializeField] private float logoFadeInTime = 1.5f;
+    [Tooltip("Seconds of black before the logo starts to fade in.")]
+    [SerializeField] private float logoStartDelay = 0.4f;
+    [Header("   After start is pressed (the logo becomes a watermark)")]
+    [SerializeField] private float logoEndScale = 0.5f;
+    [Tooltip("Anchored Y position the logo moves to.")]
+    [SerializeField] private float logoEndY = 97f;
+    [Range(0f, 1f)][SerializeField] private float logoEndOpacity = 0.1f;
+    [Tooltip("Colour the logo fades in with on the press-start screen.")]
+    [SerializeField] private Color logoStartColor = Color.white;
+    [SerializeField] private Color logoEndColor = new Color(1f, 0.85f, 0.2f);
+    [Tooltip("Seconds the logo takes to settle into that look (it happens together with the panel fades).")]
+    [SerializeField] private float logoSettleTime = 0.5f;
+
+    [Header("   Press Start panel")]
+    [Tooltip("The PRESS START prompt's panel (the prompt, no logo). Faded out when the player presses start.")]
     [SerializeField] private GameObject pressStartPanel;
-    [Tooltip("Animator that animates the logo (on the logo or the panel). Optional.")]
-    [SerializeField] private Animator logoAnimator;
-    [Tooltip("Logo state to play when the scene opens. Blank = whatever the Animator starts in.")]
-    [SerializeField] private string logoState = "";
-    [Tooltip("Optional: the 'PRESS START' text / group. It pulses while waiting.")]
+    [Tooltip("Optional: the 'PRESS START' text / group. Hidden until the logo has faded in, then it pulses.")]
     [SerializeField] private CanvasGroup startPrompt;
+    [Tooltip("Anything else belonging to the start screen that sits OUTSIDE the Press Start panel (e.g. the prompt icon). Switched off when start is pressed.")]
+    [SerializeField] private GameObject[] hideOnStart;
     [SerializeField] private float promptPulseSpeed = 1.1f;
     [SerializeField] private float startFadeTime = 0.5f;
-    [Tooltip("Seconds before a press is accepted, so the logo animation gets to start.")]
-    [SerializeField] private float startInputDelay = 0.6f;
+    [Tooltip("Seconds after the prompt starts pulsing before a press is accepted.")]
+    [SerializeField] private float startInputDelay = 0.3f;
     [Tooltip("SoundLibrary id played when start is pressed. Blank = none.")]
     [SerializeField] private string startSfxId;
 
@@ -160,11 +177,17 @@ public class MainMenuController : MonoBehaviour
         else
         {
             started = true;
-            yield return ShowMenu();
+            OpenMenu();
         }
 
-        if (logoAnimator != null && !string.IsNullOrEmpty(logoState))
-            logoAnimator.Play(logoState, 0, 0f);
+        // the logo starts invisible and solid black
+        if (logo != null)
+        {
+            Color black = logoStartColor; black.a = 0f;
+            logo.color = black;
+        }
+        if (startPrompt != null) startPrompt.alpha = 0f;
+        if (pressStartPanel == null && logo != null) StartCoroutine(LogoToWatermark());   // no start screen: straight to the watermark look
 
         if (!string.IsNullOrEmpty(musicId))
         {
@@ -178,6 +201,23 @@ public class MainMenuController : MonoBehaviour
     // ------------------------------------------------------------ 1 -> 2
     private IEnumerator WaitForStart()
     {
+        // 1) the logo fades in, black
+        if (logo != null)
+        {
+            if (logoStartDelay > 0f) yield return new WaitForSecondsRealtime(logoStartDelay);
+            yield return null;
+            float f = 0f;
+            while (f < logoFadeInTime)
+            {
+                f += Mathf.Min(Time.unscaledDeltaTime, 0.05f);   // a loading hitch can't swallow the fade in one frame
+                Color col = logoStartColor; col.a = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(f / Mathf.Max(0.01f, logoFadeInTime)));
+                logo.color = col;
+                yield return null;
+            }
+            logo.color = logoStartColor;
+        }
+
+        // 2) the prompt pulses until something is pressed
         float t = 0f;
         bool pressed = false;
         while (!pressed)
@@ -193,21 +233,60 @@ public class MainMenuController : MonoBehaviour
         if (!string.IsNullOrEmpty(startSfxId) && AudioManager.instance != null)
             AudioManager.instance.PlaySFX(startSfxId);
 
+        // 3) all at once: logo settles into its watermark look, the menu opens, the start panel fades out
+        if (logo != null) StartCoroutine(LogoToWatermark());
+        OpenMenu();
+        if (startPrompt != null) StartCoroutine(Fade(startPrompt, 0f, startFadeTime));
         yield return Fade(pressStartGroup, 0f, startFadeTime);
         pressStartPanel.SetActive(false);
-        yield return ShowMenu();
+        if (startPrompt != null) startPrompt.gameObject.SetActive(false);
+        if (hideOnStart != null)
+            foreach (GameObject g in hideOnStart) if (g != null) g.SetActive(false);
     }
 
-    private IEnumerator ShowMenu()
+    private IEnumerator LogoToWatermark()
     {
-        if (menuPanel == null) yield break;
+        RectTransform rt = logo.rectTransform;
+        Vector3 fromScale = rt.localScale;
+        Vector2 fromPos = rt.anchoredPosition;
+        Color fromColor = logo.color;
+        Vector3 toScale = Vector3.one * logoEndScale;
+        Vector2 toPos = new Vector2(fromPos.x, logoEndY);
+        Color toColor = logoEndColor; toColor.a = logoEndOpacity;
+
+        float t = 0f;
+        while (t < logoSettleTime)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / Mathf.Max(0.01f, logoSettleTime));
+            k = k * k * (3f - 2f * k);
+            rt.localScale = Vector3.Lerp(fromScale, toScale, k);
+            rt.anchoredPosition = Vector2.Lerp(fromPos, toPos, k);
+            logo.color = Color.Lerp(fromColor, toColor, k);
+            yield return null;
+        }
+        rt.localScale = toScale;
+        rt.anchoredPosition = toPos;
+        logo.color = toColor;
+    }
+
+    /// <summary>Opens the menu: it fades in and its buttons work. Controls switch on one frame later, so the press that
+    /// started the game can't also press a button.</summary>
+    private void OpenMenu()
+    {
+        if (menuPanel == null) return;
         menuPanel.SetActive(true);
         if (menuGroup == null) menuGroup = GroupOn(menuPanel);
         menuGroup.alpha = 0f;
-        yield return Fade(menuGroup, 1f, menuFadeTime);
+        StartCoroutine(Fade(menuGroup, 1f, menuFadeTime));
+        StartCoroutine(EnableMenuControls());
+    }
+
+    private IEnumerator EnableMenuControls()
+    {
+        yield return null;
         menuGroup.interactable = true;
         menuGroup.blocksRaycasts = true;
-
         if (firstSelected != null && EventSystem.current != null)
         {
             EventSystem.current.SetSelectedGameObject(null);

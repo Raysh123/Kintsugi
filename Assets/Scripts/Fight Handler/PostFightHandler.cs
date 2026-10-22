@@ -116,7 +116,7 @@ public class PostFightHandler : MonoBehaviour
             CalendarManager.instance.AdvanceTime(fightTimeCostTicks);
     }
 
-    /// <summary>Shows an image panel, then closes it on the interact button (or after the auto-close time).</summary>
+    /// <summary>Shows an image panel, then closes it on the interact button (E / A / B) (or after the auto-close time).</summary>
     private IEnumerator ShowPanel(GameObject panel)
     {
         ActiveDialogueTracker.Begin();
@@ -130,7 +130,7 @@ public class PostFightHandler : MonoBehaviour
             if (panelAutoCloseSeconds > 0f && elapsed >= panelAutoCloseSeconds) break;
 
             if (elapsed >= panelMinTime &&
-                (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetButtonDown("Submit")))
+                (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetKeyDown(KeyCode.JoystickButton1) || Input.GetButtonDown("Submit")))
                 break;
 
             yield return null;

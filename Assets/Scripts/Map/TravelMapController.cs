@@ -81,8 +81,25 @@ public class TravelMapController : MonoBehaviour
         if (locked && isOpen) CloseMap();
     }
 
+    [Header("Selection highlight")]
+    [Tooltip("The selected pin grows by this factor (1 = no growth). Sprite is left to the Button's own Sprite Swap.")]
+    [SerializeField] private float highlightScale = 1.04f;
+    [SerializeField] private float highlightSpeed = 14f;
+    private readonly Dictionary<Transform, Vector3> baseScales = new Dictionary<Transform, Vector3>();
+
     private void Start()
     {
+        foreach (var item in locations)
+        {
+            if (item.icon == null) continue;
+            baseScales[item.icon.transform] = item.icon.transform.localScale;
+            SpriteState ss = item.icon.spriteState;
+            if (ss.highlightedSprite != null)
+            {
+                ss.selectedSprite = ss.highlightedSprite;
+                item.icon.spriteState = ss;
+            }
+        }
         currentLocationIndex = startingLocationIndex;
         RestoreCurrentLocation();
         if (mapPanel != null) mapPanel.SetActive(false);
@@ -149,8 +166,21 @@ public class TravelMapController : MonoBehaviour
         if (player != null) player.movementLocked = false;
     }
 
+    private void UpdatePinScales()
+    {
+        float k = Mathf.Clamp01(highlightSpeed * Time.unscaledDeltaTime);
+        for (int i = 0; i < locations.Count; i++)
+        {
+            Button icon = locations[i].icon;
+            if (icon == null || !baseScales.TryGetValue(icon.transform, out Vector3 baseScale)) continue;
+            bool selected = isOpen && i == currentIndex && icon.interactable;
+            icon.transform.localScale = Vector3.Lerp(icon.transform.localScale, baseScale * (selected ? highlightScale : 1f), k);
+        }
+    }
+
     private void Update()
     {
+        UpdatePinScales();
         if (!isOpen) return;
 
         HandleCycling();
@@ -246,6 +276,11 @@ public class TravelMapController : MonoBehaviour
         return IsUnlocked(location) && IsTimeAllowed(location);
     }
 
+    [Header("Unavailable locations")]
+    [Tooltip("Locked or wrong-time-of-day pins stay on the map, tinted this colour, instead of being hidden.")]
+    [SerializeField] private Color unavailableColor = new Color(0.5f, 0.5f, 0.5f, 1f);
+    private readonly Dictionary<UnityEngine.UI.Graphic, Color> originalIconColors = new Dictionary<UnityEngine.UI.Graphic, Color>();
+
     private void RefreshIconVisibility()
     {
         for (int i = 0; i < locations.Count; i++)
@@ -257,8 +292,18 @@ public class TravelMapController : MonoBehaviour
             // player already is) still shows the pin - just not interactable - rather than
             // hiding it outright, so it doesn't look like it vanished from the map.
             bool unlocked = IsUnlocked(location);
-            location.icon.gameObject.SetActive(unlocked);
+            location.icon.gameObject.SetActive(true);
             location.icon.interactable = unlocked && IsSelectable(i);
+
+            // Pins that aren't available (locked, or the wrong time of day) are greyed out rather than hidden.
+            bool unavailable = !unlocked || !IsTimeAllowed(location);
+            foreach (UnityEngine.UI.Graphic g in location.icon.GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+            {
+                if (!originalIconColors.ContainsKey(g)) originalIconColors[g] = g.color;
+                Color o = originalIconColors[g];
+                float lum = o.grayscale;
+                g.color = unavailable ? new Color(lum, lum, lum, o.a) * unavailableColor : o;
+            }
         }
     }
 

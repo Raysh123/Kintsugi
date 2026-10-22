@@ -15,7 +15,38 @@ MonoBehaviour:
   id: FootStep
   category: 0
   clips:
-  - {fileID: 8300000, guid: 0bc8cae82b5ccd04e883405d3f9bb762, type: 3}
+  - {fileID: 8300000, guid: e903bde759ee9644f894f7783e36d71c, type: 3}
+  - {fileID: 8300000, guid: c142555a48d3e964ebcfa6189c104943, type: 3}
+  - {fileID: 8300000, guid: fecde9b6e7ddf594cb68f77183909d8f, type: 3}
+  - {fileID: 8300000, guid: a82b7851854c72b4ebc5db7c184d5239, type: 3}
+  - {fileID: 8300000, guid: b56c6d5cc61160f4788f1ea85a927815, type: 3}
+  - {fileID: 8300000, guid: ad6bd313e531f09439935b35cec08b72, type: 3}
+  - {fileID: 8300000, guid: 201cd0832bc92824facb6010b5f9ea63, type: 3}
+  - {fileID: 8300000, guid: b7202ab6e4a122a41acecca9dab3229e, type: 3}
+  - {fileID: 8300000, guid: 53f36324e0bf2664484528e4c5457516, type: 3}
+  - {fileID: 8300000, guid: b4db48078a601ff45957ac64189fe1ad, type: 3}
+  - {fileID: 8300000, guid: 98b4b80f1f22c764b8a6f08ed8116589, type: 3}
+  - {fileID: 8300000, guid: cca04a3a55b1ac2488f52d2d0ff0651b, type: 3}
+  - {fileID: 8300000, guid: 70b8f7b707393de4fb5d4152bc97ecd6, type: 3}
+  - {fileID: 8300000, guid: e85e13f0ec97ac64b8d77fe6a746451e, type: 3}
+  - {fileID: 8300000, guid: 8885829e85a10a047995831d6fce665f, type: 3}
+  - {fileID: 8300000, guid: 430c905e51e93ae44a59c58261e568d3, type: 3}
+  - {fileID: 8300000, guid: caceff5ac327d884985d30e71e4f4bb8, type: 3}
+  - {fileID: 8300000, guid: 7e6818820a7813b4d9b1581a4ccb7828, type: 3}
+  - {fileID: 8300000, guid: 17a88629e57eebf43bac807009d32b7f, type: 3}
+  - {fileID: 8300000, guid: b8ca7ceeba6cd3947a27649662321c87, type: 3}
+  - {fileID: 8300000, guid: 673afe1ee96149f4fbde84067aff75fa, type: 3}
+  - {fileID: 8300000, guid: 0d777993a9896304bb7f190aa80ce068, type: 3}
+  - {fileID: 8300000, guid: 9a9ab9dfebe16d445b072bf442f030a7, type: 3}
+  - {fileID: 8300000, guid: b08748e801438df4c8d5cdda9af629c3, type: 3}
+  - {fileID: 8300000, guid: db6b487463e512c49ace16e4b574e9eb, type: 3}
+  - {fileID: 8300000, guid: ded29f526c8201946b280243863cfbab, type: 3}
+  - {fileID: 8300000, guid: 4ccdc6932e3276249a2d5c890044626d, type: 3}
+  - {fileID: 8300000, guid: d4029579e48ac354fb0d2fbac879070a, type: 3}
+  - {fileID: 8300000, guid: c908f7fde3ba7fb4e83ae1ac27d4cdb3, type: 3}
+  - {fileID: 8300000, guid: 95368fa1785e2ce4ab0b482f40419b41, type: 3}
+  - {fileID: 8300000, guid: 0da716aedf7312e4d9e0681e1902a2ec, type: 3}
+  - {fileID: 8300000, guid: 27edbed406f7b824eb46b8a634eda917, type: 3}
   volume: 1
   pitch: 1
   pitchVariance: 0.18

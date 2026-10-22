@@ -36,12 +36,16 @@ public class StoryManager : MonoBehaviour
     [Tooltip("How many days FriendVisit lasts before advancing to NewDojoJoin.")]
     public int daysUntilNewDojo = 1;
 
+    [Tooltip("The tournament is set when the player first talks to the sensei in TournamentPrep: that day + this many days. " +
+             "10 means the next morning's banner reads \"9 days till the tournament\".")]
     public int daysUntilTournament = 10;
 
     // Computed dates - set automatically when the relevant phase is reached
     [Header("Computed Dates (read only - set at runtime)")]
     [SerializeField] private GameDate newDojoDate;
     [SerializeField] private GameDate tournamentDate;
+    [SerializeField] private bool tournamentDateSet;
+    public bool TournamentDateSet => tournamentDateSet;
 
     // Tournament prep tracking
     [Header("Tournament Prep")]
@@ -61,7 +65,6 @@ public class StoryManager : MonoBehaviour
     {
         if (hasHadFirstDojoFight) return false;
         hasHadFirstDojoFight = true;
-        Debug.Log("[Story] First dojo fight - injury meter tutorial should trigger.");
         return true;
     }
 
@@ -87,10 +90,8 @@ public class StoryManager : MonoBehaviour
 
     private void Awake()
     {
-        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (instance != null && instance != this)
         {
-            Debug.Log($"[Story] Duplicate StoryManager in scene '{sceneName}' destroyed - keeping the persistent one (phase {instance.CurrentPhase}).");
             Destroy(gameObject);
             return;
         }
@@ -101,20 +102,12 @@ public class StoryManager : MonoBehaviour
         // startingPhase) is created on the next load, which looks exactly like "phase not saved".
         if (transform.parent != null)
         {
-            Debug.LogWarning($"[Story] StoryManager was parented under '{transform.parent.name}' - un-parenting it so it can persist.");
             transform.SetParent(null);
         }
         DontDestroyOnLoad(gameObject);
 
         CurrentPhase = startingPhase;
         currentPhaseStartDate = storyStartDate;
-        Debug.Log($"[Story] StoryManager created in scene '{sceneName}' - phase set to {CurrentPhase} (Starting Phase).");
-    }
-
-    private void OnDestroy()
-    {
-        if (instance == this)
-            Debug.LogWarning($"[Story] The persistent StoryManager was DESTROYED (phase was {CurrentPhase}).");
     }
 
     private void OnEnable()
@@ -155,11 +148,6 @@ public class StoryManager : MonoBehaviour
             ? CalendarManager.instance.CurrentDate
             : storyStartDate;
 
-        Debug.Log($"[Story] =============================");
-        Debug.Log($"[Story] Phase changed: {old} -> {newPhase}");
-        Debug.Log($"[Story] Date: {(CalendarManager.instance != null ? CalendarManager.instance.CurrentDate.ToString() : "N/A")}");
-        Debug.Log($"[Story] Phase: {(CalendarManager.instance != null ? CalendarManager.instance.CurrentPhase.ToString() : "N/A")}");
-        Debug.Log($"[Story] =============================");
 
         OnPhaseChanged?.Invoke(old, newPhase);
         HandlePhaseStarted(newPhase);
@@ -174,26 +162,19 @@ public class StoryManager : MonoBehaviour
         switch (phase)
         {
             case StoryPhase.BedRest:
-                Debug.Log("[Story] BedRest begun - player confined to bed, physio minigames available.");
                 break;
 
             case StoryPhase.FriendVisit:
                 newDojoDate = today.AddDays(daysUntilNewDojo);
-                Debug.Log($"[Story] FriendVisit - friend has arrived. New dojo unlocks on: {newDojoDate}");
                 break;
 
             case StoryPhase.NewDojoJoin:
-                tournamentDate = today.AddDays(daysUntilTournament);
-                Debug.Log($"[Story] NewDojoJoin - joined new dojo. Tournament date set to: {tournamentDate}");
                 break;
 
             case StoryPhase.TournamentPrep:
-                Debug.Log($"[Story] TournamentPrep - beat both partners before {tournamentDate} to enter tournament.");
-                Debug.Log($"[Story] Partner A beaten: {beatenPartnerA} | Partner B beaten: {beatenPartnerB}");
                 break;
 
             case StoryPhase.TournamentDay:
-                Debug.Log("[Story] TournamentDay - demo ending reached.");
                 HandleTournamentDay();
                 break;
         }
@@ -230,7 +211,7 @@ public class StoryManager : MonoBehaviour
                 break;
 
             case StoryPhase.TournamentPrep:
-                if (newDate >= tournamentDate)
+                if (tournamentDateSet && newDate >= tournamentDate)
                 {
                     if (BothPartnersBeaten)
                         TryAdvanceToPhase(StoryPhase.TournamentDay);
@@ -250,11 +231,9 @@ public class StoryManager : MonoBehaviour
         if (isPartnerA) beatenPartnerA = true;
         else beatenPartnerB = true;
 
-        Debug.Log($"[Story] Partner A: {beatenPartnerA}, Partner B: {beatenPartnerB}");
 
         if (BothPartnersBeaten)
         {
-            Debug.Log("[Story] Both partners beaten - ending the game now (no waiting for the tournament date).");
             TryAdvanceToPhase(StoryPhase.TournamentDay);
         }
     }
@@ -271,16 +250,23 @@ public class StoryManager : MonoBehaviour
 
     private void HandleTournamentDay()
     {
-        Debug.Log("[Story] Tournament day - demo ending reached.");
         // Hook your ending cutscene/scene load here
     }
 
     private void HandleGameOver()
     {
-        Debug.Log("[Story] Game over - tournament deadline passed without beating both partners.");
         OnGameOver?.Invoke();
         // For the demo: hard reset to start of game
         // UnityEngine.SceneManagement.SceneManager.LoadScene(0);
+    }
+
+    /// <summary>Called when the player first talks to the sensei in TournamentPrep. Fixes the tournament date from today; only the first call counts.</summary>
+    public void SetTournamentDateFromToday()
+    {
+        if (tournamentDateSet) return;
+        GameDate today = CalendarManager.instance != null ? CalendarManager.instance.CurrentDate : storyStartDate;
+        tournamentDate = today.AddDays(daysUntilTournament);
+        tournamentDateSet = true;
     }
 
     public GameDate GetTournamentDate() => tournamentDate;

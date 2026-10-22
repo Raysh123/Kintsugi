@@ -48,6 +48,13 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
     [SerializeField] private string firstVisitFlagId = "ParkFriendDialogueShown";
 
     private bool isRunning;
+    /// <summary>True during the park run and bench phase (the HUD-hiding script reads this).</summary>
+    public static bool RunInProgress { get; private set; }
+
+    private void OnDisable()
+    {
+        if (isRunning) RunInProgress = false;
+    }
     private bool runIntroShownThisSession;
 
     private bool HasVisitedBefore =>
@@ -80,6 +87,7 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
     private IEnumerator RunSequence()
     {
         isRunning = true;
+        RunInProgress = true;
 
         // Lock normal movement, hide the regular player mesh - the running/bench
         // models are separate pre-built objects, same pattern as every other activity.
@@ -171,6 +179,7 @@ public class ParkActivity : MonoBehaviour, ITravelArrivalHandler
         if (travelMapController != null) travelMapController.OpenMap();
 
         isRunning = false;
+        RunInProgress = false;
     }
 
     private void TeleportPlayer(Transform destination)

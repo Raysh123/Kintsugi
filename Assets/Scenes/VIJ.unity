@@ -1017,6 +1017,7 @@ MonoBehaviour:
   anticipationHoldSeconds: 0.12
   anticipationHoldLead: 0.05
   anticipationEaseSeconds: 0.14
+  anticipationCreepSpeed: 0.1
   logTelegraph: 1
 --- !u!136 &332933033
 CapsuleCollider:
@@ -5804,7 +5805,11 @@ MonoBehaviour:
   matchStopped: 1
   autoStartOnSceneLoad: 0
   hitPauseDuration: 5
-  debugLog: 0
+  extendOnTie: 1
+  tieExtensionSeconds: 15
+  extraTimeRounds: 1
+  suddenDeathAfterExtra: 1
+  matchScore: {fileID: 0}
   OnTimeUp:
     m_PersistentCalls:
       m_Calls: []
@@ -5838,6 +5843,12 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  OnExtraTime:
+    m_PersistentCalls:
+      m_Calls: []
+  OnSuddenDeath:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!4 &1086321185
 Transform:
   m_ObjectHideFlags: 0
@@ -11231,7 +11242,7 @@ MonoBehaviour:
   turnDuration: 0.6
   idleState: Idle
   bowHoldSeconds: 1
-  startDelay: 0.75
+  startDelay: 1.5
   steps:
   - name: Face referee
     displayText: Face me
@@ -11250,7 +11261,7 @@ MonoBehaviour:
     playerTrigger: 
     opponentTrigger: 
     refereeTrigger: 
-    sfxId: 
+    sfxId: faceme
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11271,7 +11282,7 @@ MonoBehaviour:
     playerTrigger: Bow
     opponentTrigger: Bow
     refereeTrigger: 
-    sfxId: 
+    sfxId: bow
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11292,7 +11303,7 @@ MonoBehaviour:
     playerTrigger: 
     opponentTrigger: 
     refereeTrigger: 
-    sfxId: 
+    sfxId: faceeo
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11313,7 +11324,7 @@ MonoBehaviour:
     playerTrigger: Bow
     opponentTrigger: Bow
     refereeTrigger: Bow2
-    sfxId: 
+    sfxId: bow
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11334,7 +11345,7 @@ MonoBehaviour:
     playerTrigger: 
     opponentTrigger: 
     refereeTrigger: Begin
-    sfxId: 
+    sfxId: hajime
     onStepStart:
       m_PersistentCalls:
         m_Calls: []
@@ -11343,6 +11354,11 @@ MonoBehaviour:
   enemyPointText: Point! Jat (+{points})
   resumeText: Hajime!
   timeUpText: Time!
+  extraTimeText: Tied! Extra time
+  suddenDeathText: Tied! Next point wins
+  tieCallTrigger: 
+  extraTimeTrigger: 
+  suddenDeathTrigger: 
   playerWinText: Dastaan wins!
   playerLoseText: Jat Wins!
   refereeWinTrigger: 
@@ -11355,7 +11371,7 @@ MonoBehaviour:
   yameText: Yame!
   yameDuration: 0.8
   refereeYameTrigger: Yame
-  yameSfxId: 
+  yameSfxId: yame
   onReadyToReset:
     m_PersistentCalls:
       m_Calls:
@@ -11377,8 +11393,13 @@ MonoBehaviour:
   refereeEnemyPoint2Trigger: PointEnemy2
   refereeResumeTrigger: Begin
   callAnimDelayAfterReset: 0.8
-  pointSfxId: 
-  resumeSfxId: 
+  pointSfxId: point
+  resumeSfxId: hajime
+  warningSfxId: warning
+  deductionSfxId: pd
+  timeUpSfxId: time
+  extraTimeSfxId: tx
+  suddenDeathSfxId: sd
   onPlayerPoint:
     m_PersistentCalls:
       m_Calls: []
@@ -11412,6 +11433,7 @@ MonoBehaviour:
   leftEdge: {fileID: 287621449}
   rightEdge: {fileID: 74019216}
   margin: 0
+  swapCreditSeconds: 1.5
   warningsPerDeduction: 2
   pointsDeducted: 1
   warningText: 'Warning! {who} out of bounds '
@@ -12476,6 +12498,7 @@ MonoBehaviour:
   anticipationHoldSeconds: 0.12
   anticipationHoldLead: 0.05
   anticipationEaseSeconds: 0.14
+  anticipationCreepSpeed: 0.1
   logTelegraph: 1
 --- !u!114 &2047168657
 MonoBehaviour:
@@ -12515,6 +12538,7 @@ MonoBehaviour:
   perfectColor: {r: 0.7490196, g: 0.023529412, b: 0, a: 1}
   normalAlpha: 0.55
   perfectAlpha: 1
+  trailMaterial: {fileID: 0}
   useEmission: 1
   emissionProperty: _EmissionColor
   normalEmissionIntensity: 0.8
