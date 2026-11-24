@@ -74,8 +74,8 @@ public class InjuryMeter : MonoBehaviour
     /// <summary>Same moment as onInjuryKnockout, as a C# event. Used by FighterReactions for the injury animations.</summary>
     public event System.Action OnInjured;
 
-    [Header("Debug")]
-    [SerializeField] private bool debugLog = true;
+    //[Header("Debug")]
+    //[SerializeField] private bool debugLog = true;
 
     private float lastBlockFill;
     private float pendingBlockFill;

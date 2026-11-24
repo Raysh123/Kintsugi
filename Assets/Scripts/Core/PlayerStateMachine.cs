@@ -33,48 +33,7 @@ public class PlayerStateMachine : MonoBehaviour
     public bool IsStunned => currentState == PlayerStates.Stun;
     private Coroutine stunRoutine;
 
-    /// <summary>Stuns the player for Stun Duration: cancels whatever he was doing, plays the
-    /// stun animation, locks input and shows the stars. Returns false if he's already stunned.
-    /// Pass his Posture so it can be emptied when the stun ends.</summary>
-    public bool EnterStun(Posture posture)
-    {
-        if (currentState == PlayerStates.Stun) return false;
-
-        StopAllCoroutines();   // attack / block / hurt routines must not carry on during a stun
-        isAttacking = false;
-        SetPlayerHitWindow(false);
-        stunRoutine = StartCoroutine(StunRoutine(posture));
-        return true;
-    }
-
-    private IEnumerator StunRoutine(Posture posture)
-    {
-        ChangeState(PlayerStates.Stun);
-        if (InputHandler.instance != null) InputHandler.instance.SetInput(false);
-        StunHalo.Begin(true, stunDuration);
-
-        if (animator != null)
-        {
-            if (animator.HasState(0, Animator.StringToHash(stunAnim))) animator.PlayBlend(stunAnim);
-        }
-
-        yield return new WaitForSeconds(stunDuration);
-        EndStun(posture);
-    }
-
-    private void EndStun(Posture posture)
-    {
-        stunRoutine = null;
-        if (posture != null) posture.postureSlider.value = postureAfterStun;
-        if (InputHandler.instance != null) InputHandler.instance.SetInput(true);
-        StunHalo.Stop(true);
-        nextAttackTime = Time.time + attackRecovery;
-        if (currentState == PlayerStates.Stun)
-        {
-            ChangeState(PlayerStates.Idle);
-            if (animator != null) animator.PlayBlend("Idle");
-        }
-    }
+    
 
     public enum AttackTypes
     {
@@ -83,31 +42,7 @@ public class PlayerStateMachine : MonoBehaviour
         Kick
     };
 
-    /// <summary>The injury meter filled: cancel whatever the player is doing (attack, block, dodge, hurt, stun) at
-    /// once and play ONE animation. He stays locked in the Injured state - nothing else may change his pose.
-    /// blendTime 0 = snap straight into the animation; &gt;0 = cross-fade from the current pose.</summary>
-    public void EnterInjured(string animName, float blendTime)
-    {
-        bool wasStunned = currentState == PlayerStates.Stun;
-        StopAllCoroutines();   // attack / block / hurt / stun / lunge routines must not carry on
-        stunRoutine = null;
-        hurtRoutine = null;
-        isAttacking = false;
-        SetPlayerHitWindow(false);
-        if (wasStunned) StunHalo.Stop(true);
-        ChangeState(PlayerStates.Injured);   // also resets the walking speed multiplier
-        if (player != null) { player.isHurt = false; player.hurtFace = false; player.hurtBody = false; }
-        if (InputHandler.instance != null) InputHandler.instance.SetInput(false);
-
-        if (animator == null || string.IsNullOrEmpty(animName)) return;
-        int hash = Animator.StringToHash(animName);
-        if (!animator.HasState(0, hash))
-        {
-            return;
-        }
-        if (blendTime > 0f) animator.CrossFadeInFixedTime(hash, blendTime, 0, 0f);
-        else animator.Play(hash, 0, 0f);
-    }
+    
 
     /// <summary>The match is over (win / lose): same as EnterInjured - cancels hurt / attack / stun routines that
     /// would otherwise overwrite the final animation, then plays it and locks the pose.</summary>
@@ -140,52 +75,7 @@ public class PlayerStateMachine : MonoBehaviour
     private Collider[] bodyColliders;
     private DmgDetection[] enemyAttackBoxes;
 
-    /// <summary>World-unit gap between the enemy's striking limb (the hitbox of the strike that is coming - hands for a punch,
-    /// feet for a kick) and the player's body. -1 = nothing is incoming (he is not attacking / no hitbox found).</summary>
-    public float IncomingLimbGap()
-    {
-        if (enemy == null || enemy.currentState != EnemyStateMachine.EnemyState.Attack) return -1f;
-
-        if (enemyAttackBoxes == null || enemyAttackBoxes.Length == 0)
-        {
-            var all = enemy.GetComponentsInChildren<DmgDetection>(true);
-            var keep = new List<DmgDetection>();
-            foreach (var d in all) if (d.CompareTag("ePunch") || d.CompareTag("eKick")) keep.Add(d);
-            enemyAttackBoxes = keep.ToArray();
-        }
-        if (bodyColliders == null || bodyColliders.Length == 0)
-        {
-            Transform root = player != null ? player.transform : transform;
-            var all = root.GetComponentsInChildren<Collider>(true);
-            var keep = new List<Collider>();
-            foreach (var c in all) if (c.CompareTag("pBody")) keep.Add(c);
-            bodyColliders = keep.ToArray();
-        }
-        if (enemyAttackBoxes.Length == 0) return -1f;
-
-        string tag = enemy.HitWindowOpen ? enemy.requiredTag : (enemy.IncomingIsPunch() ? "ePunch" : "eKick");
-
-        float best = float.MaxValue;
-        foreach (var box in enemyAttackBoxes)
-        {
-            if (box == null || !box.CompareTag(tag)) continue;
-            Vector3 p = box.transform.position;
-            float gap;
-            if (bodyColliders.Length > 0)
-            {
-                gap = float.MaxValue;
-                foreach (var bc in bodyColliders)
-                {
-                    if (bc == null || !bc.enabled) continue;
-                    gap = Mathf.Min(gap, Vector3.Distance(p, bc.ClosestPoint(p)));
-                }
-                if (gap == float.MaxValue) gap = Mathf.Abs(p.x - (player != null ? player.transform.position.x : transform.position.x));
-            }
-            else gap = Mathf.Abs(p.x - (player != null ? player.transform.position.x : transform.position.x));
-            best = Mathf.Min(best, gap);
-        }
-        return best == float.MaxValue ? -1f : best;
-    }
+    
     [Header("Player Hit Window (fraction of the attack animation's length)")]
     [Tooltip("Your hitboxes only count a hit between these two points of the animation, the same " +
              "way the enemy's do. Before the start there's wind-up and can't score, so pressing " +
@@ -264,10 +154,16 @@ public class PlayerStateMachine : MonoBehaviour
     private bool punchWasHeld;
     private bool kickWasHeld;
     public List<DmgDetection> pHitBoxes;
-    private bool isAttacking;
+    private bool isAttacking = false;
     private bool perfectBlockUsed;
 
     public EnemyStateMachine enemy;
+    [Header("Dodge")]
+    [Tooltip("Pause (seconds) after a dodge finishes before he can dodge again. Counted from the " +
+             "END of the dash (Dodge Time on PlayerController), so it's a true gap.")]
+    [SerializeField] private float dodgeCooldown = 0.4f;
+    private float nextDodgeTime;
+    private int dodgeGrantedFrame = -1;
     private void Awake()
     {
         if (instance == null)
@@ -285,7 +181,7 @@ public class PlayerStateMachine : MonoBehaviour
     }
     private void Update()
     {
-        if (matchTimer.matchStopped) return;
+        if (matchTimer == null || matchTimer.matchStopped) return;
 
         bool punchPressed = InputHandler.instance.punch && !punchWasHeld;
         bool kickPressed = InputHandler.instance.kick && !kickWasHeld;
@@ -349,7 +245,75 @@ public class PlayerStateMachine : MonoBehaviour
             StartBlock();
         }
     }
+    #region Stun
+    /// <summary>Stuns the player for Stun Duration: cancels whatever he was doing, plays the
+    /// stun animation, locks input and shows the stars. Returns false if he's already stunned.
+    /// Pass his Posture so it can be emptied when the stun ends.</summary>
+    public bool EnterStun(Posture posture)
+    {
+        if (currentState == PlayerStates.Stun) return false;
 
+        StopAllCoroutines();   // attack / block / hurt routines must not carry on during a stun
+        isAttacking = false;
+        SetPlayerHitWindow(false);
+        stunRoutine = StartCoroutine(StunRoutine(posture));
+        return true;
+    }
+
+    private IEnumerator StunRoutine(Posture posture)
+    {
+        ChangeState(PlayerStates.Stun);
+        if (InputHandler.instance != null) InputHandler.instance.SetInput(false);
+        StunHalo.Begin(true, stunDuration);
+
+        if (animator != null)
+        {
+            if (animator.HasState(0, Animator.StringToHash(stunAnim))) animator.PlayBlend(stunAnim);
+        }
+
+        yield return new WaitForSeconds(stunDuration);
+        EndStun(posture);
+    }
+
+    private void EndStun(Posture posture)
+    {
+        stunRoutine = null;
+        if (posture != null) posture.postureSlider.value = postureAfterStun;
+        if (InputHandler.instance != null) InputHandler.instance.SetInput(true);
+        StunHalo.Stop(true);
+        nextAttackTime = Time.time + attackRecovery;
+        if (currentState == PlayerStates.Stun)
+        {
+            ChangeState(PlayerStates.Idle);
+            if (animator != null) animator.PlayBlend("Idle");
+        }
+    }
+    #endregion
+    /// <summary>The injury meter filled: cancel whatever the player is doing (attack, block, dodge, hurt, stun) at
+    /// once and play ONE animation. He stays locked in the Injured state - nothing else may change his pose.
+    /// blendTime 0 = snap straight into the animation; &gt;0 = cross-fade from the current pose.</summary>
+    public void EnterInjured(string animName, float blendTime)
+    {
+        bool wasStunned = currentState == PlayerStates.Stun;
+        StopAllCoroutines();   // attack / block / hurt / stun / lunge routines must not carry on
+        stunRoutine = null;
+        hurtRoutine = null;
+        isAttacking = false;
+        SetPlayerHitWindow(false);
+        if (wasStunned) StunHalo.Stop(true);
+        ChangeState(PlayerStates.Injured);   // also resets the walking speed multiplier
+        if (player != null) { player.isHurt = false; player.hurtFace = false; player.hurtBody = false; }
+        if (InputHandler.instance != null) InputHandler.instance.SetInput(false);
+
+        if (animator == null || string.IsNullOrEmpty(animName)) return;
+        int hash = Animator.StringToHash(animName);
+        if (!animator.HasState(0, hash))
+        {
+            return;
+        }
+        if (blendTime > 0f) animator.CrossFadeInFixedTime(hash, blendTime, 0, 0f);
+        else animator.Play(hash, 0, 0f);
+    }
     /// <summary>Stops the running attack (hit window shut, walking speed restored) without changing state.</summary>
     private void CancelAttack()
     {
@@ -360,7 +324,53 @@ public class PlayerStateMachine : MonoBehaviour
         SetPlayerHitWindow(false);
         if (player != null) player.moveSpeedMultiplier = 1f;
     }
+    #region Block
+    /// <summary>World-unit gap between the enemy's striking limb (the hitbox of the strike that is coming - hands for a punch,
+    /// feet for a kick) and the player's body. -1 = nothing is incoming (he is not attacking / no hitbox found).</summary>
+    public float IncomingLimbGap()
+    {
+        if (enemy == null || enemy.currentState != EnemyStateMachine.EnemyState.Attack) return -1f;
 
+        if (enemyAttackBoxes == null || enemyAttackBoxes.Length == 0)
+        {
+            var all = enemy.GetComponentsInChildren<DmgDetection>(true);
+            var keep = new List<DmgDetection>();
+            foreach (var d in all) if (d.CompareTag("ePunch") || d.CompareTag("eKick")) keep.Add(d);
+            enemyAttackBoxes = keep.ToArray();
+        }
+        if (bodyColliders == null || bodyColliders.Length == 0)
+        {
+            Transform root = player != null ? player.transform : transform;
+            var all = root.GetComponentsInChildren<Collider>(true);
+            var keep = new List<Collider>();
+            foreach (var c in all) if (c.CompareTag("pBody")) keep.Add(c);
+            bodyColliders = keep.ToArray();
+        }
+        if (enemyAttackBoxes.Length == 0) return -1f;
+
+        string tag = enemy.HitWindowOpen ? enemy.requiredTag : (enemy.IncomingIsPunch() ? "ePunch" : "eKick");
+
+        float best = float.MaxValue;
+        foreach (var box in enemyAttackBoxes)
+        {
+            if (box == null || !box.CompareTag(tag)) continue;
+            Vector3 p = box.transform.position;
+            float gap;
+            if (bodyColliders.Length > 0)
+            {
+                gap = float.MaxValue;
+                foreach (var bc in bodyColliders)
+                {
+                    if (bc == null || !bc.enabled) continue;
+                    gap = Mathf.Min(gap, Vector3.Distance(p, bc.ClosestPoint(p)));
+                }
+                if (gap == float.MaxValue) gap = Mathf.Abs(p.x - (player != null ? player.transform.position.x : transform.position.x));
+            }
+            else gap = Mathf.Abs(p.x - (player != null ? player.transform.position.x : transform.position.x));
+            best = Mathf.Min(best, gap);
+        }
+        return best == float.MaxValue ? -1f : best;
+    }
     /// <summary>Ends a block early (an attack or a new block takes over). Its protection ends with it.</summary>
     private void CancelBlock()
     {
@@ -405,14 +415,10 @@ public class PlayerStateMachine : MonoBehaviour
             ChangeState(PlayerStates.Idle);
         }
     }
+    #endregion
     public float PerfectBlockWindow => perfectBlockWindow;
 
-    [Header("Dodge")]
-    [Tooltip("Pause (seconds) after a dodge finishes before he can dodge again. Counted from the " +
-             "END of the dash (Dodge Time on PlayerController), so it's a true gap.")]
-    [SerializeField] private float dodgeCooldown = 0.4f;
-    private float nextDodgeTime;
-    private int dodgeGrantedFrame = -1;
+    
 
     /// <summary>Single gate for every dodge trigger (this script's state change AND
     /// PlayerController's dash both ask here). Returns true if a dodge may start now; also

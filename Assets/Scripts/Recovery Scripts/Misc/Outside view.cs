@@ -4,8 +4,8 @@ public class Outsideview : MonoBehaviour
 {
     [SerializeField] private GameObject building;
     [SerializeField] private Transform outsideCameraPosition;
-    [Tooltip("How smoothly the camera moves to the outside position.")]
-    [SerializeField] private float moveSmoothTime = 0.3f;
+    //[Tooltip("How smoothly the camera moves to the outside position.")]
+    //[SerializeField] private float moveSmoothTime = 0.3f;
 
     private TopDownCameraFollow _cameraFollow;
     private Vector3 _returnPosition;

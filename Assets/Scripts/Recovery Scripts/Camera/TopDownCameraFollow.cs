@@ -26,8 +26,8 @@ public class TopDownCameraFollow : MonoBehaviour
     [Header("Orbit Rotation (optional — toggle off to disable entirely)")]
     public bool enableOrbitRotation = true;
 
-    [Tooltip("How fast the camera smoothly rotates to the new 90 degree position after a tap. Higher = snappier.")]
-    [SerializeField] private float orbitRotationSpeed = 90f;
+    //[Tooltip("How fast the camera smoothly rotates to the new 90 degree position after a tap. Higher = snappier.")]
+    //[SerializeField] private float orbitRotationSpeed = 90f;
     [Tooltip("How smoothly the orbit rotation catches up. Higher = snappier.")]
     [SerializeField] private float orbitSmoothSpeed = 6f;
 

@@ -88,8 +88,8 @@ public class PlayerSwap : MonoBehaviour
     [SerializeField] private EnemyStateMachine enemy;
     [SerializeField] private MatchTimer matchTimer;
 
-    [Header("Debug")]
-    [SerializeField] private bool logSwap = true;
+    //[Header("Debug")]
+    //[SerializeField] private bool logSwap = true;
 
     private PlayerStateMachine psm;
     private PlayerController pc;

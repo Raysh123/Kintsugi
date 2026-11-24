@@ -155,11 +155,27 @@ MonoBehaviour:
   opponent: {fileID: 0}
   speed: 2
   facingRotationSpeed: 20
+  backwardSpeedMultiplier: 0.75
+  controller: {fileID: 0}
   velocity: {x: 0, y: 0, z: 0}
   move: {x: 0, y: 0, z: 0}
   facingRight: 1
   capCollider: {fileID: 0}
   dodgeTime: 0
+  dodgeDistance: 2
+  excludeMask:
+    serializedVersion: 2
+    m_Bits: 0
+  nothingLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  isHurt: 0
+  hurtFace: 0
+  hurtBody: 0
+  PlayerInitPos: {x: 0, y: 0, z: 0}
+  matchTimer: {fileID: 0}
+  blockWalkingThroughOpponent: 1
+  minBodyGap: 0.8
 --- !u!114 &5536315921916905281
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -253,6 +269,26 @@ MonoBehaviour:
       m_Calls: []
     m_ActionId: 1565e4d9-16d2-44f2-aab0-1f059eb1d1a7
     m_ActionName: 'GamePlay/Dodge[/Keyboard/m]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 9c639de0-60f1-4ff0-b0c4-a9b107481066
+    m_ActionName: 'GamePlay/Block[/Keyboard/n]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 63b10006-83fe-4850-959e-8d0221ba69fa
+    m_ActionName: 'GamePlay/LowerKick[/Keyboard/i]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 8ba451e5-13f0-4ebf-a61d-dee29f9b0017
+    m_ActionName: 'GamePlay/UpperPunch[/Keyboard/o]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: ed92247d-7e63-46e4-bce9-e3900906e70e
+    m_ActionName: 'GamePlay/UpperKick[/Keyboard/p]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 44b32e98-612b-4a70-af34-c68d660a3dcd
+    m_ActionName: GamePlay/Swap
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: GamePlay

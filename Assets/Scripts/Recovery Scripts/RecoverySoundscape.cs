@@ -86,7 +86,7 @@ public class RecoverySoundscape : MonoBehaviour
     [SerializeField] private float ambienceFade = 2f;
     [Tooltip("How often (seconds) it checks which area the player is in.")]
     [SerializeField] private float areaCheckInterval = 0.25f;
-    [SerializeField] private bool debugAmbience = false;
+    //[SerializeField] private bool debugAmbience = false;
 
     private readonly HashSet<string> playingKeys = new HashSet<string>();
     private CalendarManager subscribedCalendar;
@@ -269,7 +269,6 @@ public class RecoverySoundscape : MonoBehaviour
     private IEnumerator BeginAmbience()
     {
         float audioWait = 0f;
-        bool warned = false;
         while (AudioManager.instance == null)
         {
             audioWait += Time.unscaledDeltaTime;

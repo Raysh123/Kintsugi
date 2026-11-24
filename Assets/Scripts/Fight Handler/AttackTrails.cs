@@ -65,7 +65,7 @@ public class AttackTrails : MonoBehaviour
     [SerializeField] private EnemyStateMachine enemy;
     [SerializeField] private PlayerStateMachine player;
 
-    [SerializeField] private bool logTrails = false;
+    //[SerializeField] private bool logTrails = false;
 
     /// <summary>True while a trail is red (the perfect-block moment): can be read by tutorials, UI or sound.</summary>
     public bool PerfectWindowActive { get; private set; }

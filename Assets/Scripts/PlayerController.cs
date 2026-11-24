@@ -67,7 +67,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (matchTimer.matchStopped)
+        if (matchTimer == null || matchTimer.matchStopped)
         {
             return;
         }

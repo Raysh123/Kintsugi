@@ -139,8 +139,6 @@ public class EnemyStateMachine : MonoBehaviour
              "the attack's first hit window opens.")]
     [SerializeField] private float lungeDuration = 0.2f;
     float decisionTimer;
-    float minDist = 0.5f;
-    float maxDist = 2f;
 
     [Header("Back Dash Cooldown (scales with posture)")]
     [Tooltip("Average seconds between back dashes when posture is empty (0).")]
